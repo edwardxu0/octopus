@@ -1,4 +1,3 @@
-from re import A
 import torch
 import os
 import numpy as np
@@ -46,29 +45,34 @@ class Problem():
             x = self.cfg_heuristic[h]
 
             if h == 'bias_shaping':
-                if x['type'] == 'standard':
-                    t = 'S'
+                if x['mode'] == 'standard':
+                    m = 'S'
                 else:
                     raise NotImplementedError
-                name += f"_BS={t}:{x['intensity']}:{x['occurrence']}:{x['start']}:{x['end']}"
+                name += f"_BS={m}:{x['intensity']}:{x['occurrence']}:{x['start']}:{x['end']}"
+
+            elif h == 'rs_loss':
+                if x['mode'] == 'standard':
+                    m = 'S'
+                else:
+                    raise NotImplementedError
+                name += f"_RS={m}:{x['weight']}:{x['start']}:{x['end']}"
 
             elif h == 'pruning':    
-                if x['type'] == 'structure':
-                    t = 'S'
+                if x['mode'] == 'structure':
+                    m = 'S'
                 else:
                     raise NotImplementedError
-                if x['re_arch'] == 'standard':
+                
+                if 're_arch' not in x:
+                    r = '-'
+                elif x['re_arch'] == 'standard':
                     r = 'S'
                 else:
                     raise NotImplementedError
-                name += f"_PR={t}:{r}:{x['sparsity']}:{x['start']}:{x['end']}"
 
-            elif h == 'rs_loss':
-                if x['type'] == 'standard':
-                    t = 'S'
-                else:
-                    raise NotImplementedError
-                name += f"_RS={t}:{x['weight']}:{x['start']}:{x['end']}"
+                name += f"_PR={m}:{r}:{x['sparsity']}:{x['start']}:{x['end']}"
+
             else:
                 assert False
         name += f'_seed={self.seed}'
@@ -82,13 +86,12 @@ class Problem():
         self.device = torch.device("cuda" if use_cuda else "cpu")
         self.train_loader, self.test_loader = gen_data_loader(cfg['artifact'], cfg['adv_train'], cfg['batch_size'], cfg['test_batch_size'], self.device)
 
-        self.model = globals()[cfg['network']]().to(self.device)
+        self.model = globals()[cfg['network']](self.logger).to(self.device)
 
 
     def train(self):
         self.train_setup()
 
-        # self.optimizer = optim.Adadelta(self.model.parameters(), lr=args.lr)
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.cfg_train['lr'])
         scheduler = StepLR(self.optimizer, step_size=1, gamma=self.cfg_train['gamma'])
 
@@ -96,12 +99,12 @@ class Problem():
             self.train_epoch(epoch)
             self.test_epoch(epoch)
 
-            # pruning
+            # H: pruning
             if 'prune' in self.cfg_heuristic\
                 and self.cfg_heuristic['prune']['start'] <= epoch <= self.cfg_heuristic['prune']['end']:
-
                 self.model.prune(self.cfg_heuristic['prune'])
-
+            
+            # save model
             if self.cfg_train['save_model']:
                 dummy_input = torch.randn(1, 1, 28, 28, device=self.device)
                 torch.onnx.export(self.model, dummy_input, os.path.join(self.settings.model_dir, f"{self.model_name}.onnx"), verbose=False)
@@ -109,14 +112,10 @@ class Problem():
             
             scheduler.step()
         
-        self.plot_train()
+            self.plot_train()
 
 
     def train_epoch(self, epoch):
-        nb_safe_relu = []
-        hammer_points = []
-        losses = []
-
         self.model.train()
 
         for batch_idx, (data, target) in enumerate(self.train_loader):
@@ -128,6 +127,7 @@ class Problem():
 
             loss = F.nll_loss(output, target)
             
+            # H: RS loss
             if 'rs_loss' in self.cfg_heuristic\
                 and self.cfg_heuristic['rs_loss']['start'] <= epoch <= self.cfg_heuristic['rs_loss']['end']:
 
@@ -135,29 +135,27 @@ class Problem():
                 rs_loss = self.model.get_RS_loss(data, cfg_rs_loss)
                 loss += rs_loss * cfg_rs_loss['weight']
             
-            
             loss.backward()
             self.optimizer.step()
 
-            # activate bias shaping
+            # H: bias shaping
             if 'bias_shaping' in self.cfg_heuristic\
+                and batch_idx != 0\
                 and self.cfg_heuristic['bias_shaping']['start'] <= epoch <= self.cfg_heuristic['bias_shaping']['end']:
-                self.model.bias_shaping(self.cfg_heuristic['bias_shaping'], data, epoch, batch_idx, self.device)
-            #f_rurh, safe_le_zero, safe_ge_zero = bias_shaping(args, data, activation, model, device, epoch, batch_idx, test_accuracy, last_pre_rurh_accuracy)
-            #if f_rurh:
-            #    hammer_points += [len(train_loader)*(epoch-1) +batch_idx]
-            #nb_safe_relu += [safe_le_zero+safe_ge_zero]
 
-            self.train_stable_ReLUs += [self.model.stable_ReLU()]
+                if np.random.rand() < self.cfg_heuristic['bias_shaping']['occurrence']:
+                    print('before', self.model.stable_ReLU())
+                    if self.model.bias_shaping(self.cfg_heuristic['bias_shaping'], data, self.device):
+                        BS_point = len(self.train_loader) * (epoch-1) + batch_idx
+                        self.train_BS_points += [BS_point]
+                    print('after', self.model.stable_ReLU())
+
+            batch_stable_ReLU = self.model.stable_ReLU()
+            self.train_stable_ReLUs += [batch_stable_ReLU]
             self.train_loss += [loss.item()]
 
             if batch_idx % self.cfg_train['log_interval'] == 0:
-                #print('Train Epoch: {} batch: {} {:5.2f}% Loss: {:10.6f}'.format(epoch, batch_idx,
-                #    100. * batch_idx / len(train_loader), loss.item()),end='')
-                #print(f'\t{f_rurh}', end='')
-                # print(f'\tSafe ReLU: {safe_le_zero+safe_ge_zero:6.0f}: (-: {safe_le_zero:6.0f}, +: {safe_ge_zero:6.0f})')
-
-                print(f'Train epoch: {epoch} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f} Loss: {loss.item():10.6f} ')# RURH: {str(f_rurh)[0]} Safe ReLU: {safe_le_zero+safe_ge_zero:6.0f}: (-: {safe_le_zero:6.0f}, +: {safe_ge_zero:6.0f})')
+                self.logger.info(f'[Train] epoch: {epoch} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f} Loss: {loss.item():10.6f} SR: {batch_stable_ReLU:5}')
         
 
     def test_epoch(self, epoch):
@@ -175,14 +173,10 @@ class Problem():
                 correct += pred.eq(target.view_as(pred)).sum().item()
 
         test_loss /= len(self.test_loader.dataset)
-
         test_accuracy = correct / len(self.test_loader.dataset)
         self.test_accuracy += [test_accuracy]
 
-        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            test_loss, correct, len(self.test_loader.dataset),
-            100. * test_accuracy))
-        return correct/ len(self.test_loader.dataset)
+        self.logger.info(f'[Test] epoch: {epoch} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}%.\n')
 
 
     def plot_train(self):
@@ -207,7 +201,7 @@ class Problem():
         p_plot.save(title, path)
 
 
-    def try_prop(model, device, test_loader, args, activation, epoch, test_accuracy, last_pre_rurh_accuracy):
+    def sample_prop(model, device, test_loader, args, activation, epoch, test_accuracy, last_pre_rurh_accuracy):
         model.eval()
         eps = 0.2
         safe = []

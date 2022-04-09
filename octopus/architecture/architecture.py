@@ -1,3 +1,4 @@
+from asyncio.log import logger
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,8 +7,8 @@ from .basic_net import BasicNet
 
 
 class NetS(BasicNet):
-    def __init__(self):
-        super(NetS, self).__init__()
+    def __init__(self, logger):
+        super(NetS, self).__init__(logger)
         self.fc1 = nn.Linear(784, 128)
         self.fc2 = nn.Linear(128, 128)
         self.fc3 = nn.Linear(128, 128)
@@ -29,8 +30,8 @@ class NetS(BasicNet):
 
 
 class NetM(BasicNet):
-    def __init__(self):
-        super(NetM, self).__init__()
+    def __init__(self, logger):
+        super(NetM, self).__init__(logger)
         self.fc1 = nn.Linear(784, 1024)
         self.fc2 = nn.Linear(1024, 1024)
         self.fc3 = nn.Linear(1024, 1024)
@@ -52,8 +53,8 @@ class NetM(BasicNet):
 
 
 class NetL(BasicNet):
-    def __init__(self):
-        super(NetL, self).__init__()
+    def __init__(self, logger):
+        super(NetL, self).__init__(logger)
         self.fc1 = nn.Linear(784, 1024)
         self.fc2 = nn.Linear(1024, 1024)
         self.fc3 = nn.Linear(1024, 1024)

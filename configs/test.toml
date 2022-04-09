@@ -1,9 +1,9 @@
-name = 'mnist_NetS'
+name = 'test'
 
 [train]
 	artifact = 'MNIST'
-	network = 'NetM'
-	epochs = 10
+	network = 'NetL'
+	epochs = 100
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4				# learning rate
@@ -21,21 +21,21 @@ name = 'mnist_NetS'
 
 [heuristic]
 	[heuristic.bias_shaping]
-		type = 'standard'
-		intensity = 1e-2
-		occurrence = 1e-3
+		mode = 'standard'
+		intensity = 5e-2
+		occurrence = 5e-3
 		start = 1 			# inclusive
 		end = 10 			# inclusive
 	
 	#[heuristic.rs_loss]
-	#	type = 'standard'
+	#	mode = 'standard'
 	#	weight = 1e-4
 	#	epsilon = 1e-1
 	#	start = 1
 	#	end = 10
 
 	#[heuristic.pruning]
-	#	type = 'structure'
+	#	mode = 'structure'
 	#	re_arch = 'standard'
 	#	sparsity = 30
 	#	start = 1

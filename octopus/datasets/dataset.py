@@ -16,9 +16,9 @@ def gen_data_loader(problem, adv_train, batch_size, test_batch_size, use_cuda):
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
         ])
-    dataset1 = eval(f'datasets.{problem}')('../data', train=True, download=True,
+    dataset1 = eval(f'datasets.{problem}')('data', train=True, download=True,
                        transform=transform)
-    dataset2 = eval(f'datasets.{problem}')('../data', train=False,
+    dataset2 = eval(f'datasets.{problem}')('data', train=False,
                        transform=transform)
 
     train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)

@@ -1,13 +1,14 @@
 import torch
 import numpy as np
+np.set_printoptions(suppress=True, precision=4)
 
 from torch import nn
 
 
 class BasicNet(nn.Module):
-    def __init__(self):
+    def __init__(self, logger):
         super(BasicNet, self).__init__()
-        
+        self.logger = logger
     
     def __setup__(self):
         self._compute_filtered_named_modules()
@@ -23,11 +24,12 @@ class BasicNet(nn.Module):
         self.filtered_named_modules = filtered_named_modules
 
 
-    def get_RS_loss(self, data, cfg_rs_loss):
+    def get_RS_loss(self, data, cfg):
+        assert cfg['mode'] == 'standard'
         loss = torch.zeros((len(data),3))
         data = data.reshape((-1, 28*28))
-        lb = torch.maximum(data - cfg_rs_loss['epsilon'], torch.tensor(0., requires_grad=True))
-        ub = torch.minimum(data + cfg_rs_loss['epsilon'], torch.tensor(1., requires_grad=True))
+        lb = torch.maximum(data - cfg['epsilon'], torch.tensor(0., requires_grad=True))
+        ub = torch.minimum(data + cfg['epsilon'], torch.tensor(1., requires_grad=True))
             
         for i, (name, _) in enumerate(self.filtered_named_modules):
             w = self.__getattr__(name).weight
@@ -109,48 +111,25 @@ class BasicNet(nn.Module):
         return safe_all
 
 
-    def bias_shaping(self, cfg_bs,data, epoch, batch_idx, device):
-        f_rurh = False
+    def bias_shaping(self, cfg, data, device):
+        BS_switch = False
 
-        safe_le_zero_all = []
-        safe_ge_zero_all = []
-        for layer in self.activation.keys():
-            val = self.activation[layer].view(self.activation[layer].size(0),-1).numpy()
-            val_min = np.min(val, axis=0)
-            val_max = np.max(val, axis=0)
-            safe_ge_zero = (np.asarray(val_min) >= 0).sum()
-            safe_le_zero = (np.asarray(val_max) <= 0).sum()
-
-            safe_le_zero_all += [safe_le_zero]
-            safe_ge_zero_all += [safe_ge_zero]
-
-        safe_all = sum(safe_le_zero_all)+sum(safe_ge_zero_all)
-        max_safe_relu = sum([self.activation[layer].view(self.activation[layer].size(0),-1).shape[-1] for layer in self.activation])
-        
-        # When is RURH activated?
-        # 1) don't happen on first mini batch
-        # 1) rurh is on
-        # 2) last epochs is excepted
-        # 3) occurance > 0
-        # 4) ocrc% of time
-        # 5) doesnt exceed upper bound
-        if batch_idx > 0 and np.random.rand() < cfg_bs['occurrence']:
-            
-            if cfg_bs['type'] == 'standard':
-                f_rurh = True
+        # probability check
+        #if np.random.rand() < cfg['occurrence']:
+        if True:    
+            # bias shaping modes
+            if cfg['mode'] == 'standard':
+                BS_switch = True
             else:
                 assert False
 
-            if f_rurh:
+            if BS_switch:
                 for layer in self.activation.keys():
-                    self.eval()
-                    self(data)
-
-                    val = self.activation[layer].view(self.activation[layer].size(0),-1).numpy()
-                    val_min = np.min(val, axis=0)
-                    val_max = np.max(val, axis=0)
-                    safe_ge_zero = (np.asarray(val_min) >= 0).sum()
-                    safe_le_zero = (np.asarray(val_max) <= 0).sum()
+                    val = self.activation[layer].view(self.activation[layer].size(0),-1)
+                    val_min = torch.min(val, axis=0).values
+                    val_max = torch.max(val, axis=0).values
+                    safe_ge_zero = torch.sum(val_min >= 0).int()
+                    safe_le_zero = torch.sum(val_max <= 0).int()
 
                     # assert safe_ge_zero == 0
                     val_min_lt_zero = np.copy(val_min)
@@ -163,18 +142,28 @@ class BasicNet(nn.Module):
                     # pick ub > 0
                     val_max_gt_zero[val_max_gt_zero < 0] = 0
                     # print(val_max_gt_zero)
-
-                    val_abs_min = np.min(np.array([val_min_lt_zero, val_max_gt_zero]), axis=0)
-                    len(np.where(val_abs_min==0)[0]) == safe_ge_zero + safe_le_zero
-
-                    n = int(len(np.where(val_abs_min!=0)[0]) * cfg_bs['intensity'])
                     
-                    pivot_value = val_abs_min[np.argsort(val_abs_min)[-n]]
+                    val_abs_min = np.min(np.array([val_min_lt_zero, val_max_gt_zero]), axis=0)
+                    #print(val_abs_min)
+                    assert len(np.where(val_abs_min==0)[0]) == safe_ge_zero + safe_le_zero
 
-                    val_abs_min[val_abs_min < pivot_value] = 0
-
+                    n = round(len(np.where(val_abs_min!=0)[0]) * cfg['intensity'])
+                    self.logger.info(f'BSed {n} neurons.')
+                    #n = 2 
+                    n += safe_ge_zero + safe_le_zero -1
+                    #print(n)
+                    pivot_value = val_abs_min[np.argsort(val_abs_min)[n]]
+                    #print(np.argsort(val_abs_min))
+                    #print(np.argsort(val_abs_min)[-n])
+                    #print(pivot_value)
+                    val_abs_min[val_abs_min > pivot_value] = 0
+                    #print(val_abs_min)
+                    
                     a = np.where(val_min_lt_zero == val_abs_min)
                     b = np.where(val_max_gt_zero == val_abs_min)
+                    #print(a)
+                    #print(b)
+                    
                     x = np.zeros(val_min.shape)
                     x[a[0]] = val_abs_min[a[0]]#+SHIFT_EPSILON
                     x*=-1
@@ -184,24 +173,22 @@ class BasicNet(nn.Module):
                     pretrained = self.state_dict()
                     fc1_bias = pretrained[f'{layer}.bias']
                     epsilon = 0.1
+                    #print(fc1_bias.detach().numpy())
                     new_bias = fc1_bias.detach().numpy() + x
+                    #print(new_bias)
+                    
                     new_bias = torch.from_numpy(new_bias).to(device, dtype=torch.float32)
                     # model.fc1.bias = model.fc1.bias - new_bias
                     # model.fc1.bias = nn.Parameter(torch.randn(128))
                     pretrained[f'{layer}.bias'] = new_bias
                     self.load_state_dict(pretrained)
 
-        if f_rurh:
-            safe_le_zero_all = []
-            safe_ge_zero_all = []
-            for layer in self.activation.keys():
-                val = self.activation[layer].view(self.activation[layer].size(0),-1).numpy()
-                val_min = np.min(val, axis=0)
-                val_max = np.max(val, axis=0)
-                safe_ge_zero = (np.asarray(val_min) >= 0).sum()
-                safe_le_zero = (np.asarray(val_max) <= 0).sum()
+                    # set model to eval mode
+                    # calculate the new pre-activation values due to changes to this layer
+                    self.eval()
+                    self(data)
+                
+                # reset model to train mode
+                self.train()
 
-                safe_le_zero_all += [safe_le_zero]
-                safe_ge_zero_all += [safe_ge_zero]
-        
-        return f_rurh, sum(safe_le_zero_all), sum(safe_ge_zero_all)
+        return BS_switch

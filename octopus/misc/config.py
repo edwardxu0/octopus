@@ -7,7 +7,7 @@ import logging
 def configure(args):
     config_file = open(args.configs, 'r').read()
     cfg = toml.loads(config_file)
-    cfg['result_dir'] = os.path.join(args.result_dir, f'{cfg["name"]}.{args.seed}')
+    cfg['result_dir'] = os.path.join(args.result_dir, f'{cfg["name"]}')
     cfg['seed'] = args.seed
     cfg['task'] = args.task
 

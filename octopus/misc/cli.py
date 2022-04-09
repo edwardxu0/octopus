@@ -4,7 +4,7 @@ from pyfiglet import Figlet
 
 def parse_args():
     f = Figlet(font='slant')
-    print(f.renderText('GVN'), end='')
+    print(f.renderText('OCTOPUS'), end='')
 
     parser = argparse.ArgumentParser(
         description='Generate Verifiable Networks',
