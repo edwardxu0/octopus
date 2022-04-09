@@ -1,0 +1,14 @@
+results
+raw*
+models
+*~
+*__pycache__*
+*.DS_Store
+.venv
+tmp*
+temp*
+fig*
+log*
+lib
+backup
+attic
