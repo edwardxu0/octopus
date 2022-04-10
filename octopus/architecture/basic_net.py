@@ -99,7 +99,7 @@ class BasicNet(nn.Module):
         safe_le_zero_all = []
         safe_ge_zero_all = []
         for layer in self.activation.keys():
-            val = self.activation[layer].view(self.activation[layer].size(0),-1).numpy()
+            val = self.activation[layer].view(self.activation[layer].size(0),-1).cpu().numpy()
             val_min = np.min(val, axis=0)
             val_max = np.max(val, axis=0)
             safe_ge_zero = (np.asarray(val_min) >= 0).sum()
@@ -132,8 +132,8 @@ class BasicNet(nn.Module):
                     safe_le_zero = torch.sum(val_max <= 0).int()
 
                     # assert safe_ge_zero == 0
-                    val_min_lt_zero = np.copy(val_min)
-                    val_max_gt_zero = np.copy(val_max)
+                    val_min_lt_zero = np.copy(val_min.cpu())
+                    val_max_gt_zero = np.copy(val_max.cpu())
                     
                     # pick lb < 0
                     val_min_lt_zero[val_min_lt_zero > 0] = 0
@@ -174,7 +174,7 @@ class BasicNet(nn.Module):
                     fc1_bias = pretrained[f'{layer}.bias']
                     epsilon = 0.1
                     #print(fc1_bias.detach().numpy())
-                    new_bias = fc1_bias.detach().numpy() + x
+                    new_bias = fc1_bias.clone().cpu().detach().numpy() + x
                     #print(new_bias)
                     
                     new_bias = torch.from_numpy(new_bias).to(device, dtype=torch.float32)

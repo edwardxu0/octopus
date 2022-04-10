@@ -9,7 +9,8 @@ name = 'test'
 	lr = 1e-4				# learning rate
 	gamma = 0.7 			# Learning rate step gamma
 	save_model = true
-	log_interval = 500		# pring while n-th batch 
+	log_interval = 500		# pring while n-th batch
+	gpu = true
 
 	adv_train = 'nature' # ['nature', 'pgd', 'vae', 'gan', ...]
 	
@@ -24,8 +25,8 @@ name = 'test'
 		mode = 'standard'
 		intensity = 5e-2
 		occurrence = 5e-3
-		start = 1 			# inclusive
-		end = 10 			# inclusive
+		start = 25 			# inclusive
+		end = 75 			# inclusive
 	
 	#[heuristic.rs_loss]
 	#	mode = 'standard'
