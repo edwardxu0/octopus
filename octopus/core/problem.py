@@ -132,7 +132,7 @@ class Problem():
                 and self.cfg_heuristic['rs_loss']['start'] <= epoch <= self.cfg_heuristic['rs_loss']['end']:
 
                 cfg_rs_loss = self.cfg_heuristic['rs_loss']
-                rs_loss = self.model.get_RS_loss(data, cfg_rs_loss)
+                rs_loss = self.model.get_RS_loss(data, cfg_rs_loss, self.device)
                 loss += rs_loss * cfg_rs_loss['weight']
             
             loss.backward()

@@ -24,9 +24,9 @@ class BasicNet(nn.Module):
         self.filtered_named_modules = filtered_named_modules
 
 
-    def get_RS_loss(self, data, cfg):
+    def get_RS_loss(self, data, cfg, device):
         assert cfg['mode'] == 'standard'
-        loss = torch.zeros((len(data),3))
+        loss = torch.zeros((len(data),3), device=device)
         data = data.reshape((-1, 28*28))
         lb = torch.maximum(data - cfg['epsilon'], torch.tensor(0., requires_grad=True))
         ub = torch.minimum(data + cfg['epsilon'], torch.tensor(1., requires_grad=True))
