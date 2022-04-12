@@ -1,26 +1,23 @@
-# Reducing-the-number-of-unsafe-ReLu
+# OCTOPUS
+Obsessive Crazy Training-Oriented Proving Ultimate System(OCTOPUS) for DNN verification.
 
 ## How to use?
+### Setup
+1. Initialize environment, `python3 -m venv .venv`.
+2. Activate environment, `source .env.d/openenv.sh`.
+3. Install dependencies, `pip install -r .env.d/requirements.txt`.
 
-1. Run `python src/main.py --help` for detailed usage.
+### Execution
+1. Activate environment, `source .env.d/openenv.sh`.
+2. Use `octopus config task` to run octopus.
 
-2. Use `python src/main.py [task] ...` to do some analyze over the pre activation values.
+    **train**: train network with the heuristics.
 
-    **train**: train network with the "--save-model" flag to save models and raw data into the "results" path.
+    **verify**: TODO
+    **analyze**: TODO
 
-    **analyze_sign**: analyze the pre activation values during the training and testing phase. Results are saved at "./meta/activation_train.txt" and "./meta/activation_test.txt". It computes the sign of pre activation values in the order of: positive, negative, and zero.
-
-    **analyze_bounds**: analyze the pre activation values during the training and testing phase. Results are saved at "./meta/train_bounds.csv" and "./meta/test_bounds.csv". It computes the number of safe and unsafe ReLUs during training and testing.
-    
-    **analyze_class**: analyze the pre activation values seperated by each output class during the training and testing phase. Results are saved at "./meta/activation_byclass_train.txt" and "./meta/activation_byclass_test.txt". It combines the pre activation values for similar class inputs and computes the sign of pre activation values in the order of: positive, negative, and zero.
-    
-    **analyze_class_bounds**: analyze the pre activation values seperated by each output class during the training and testing phase. Results are saved at "./meta/train_bounds_class.csv" and "./meta/test_bounds_class.csv". It combines the pre activation values for similar class inputs computes the number of safe and unsafe ReLUs during training and testing.
-
-3. Run RURH(Reducing Unsafe ReLU Heuristics) with the `rurh` option.
-`python ./src/main.py train --rurh standard`
-    **None**: no heuristics.
-    **standard**: basic heuristic that modifies the bias of all global unsafe ReLUs.
-    **...**: ...
+3. `config`
+    TODO: describe here.
 
 ## TODO:
 * [x] explore ways to incoordinate the unsafe ReLUs into back propagation. [D,N]
