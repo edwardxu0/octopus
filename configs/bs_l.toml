@@ -2,7 +2,9 @@ name = 'test'
 
 [train]
 	artifact = 'MNIST'
-	network = 'NetL'
+	net_name = 'NetL'
+	net_layers = [784, 1024, 1024, 1024, 1024, 1024, 1024, 10]
+
 	epochs = 100
 	batch_size = 64
 	test_batch_size = 1000
@@ -12,35 +14,33 @@ name = 'test'
 	log_interval = 500		# pring while n-th batch
 	gpu = true
 
-	adv_train = 'nature' # ['nature', 'pgd', 'vae', 'gan', ...]
-	
+	ReLU_estimation = 'VS' # TD: train distribution, IP: interval propagation, VS: verification sampling
+	adv_train = 'nature' # ['nature', 'pgd', 'vae', 'gan', ...]	
+
 	[train.dispatch]
 		platform = "local"
-
-[ReLU_estimation]	
-	method = 'TD' # TD: train distribution, IP: interval propagation
 
 [heuristic]
 	[heuristic.bias_shaping]
 		mode = 'standard'
 		intensity = 5e-2
 		occurrence = 5e-3
-		start = 25 			# inclusive
-		end = 75 			# inclusive
+		start = 1 			# inclusive
+		end = 100 			# inclusive
 	
 	#[heuristic.rs_loss]
 	#	mode = 'standard'
 	#	weight = 1e-4
 	#	epsilon = 1e-1
-	#	start = 1
-	#	end = 10
+	#	start = 2
+	#	end = 9
 
-	#[heuristic.pruning]
+	#[heuristic.prune]
 	#	mode = 'structure'
 	#	re_arch = 'standard'
 	#	sparsity = 30
-	#	start = 1
-	#	end = 10
+	#	start = 2
+	#	end = 9
 
 
 
