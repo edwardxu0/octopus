@@ -26,12 +26,12 @@ class Settings():
     def __init__(self, cfg):
         self.name = cfg['name']
         self.logging_level = cfg['logging_level']
-        self.result_dir = cfg['result_dir']
         self.seed = cfg['seed']
         self.task = cfg['task']
+        self.result_dir = cfg['result_dir']
+        self.sub_dirs = {'result_dir': self.result_dir}
 
         self.cfg_train = cfg['train']
-        self.cfg_relu_est = cfg['ReLU_estimation']
         self.cfg_heuristic = cfg['heuristic'] if 'heuristic' in cfg else None
         self.cfg_verify = cfg['verify']
 
@@ -43,22 +43,20 @@ class Settings():
                             'error': 5}
 
         self.tmp_dir = './tmp'
-        self.sub_dirs = ['train_log', 'model', 'property', 'veri_log']
+        sub_dirs = {'train_log', 'model', 'property', 'veri_log'}
         if cfg['train']['dispatch']['platform'] == 'slurm':
-            self.sub_dirs += ['train_slurm']
+            sub_dirs += ['train_slurm']
         if cfg['verify']['dispatch']['platform'] == 'slurm':
-            self.sub_dirs += ['veri_slurm']
-        self._make_dirs()
-        cfg['result_dir']
+            sub_dirs += ['veri_slurm']
+        self._make_dirs(sub_dirs)
 
 
-    def _make_dirs(self):
+    def _make_dirs(self, sub_dirs):
         pathlib.Path(self.tmp_dir).mkdir(parents=True, exist_ok=True)
-        pathlib.Path(self.result_dir).mkdir(parents=True, exist_ok=True)
         pathlib.Path().mkdir(parents=True, exist_ok=True)
-        for sd in self.sub_dirs:
-            attr = sd + '_dir'
-            self.__setattr__(attr, os.path.join(self.result_dir, sd))
-            pathlib.Path(self.__getattribute__(attr)).mkdir(
-                parents=True, exist_ok=True)
+        for sd in sub_dirs:
+            sd += '_dir'
+            sdp = os.path.join(self.result_dir, sd)
+            self.sub_dirs[sd] = sdp
+            pathlib.Path(sdp).mkdir(parents=True, exist_ok=True)
         

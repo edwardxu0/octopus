@@ -7,6 +7,6 @@ logging.basicConfig(stream=sys.stdout,
 
 
 def initialize(settings):
-    logger = logging.getLogger()
+    logger = logging.getLogger('KRAKEN')
     logger.setLevel(level=settings.logging_level)
     settings.logger = logger

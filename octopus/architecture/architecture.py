@@ -6,9 +6,59 @@ import torch.nn.functional as F
 from .basic_net import BasicNet
 
 
+class VeriNet(BasicNet):
+    def __init__(self, layers, logger, device):
+        super(VeriNet, self).__init__(logger, device)
+        self._set_layers(layers)
+        super().__setup__()
+
+    def _set_layers(self, layers):
+        self.layers = []
+        for i,l in enumerate(layers[1:-1]):
+            # add FC layers
+            if type(l) == int:
+                layer = nn.Linear(layers[i], l)
+                self.layers += [layer]
+                self.__setattr__(f'FC{i+1}', layer)
+                layer = nn.ReLU()
+                self.layers += [layer]
+                self.__setattr__(f'ReLU{i+1}', layer)
+            # TODO: add conv layers
+            else:
+                assert False
+            
+            # add a dropout layer before the output layer
+            if i == len(layers)-3:
+                layer = nn.Dropout(0.5)
+                self.Dropout1 = layer
+                self.layers += [layer]
+            
+        # add output layer
+        # check last hidden layer to be a FC layer
+        if type(layers[-2]) == int:
+            layer = self.OUT = nn.Linear(layers[-2], layers[-1])
+            self.layers += [layer]
+        # TODO:check last hidden layer to be a conv layer
+        else:
+            assert False
+        
+
+    def forward(self, x):
+        # reshape input if first hidden layer is a FC layer
+        if isinstance(self.layers[0], torch.nn.modules.linear.Linear):
+            x = x.reshape(-1, 28*28)
+        else:
+            assert False
+        
+        # workout the network
+        for l in self.layers:
+            x = l(x)
+        return x
+
+
 class NetS(BasicNet):
-    def __init__(self, logger):
-        super(NetS, self).__init__(logger)
+    def __init__(self, logger, device):
+        super(NetS, self).__init__(logger, device)
         self.fc1 = nn.Linear(784, 128)
         self.fc2 = nn.Linear(128, 128)
         self.fc3 = nn.Linear(128, 128)

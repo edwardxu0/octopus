@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-from numpy import rot90
 
 
 class ProgressPlot:
