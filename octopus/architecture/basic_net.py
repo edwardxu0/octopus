@@ -47,6 +47,7 @@ class BasicNet(nn.Module):
                 else:
                     raise NotImplementedError
     
+
     def run_heuristics(self, name, data):
         return self.heuristics[name].run(data)
 
@@ -57,11 +58,13 @@ class BasicNet(nn.Module):
             module.register_forward_hook(self.get_activation(name,activation))
         return activation
 
+
     @staticmethod
     def get_activation(name, activation):
         def hook(model, input, output):
             activation[name] = output.detach()
         return hook
+
 
     # estimate ReLUs
     def estimate_stable_ReLU(self, ReLU_est, test_loader=None):
@@ -97,5 +100,4 @@ class BasicNet(nn.Module):
             raise NotImplementedError
 
         return total_safe
-
 

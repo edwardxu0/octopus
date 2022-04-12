@@ -12,7 +12,7 @@ class RSLoss(Heuristic):
         
 
 
-    def run(self, data,):
+    def run(self, data):
         loss = torch.zeros((len(data),3), device=self.model.device)
         data = data.reshape((-1, 28*28))
         lb = torch.maximum(data - self.epsilon, torch.tensor(0., requires_grad=True))
