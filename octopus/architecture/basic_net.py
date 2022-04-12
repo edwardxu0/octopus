@@ -63,7 +63,7 @@ class BasicNet(nn.Module):
             activation[name] = output.detach()
         return hook
 
-    # Bias shaping
+    # estimate ReLUs
     def estimate_stable_ReLU(self, ReLU_est, test_loader=None):
         if ReLU_est == 'TD':
             safe_le_zero_all = []
@@ -85,7 +85,8 @@ class BasicNet(nn.Module):
             self.eval()
             with torch.no_grad():
                 data, _ = next(iter(test_loader))
-                adv = torch.FloatTensor(data.shape).uniform_(-eps, +eps)
+                data = data.to(self.device)
+                adv = torch.FloatTensor(data.shape).uniform_(-eps, +eps).to(self.device)
                 data = data+adv
                 self(data)
                 total_safe += [self.estimate_stable_ReLU('TD')]
