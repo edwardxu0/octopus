@@ -1,5 +1,7 @@
 import os
 import toml
+import copy
+import time
 
 from pathlib import Path
 
@@ -17,21 +19,22 @@ def verify_all(settings, artifact, nets, heuristics, seeds, props, epsilons, ver
                         for e in epsilons:
                             for v in verifiers:
                                 c += 1
-                                settings['train']['artifact'] = a
-                                settings['train']['net_name'] = n
-                                settings['train']['net_layers'] = nets[n]
+                                sts = copy.deepcopy(settings)
+                                sts['train']['artifact'] = a
+                                sts['train']['net_name'] = n
+                                sts['train']['net_layers'] = nets[n]
                                 if h != 'base':
-                                    settings['heuristic'][h] = heuristics[h]
-                                settings['verify']['property'] = p
-                                settings['verify']['epsilon'] = e
-                                settings['verify']['verifier'] = v
+                                    sts['heuristic'][h] = heuristics[h]
+                                sts['verify']['property'] = p
+                                sts['verify']['epsilon'] = e
+                                sts['verify']['verifier'] = v
 
-                                veri_config_dir = os.path.join(f"results/{settings['name']}", 'veri_config')
+                                veri_config_dir = os.path.join(f"results/{sts['name']}", 'veri_config')
                                 Path(veri_config_dir).mkdir(exist_ok=True, parents=True)
                                 toml_path = os.path.join(veri_config_dir, f'{a}_{n}_{h}_{s}_{p}_{e}_{v}.toml')
-                                toml.dump(settings, open(toml_path, 'w'))
+                                toml.dump(sts, open(toml_path, 'w'))
 
-                                veri_slurm_dir = os.path.join(f"results/{settings['name']}", 'veri_slurm_log')
+                                veri_slurm_dir = os.path.join(f"results/{sts['name']}", 'veri_slurm_log')
                                 Path(veri_slurm_dir).mkdir(exist_ok=True, parents=True)
                                 veri_log_path = os.path.join(veri_slurm_dir, f'{a}_{n}_{h}_{s}_{p}_{e}_{v}.txt')
                                 cmd = f'octopus {toml_path} verify --seed {s}'
@@ -44,6 +47,7 @@ def verify_all(settings, artifact, nets, heuristics, seeds, props, epsilons, ver
                                     f'#SBATCH --output={veri_log_path}',
                                     f'#SBATCH --error={veri_log_path}',
                                     'cat /proc/sys/kernel/hostname',
+                                    'source .env.d/openenv.sh',
                                     cmd]
                                     lines = [x+'\n' for x in lines]
                                     slurm_path = 'tmp/tmp.slurm'
@@ -55,6 +59,7 @@ def verify_all(settings, artifact, nets, heuristics, seeds, props, epsilons, ver
                                         exit()
                                     else:
                                         print(cmd)
+                                        time.sleep(1)
                                         os.system(cmd)
                                 else:
                                     assert False

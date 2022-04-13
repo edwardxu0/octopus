@@ -11,7 +11,7 @@ def main():
             'NetM':[784, 1024, 1024, 1024, 10],
             'NetL':[784, 1024, 1024, 1024, 1024, 1024, 1024, 10]}
     
-    seeds = [0] # [*range(10,15)]
+    seeds = [*range(5)]
 
     heuristics = {'bias_shaping':{
                                 'mode':'standard',
