@@ -1,57 +1,57 @@
 import os
 
-from run import TRAIN_LOG_DIR
-from src.configs import _model_name
+import toml
+from pathlib import Path
 
 
-def train_all(strat, problems, nets, itst, ocrc, upbd, seeds, slurm=False, go=False):
+def train_all(settings, artifacts, nets, heuristics, seeds, slurm=False, go=False):
     c = 0
-    for p in problems:
+    for a in artifacts:
         for n in nets:
-            for i in itst:
-                for j in ocrc:
-                    for k in upbd:
-                        for s in seeds:
-                            c += 1
-                            cmd = f"python src/main.py train --epochs 40 --save-model --log-interval 1 --problem {p} --net-name {n} --seed {s}"
-                            
-                            if strat == 'rurh':
-                                cmd += f" --rurh ral --rurh_itst {i} --rurh_ocrc {j} --rurh_upbd {k} --rurh_ral 0.05 --rurh_deactive_pre 10 --rurh_deactive_post 10"
-                            elif strat == 'rs':
-                                cmd += f" --rs basic"
-                            elif strat == 'baseline':
-                                pass
-                            else:
-                                assert False
+            for h in heuristics:
+                for s in seeds:
+                    c += 1
+                    settings['train']['artifact'] = a
+                    settings['train']['net_name'] = n
+                    settings['train']['net_layers'] = nets[n]
+                    settings['heuristic'][h] = heuristics[h]
+                    
+                    train_config_dir = os.path.join(f"results/{settings['name']}", 'train_config')
+                    Path(train_config_dir).mkdir(exist_ok=True, parents=True)
+                    toml_path = os.path.join(train_config_dir, f'{a}_{n}_{h}_{s}.toml')
+                    toml.dump(settings, open(toml_path, 'w'))
 
-                            m_name = _model_name(strat, p, n, s, rurh_itst=i, rurh_ocrc=j, rurh_upbd=k)
+                    train_log_dir = os.path.join(f"results/{settings['name']}", 'train_log')
+                    Path(train_log_dir).mkdir(exist_ok=True, parents=True)
+                    train_log_path = os.path.join(train_log_dir, f'{a}_{n}_{h}_{s}.txt')
 
-                            out_path = f'{TRAIN_LOG_DIR}/{m_name}.txt'
-                            if os.path.exists(out_path):
-                                print('Done.')
-                                continue
-                            if slurm:
-                                lines = ['#!/bin/sh',
-                                        f'#SBATCH --job-name=RURHt',
-                                        #f'#SBATCH --gres=gpu:1',
-                                        f'#SBATCH --output={out_path}',
-                                        f'#SBATCH --error={out_path}',
-                                        'cat /proc/sys/kernel/hostname',
-                                        cmd]
+                    cmd = f"octopus {toml_path} train --seed {s}"
 
-                                lines = [x+'\n' for x in lines]
-                                slurm_path = 'tmp.slurm'
-                                open(slurm_path,'w').writelines(lines)
-                                cmd = f'sbatch -c 12 {slurm_path}'
-                                #cmd = f'sbatch --partition=gpu {slurm_path}'
-                                
-                                if not go:
-                                    print(f'{lines[-1][:-1]} > {out_path}')
-                                    exit()
-                                else:
-                                    print(cmd)
-                                    os.system(cmd)
-                                # time.sleep(1)
-                            else:
-                                assert False
+                    if os.path.exists(train_log_path):
+                        print('Done.')
+                        continue
+                    if slurm:
+                        lines = ['#!/bin/sh',
+                                f'#SBATCH --job-name=OCTt',
+                                f'#SBATCH --gres=gpu:1',
+                                f'#SBATCH --output={train_log_path}',
+                                f'#SBATCH --error={train_log_path}',
+                                'cat /proc/sys/kernel/hostname',
+                                cmd]
+
+                        lines = [x+'\n' for x in lines]
+                        slurm_path = 'tmp/tmp.slurm'
+                        open(slurm_path,'w').writelines(lines)
+                        #cmd = f'sbatch {slurm_path}'
+                        cmd = f'sbatch --partition=gpu {slurm_path}'
+                        
+                        if not go:
+                            print(f'{lines[-1][:-1]}')
+                            exit()
+                        else:
+                            print(cmd)
+                            os.system(cmd)
+                        # time.sleep(1)
+                    else:
+                        assert False
     print(f'# tasks: {c}')

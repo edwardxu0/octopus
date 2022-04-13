@@ -5,7 +5,7 @@ name = 'test'
 	net_name = 'NetS'
 	net_layers = [784, 128, 128, 128, 10]
 
-	epochs = 10
+	epochs = 20
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4				# learning rate
@@ -24,7 +24,7 @@ name = 'test'
 		intensity = 5e-2
 		occurrence = 5e-3
 		start = 1			# inclusive
-		end = 10 			# inclusive
+		end = 20 			# inclusive
 	
 	#[heuristic.rs_loss]
 	#	mode = 'standard'
