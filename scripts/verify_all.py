@@ -20,7 +20,8 @@ def verify_all(settings, artifact, nets, heuristics, seeds, props, epsilons, ver
                                 settings['train']['artifact'] = a
                                 settings['train']['net_name'] = n
                                 settings['train']['net_layers'] = nets[n]
-                                settings['heuristic'][h] = heuristics[h]
+                                if h != 'base':
+                                    settings['heuristic'][h] = heuristics[h]
                                 settings['verify']['property'] = p
                                 settings['verify']['epsilon'] = e
                                 settings['verify']['verifier'] = v

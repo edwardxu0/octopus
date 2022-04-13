@@ -14,7 +14,8 @@ def train_all(settings, artifacts, nets, heuristics, seeds, slurm=False, go=Fals
                     settings['train']['artifact'] = a
                     settings['train']['net_name'] = n
                     settings['train']['net_layers'] = nets[n]
-                    settings['heuristic'][h] = heuristics[h]
+                    if h != 'base':
+                        settings['heuristic'][h] = heuristics[h]
                     
                     train_config_dir = os.path.join(f"results/{settings['name']}", 'train_config')
                     Path(train_config_dir).mkdir(exist_ok=True, parents=True)
