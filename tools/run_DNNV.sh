@@ -1,4 +1,5 @@
 #!/bin/bash
-
-. $DNNV/.env.d/openenv.sh
+cd $DNNV
+. .venv/bin/activate
+cd -
 python -m dnnv $@

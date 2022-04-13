@@ -1,11 +1,7 @@
 import argparse
-from pyfiglet import Figlet
 
 
 def parse_args():
-    f = Figlet(font='slant')
-    print(f.renderText('OCTOPUS'), end='')
-
     parser = argparse.ArgumentParser(
         description='Generate Verifiable Networks',
         prog='GVN')
@@ -13,7 +9,7 @@ def parse_args():
     parser.add_argument('configs', type=str,
                         help='Configurations file.')
     parser.add_argument('task', type=str,
-                        choices=['train', 'gen_props', 'verify', 'analyze', 'all'],
+                        choices=['train', 'verify', 'analyze', 'all'],
                         help='Select tasks to perform.')
     parser.add_argument('--seed', type=int,
                         default=0,
@@ -25,6 +21,8 @@ def parse_args():
                         default='local',
                         choices=['local', 'slurm'],
                         help='Platform to run jobs.')
+    parser.add_argument('--override', action='store_true',
+                        help='Overrides training/verification tasks.')
     parser.add_argument('--debug', action='store_true',
                         help='Print debug log.')
     parser.add_argument('--dumb', action='store_true',

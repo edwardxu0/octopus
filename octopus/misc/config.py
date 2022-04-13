@@ -10,6 +10,7 @@ def configure(args):
     cfg['result_dir'] = os.path.join(args.result_dir, f'{cfg["name"]}')
     cfg['seed'] = args.seed
     cfg['task'] = args.task
+    cfg['override'] = args.override
 
     if args.debug:
         cfg['logging_level'] = logging.DEBUG
@@ -28,6 +29,7 @@ class Settings():
         self.logging_level = cfg['logging_level']
         self.seed = cfg['seed']
         self.task = cfg['task']
+        self.override = cfg['override']
         self.result_dir = cfg['result_dir']
         self.sub_dirs = {'result_dir': self.result_dir}
 
@@ -44,10 +46,6 @@ class Settings():
 
         self.tmp_dir = './tmp'
         sub_dirs = {'train_log', 'model', 'property', 'veri_log'}
-        if cfg['train']['dispatch']['platform'] == 'slurm':
-            sub_dirs += ['train_slurm']
-        if cfg['verify']['dispatch']['platform'] == 'slurm':
-            sub_dirs += ['veri_slurm']
         self._make_dirs(sub_dirs)
 
 
@@ -55,8 +53,7 @@ class Settings():
         pathlib.Path(self.tmp_dir).mkdir(parents=True, exist_ok=True)
         pathlib.Path().mkdir(parents=True, exist_ok=True)
         for sd in sub_dirs:
-            sd += '_dir'
             sdp = os.path.join(self.result_dir, sd)
-            self.sub_dirs[sd] = sdp
+            self.sub_dirs[sd+'_dir'] = sdp
             pathlib.Path(sdp).mkdir(parents=True, exist_ok=True)
         

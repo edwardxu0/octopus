@@ -11,14 +11,17 @@ def workout(settings):
     if settings.task == 'train':
         settings.logger.info('Training ...')
         problem.train()
+        settings.logger.info('Mission Complete.')
 
     elif settings.task == 'verify':
         settings.logger.info('Verifying ...')
         problem.verify()
+        settings.logger.info('Mission Complete.')
 
     elif settings.task == 'analyze':
         settings.logger.info('Analyzing ...')
         problem.analyze()
+        settings.logger.info('Mission Complete.')
 
     elif settings.task == 'all':
         settings.logger.info('Training ...')
@@ -27,6 +30,7 @@ def workout(settings):
         problem.verify()
         settings.logger.info('Analyzing ...')
         problem.analyze()
+        settings.logger.info('Mission Complete.')
 
     else:
         raise NotImplementedError
