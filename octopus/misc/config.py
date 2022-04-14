@@ -45,7 +45,7 @@ class Settings():
                             'error': 5}
 
         self.tmp_dir = './tmp'
-        sub_dirs = {'train_log', 'model', 'property', 'veri_log'}
+        sub_dirs = {'train_log', 'model', 'property', 'figure', 'veri_log'}
         self._make_dirs(sub_dirs)
 
 

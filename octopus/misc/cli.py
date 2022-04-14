@@ -3,8 +3,7 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Generate Verifiable Networks',
-        prog='GVN')
+        description='Generate Verifiable Networks', prog='octopus')
         
     parser.add_argument('configs', type=str,
                         help='Configurations file.')

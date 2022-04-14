@@ -17,23 +17,24 @@ name = 'test'
 	ReLU_estimation = 'VS' # TD: train distribution, IP: interval propagation, VS: verification sampling
 	adv_train = 'nature' # ['nature', 'pgd', 'vae', 'gan', ...]	
 
-	[train.dispatch]
-		platform = "local"
 
 [heuristic]
-	#[heuristic.bias_shaping]
-	#	mode = 'standard'
-	#	intensity = 5e-2
-	#	occurrence = 5e-3
-	#	start = 1 			# inclusive
-	#	end = 100 			# inclusive
+	[heuristic.bias_shaping]
+		ReLU_estimation = 'TD'
+		mode = 'standard'
+		intensity = 5e-2
+		occurrence = 5e-3
+		# decay = 0.98
+		start = 1 			# inclusive
+		end = 100 			# inclusive
 	
-	#[heuristic.rs_loss]
-	#	mode = 'standard'
-	#	weight = 1e-4
-	#	epsilon = 1e-1
-	#	start = 2
-	#	end = 9
+	[heuristic.rs_loss]
+		ReLU_estimation = 'IP'
+		mode = 'standard'
+		weight = 1e-4
+		epsilon = 1e-1
+		start = 2
+		end = 9
 
 	#[heuristic.prune]
 	#	mode = 'structure'
@@ -43,13 +44,11 @@ name = 'test'
 	#	end = 9
 
 
-
 [verify]
 	time = 600
 	memory = '8G'
 	debug = false
-	[verify.verifiers]
-		DNNV = ['eran_deepzono','neurify','planet','nnenum']
-
-	[verify.dispatch]
-		platform = "local"
+	property = 0
+	epsilon = 0.02
+	save_log = false
+	verifier = 'neurify'

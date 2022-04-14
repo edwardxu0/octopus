@@ -33,7 +33,7 @@ class Problem:
         np.random.seed(settings.seed)
         torch.set_printoptions(threshold=100000)
 
-        self.model_name = self._set_model_name()
+        self.model_name = self.get_model_name(self.cfg_train, self.cfg_heuristic, self.seed)
         self.model_path = os.path.join(self.sub_dirs['model_dir'], f"{self.model_name}.onnx")
         
         # setup train data collectors
@@ -53,14 +53,15 @@ class Problem:
         self.logger.info(f"Network:\n{self.model}")
         self.model._setup_heuristics(self.cfg_heuristic)
     
-    
-    def _set_model_name(self):
-        name =  f"A={self.cfg_train['artifact']}"
-        name += f"_N={self.cfg_train['net_name']}"
-        name += f"_RE={self.cfg_train['ReLU_estimation']}"
 
-        for h in self.cfg_heuristic:
-            x = self.cfg_heuristic[h]
+    @staticmethod
+    def get_model_name(cfg_train, cfg_heuristic, seed):
+        name =  f"A={cfg_train['artifact']}"
+        name += f"_N={cfg_train['net_name']}"
+        name += f"_RE={cfg_train['ReLU_estimation']}"
+
+        for h in cfg_heuristic:
+            x = cfg_heuristic[h]
 
             if h == 'bias_shaping':
                 if x['mode'] == 'standard':
@@ -93,7 +94,7 @@ class Problem:
 
             else:
                 assert False
-        name += f'_seed={self.seed}'
+        name += f'_seed={seed}'
         return name
     
 
@@ -219,7 +220,7 @@ class Problem:
         p_plot.draw_accuracy(X3, Y3, X4, Y4, (0,1))
 
         title =  f'# {self.model_name}'
-        path = f"{self.sub_dirs['result_dir']}/{self.model_name}.png"
+        path = os.path.join(self.sub_dirs['figure'], self.model_name+'.png')
         p_plot.save(title, path)
         p_plot.clear()
 
@@ -230,10 +231,6 @@ class Problem:
         # TODO: account for verification completion
         self.veri_log_path = os.path.join(self.sub_dirs['veri_log_dir'], f"{self.model_name}_P={prop}_E={eps}_V={verifier}.txt")
         return os.path.exists(self.veri_log_path)
-    
-
-    def _gen_props(self):
-        ...
 
 
     def verify(self):
@@ -269,6 +266,7 @@ class Problem:
             else:
                 veri_log_file = sys.stdout
             self.logger.info('Executing DNNV ...')
+            self.logger.debug(cmd)
             sp = subprocess.Popen(cmd,
                                 shell = True,
                                 stdout = veri_log_file,
@@ -284,15 +282,36 @@ class Problem:
         assert self._verified(self.cfg_verify['property'],
                         self.cfg_verify['epsilon'],
                         self.cfg_verify['verifier'])
+        self.logger.debug(f'Analyzing log: {self.veri_log_path}')
+        veri_ans, veri_time = self.analyze_veri_log(self.veri_log_path)
+        if veri_ans and veri_time:
+            self.logger.info(f'Result: {veri_ans}, {veri_time}s.')
+        else:
+            self.logger.info(f'Failed.')
+    
 
-        lines = open(self.veri_log_path, 'r').readlines()
+    @staticmethod
+    def analyze_veri_log(log_path):
+        lines = open(log_path, 'r').readlines()
+        lines.reverse()
+        veri_ans = None
+        veri_time = None
         for l in lines:
             if '  result: ' in l:
-                veri_ans = l.strip().split()[-1]
+                if 'Error' in l:
+                    veri_ans = 'error'
+                else:
+                    veri_ans = l.strip().split()[-1]
+
             elif '  time: ' in l:
-                veri_time = l.strip().split()[-1]
-        self.logger.info(f'Result: {veri_ans}, {veri_time}s.')
+                veri_time = float(l.strip().split()[-1])
+
+            elif ' Timeout' in l:
+                veri_ans = 'timeout'
+                veri_time = float(l.strip().split()[-3])
+                break
             
+        return veri_ans, veri_time
 
     def _save_meta(self):
         ...

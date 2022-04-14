@@ -8,3 +8,4 @@ export DNNV=./lib/DNNV
 export PYTHONPATH=$PYTHONPATH:$GDVB
 
 alias octopus='python -m octopus'
+alias octopus+='python -m octopus+'
