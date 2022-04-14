@@ -1,6 +1,6 @@
-
 import os
 import copy
+import time
 import toml
 import importlib
 import numpy as np
@@ -75,6 +75,7 @@ class Benchmark:
                 os.system(cmd)
             else:
                 os.system(slurm_cmd)
+                time.sleep(self.sleep_time)
 
 
     def _get_problem_paths(self, task, **kwargs):
