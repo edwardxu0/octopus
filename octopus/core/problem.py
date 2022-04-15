@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
 
-from octopus.artifact.artifacts import MNIST, FashionMNIST
+from octopus.artifact.artifacts import *
 
 from ..plot.train_progress import ProgressPlot
 from ..architecture.architecture import VeriNet
@@ -46,10 +46,14 @@ class Problem:
         use_gpu = True if 'gpu' in cfg and cfg['gpu'] else False
         use_cuda = use_gpu and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
-        self.artifact = globals()[cfg['artifact']](cfg['adv_train'], cfg['batch_size'], cfg['test_batch_size'], self.device)
+        self.artifact = globals()[cfg['artifact']](data_mode=cfg['adv_train'],
+                                                    batch_size=cfg['batch_size'],
+                                                    test_batch_size=cfg['test_batch_size'],
+                                                    use_cuda=self.device)
+
         self.train_loader, self.test_loader = self.artifact.get_data_loader()
 
-        self.model = VeriNet(self.cfg_train['net_layers'], self.logger, self.device).to(self.device)
+        self.model = VeriNet(self.artifact, self.cfg_train['net_layers'], self.logger, self.device).to(self.device)
         self.logger.info(f"Network:\n{self.model}")
         self.model._setup_heuristics(self.cfg_heuristic)
     
@@ -126,7 +130,7 @@ class Problem:
             
             # save model
             if self.cfg_train['save_model']:
-                dummy_input = torch.randn(1, 1, 28, 28, device=self.device)
+                dummy_input = torch.randn([1] + self.artifact.input_shape, device=self.device)
                 torch.onnx.export(self.model, dummy_input, self.model_path, verbose=False)
                 torch.save(self.model.state_dict(), f"{self.model_path[:-4]}pt")
             
@@ -220,7 +224,7 @@ class Problem:
         p_plot.draw_accuracy(X3, Y3, X4, Y4, (0,1))
 
         title =  f'# {self.model_name}'
-        path = os.path.join(self.sub_dirs['figure'], self.model_name+'.png')
+        path = os.path.join(self.sub_dirs['figure_dir'], self.model_name+'.png')
         p_plot.save(title, path)
         p_plot.clear()
 
@@ -238,19 +242,20 @@ class Problem:
         prop = cfg['property']
         eps = cfg['epsilon']
         verifier = cfg['verifier']
-        debug = cfg['debug']
-        save_log = cfg['save_log']
+        debug = cfg['debug'] if 'debug' in cfg else None
+        save_log = cfg['save_log'] if 'save_log' in cfg else None
 
-        if self._verified(prop, eps, verifier) and not self.override:
+        if self._verified(prop, eps, verifier) and save_log and not self.override:
             self.logger.info('Skipping verified problem.')
         else:
             
             # generate property
             self.logger.info('Generating property ...')
-            self.artifact.gen_property(prop, eps, self.sub_dirs['property_dir'])
+            prop_path = self.artifact.gen_property(prop, eps, self.sub_dirs['property_dir'])
 
-            prop_path = os.path.join(self.sub_dirs['property_dir'],f'{prop}_{eps}.py')
-            cmd = f"./tools/resmonitor.py -T {cfg['time']} -M {cfg['memory']}"
+            # compose DNNV command
+            res_monitor_path = os.path.join(os.environ['DNNV'], 'tools', 'resmonitor.py')
+            cmd = f"python3 {res_monitor_path} -T {cfg['time']} -M {cfg['memory']}"
             cmd += f" ./tools/run_DNNV.sh {prop_path} -N N {self.model_path}"
 
             if 'eran' in verifier:
@@ -265,8 +270,10 @@ class Problem:
                 veri_log_file = open(self.veri_log_path, 'w')
             else:
                 veri_log_file = sys.stdout
+            
             self.logger.info('Executing DNNV ...')
             self.logger.debug(cmd)
+
             sp = subprocess.Popen(cmd,
                                 shell = True,
                                 stdout = veri_log_file,

@@ -1,11 +1,11 @@
 name = 'test'
 
 [train]
-	artifact = 'MNIST'
+	artifact = 'CIFAR10'
 	net_name = 'NetS'
-	net_layers = [784, 128, 128, 128, 10]
+	net_layers = [3072, 128, 128, 128, 10]
 
-	epochs = 100
+	epochs = 1
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4				# learning rate
@@ -47,8 +47,7 @@ name = 'test'
 [verify]
 	time = 600
 	memory = '8G'
-	debug = false
 	property = 0
 	epsilon = 0.02
-	save_log = false
+	save_log = true
 	verifier = 'neurify'

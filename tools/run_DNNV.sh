@@ -1,5 +1,5 @@
 #!/bin/bash
 cd $DNNV
 . .venv/bin/activate
-cd -
+cd - > /dev/null
 python -m dnnv $@

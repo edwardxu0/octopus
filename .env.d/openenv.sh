@@ -1,11 +1,15 @@
 #!/bin/bash
 
+# activate virtual environment
 source .venv/bin/activate
 
-export GDVB=./lib/GDVB
+# add library to paths
 export DNNV=./lib/DNNV
 
-export PYTHONPATH=$PYTHONPATH:$GDVB
 
+# Remove tensorflow warnings
+export TF_CPP_MIN_LOG_LEVEL=2
+
+# aliasing tool
 alias octopus='python -m octopus'
 alias octopus+='python -m octopus+'

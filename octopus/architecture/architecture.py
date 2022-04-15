@@ -1,15 +1,17 @@
-from distutils.log import info
 import torch
+import numpy as np
 import torch.nn as nn
 
 from .basic_net import BasicNet
 
 
 class VeriNet(BasicNet):
-    def __init__(self, layers, logger, device):
+    def __init__(self, artifact, layers, logger, device):
         super(VeriNet, self).__init__(logger, device)
+        self.artifact = artifact
         self.set_layers(layers)
         super().__setup__()
+
 
     def set_layers(self, layers, weights=None, bias=None):
         self.layers = {}
@@ -59,7 +61,7 @@ class VeriNet(BasicNet):
     def forward(self, x):
         # reshape input if first hidden layer is a FC layer
         if isinstance(self.layers[list(self.layers.keys())[0]], torch.nn.modules.linear.Linear):
-            x = x.reshape(-1, 28*28)
+            x = x.view(-1, np.prod(self.artifact.input_shape))
         else:
             assert False
         
