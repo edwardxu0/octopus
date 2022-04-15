@@ -5,11 +5,11 @@ name = 'test'
 	net_name = 'NetS'
 	net_layers = [3072, 128, 128, 128, 10]
 
-	epochs = 1
+	epochs = 5
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4				# learning rate
-	gamma = 0.7 			# Learning rate step gamma
+	gamma = 1 			# Learning rate decay
 	save_model = true
 	log_interval = 500		# pring while n-th batch
 	gpu = true

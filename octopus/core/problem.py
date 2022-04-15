@@ -1,5 +1,3 @@
-from asyncio.log import logger
-from asyncio.subprocess import STDOUT
 import torch
 import os
 import numpy as np
@@ -117,7 +115,9 @@ class Problem:
             return
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.cfg_train['lr'])
-        scheduler = StepLR(self.optimizer, step_size=1, gamma=self.cfg_train['gamma'])
+        self.LR_decay_scheduler = StepLR(self.optimizer, step_size=1, gamma=self.cfg_train['gamma'])
+        self.mixed_precision_scaler = torch.cuda.amp.GradScaler()
+
 
         for epoch in range(1, self.cfg_train['epochs'] + 1):
             self._train_epoch(epoch)
@@ -134,7 +134,7 @@ class Problem:
                 torch.onnx.export(self.model, dummy_input, self.model_path, verbose=False)
                 torch.save(self.model.state_dict(), f"{self.model_path[:-4]}pt")
             
-            scheduler.step()
+            self.LR_decay_scheduler.step()
         
             self._plot_train()
 
@@ -144,22 +144,30 @@ class Problem:
 
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
-
-            self.optimizer.zero_grad()
-            output_pre_softmax = self.model(data)
-            output = F.log_softmax(output_pre_softmax, dim=1)
-
-            loss = F.nll_loss(output, target)
             
-            # H: RS loss
-            if 'rs_loss' in self.cfg_heuristic\
-                and self.cfg_heuristic['rs_loss']['start'] <= epoch <= self.cfg_heuristic['rs_loss']['end']:
+            with torch.cuda.amp.autocast():
+                self.optimizer.zero_grad()
+                output_pre_softmax = self.model(data)
+                output = F.log_softmax(output_pre_softmax, dim=1)
 
-                rs_loss = self.model.run_heuristics('rs_loss', data)
-                loss += rs_loss * self.cfg_heuristic['rs_loss']['weight']
-            
-            loss.backward()
-            self.optimizer.step()
+                loss = F.nll_loss(output, target)
+                
+                # H: RS loss
+                if 'rs_loss' in self.cfg_heuristic\
+                    and self.cfg_heuristic['rs_loss']['start'] <= epoch <= self.cfg_heuristic['rs_loss']['end']:
+
+                    rs_loss = self.model.run_heuristics('rs_loss', data)
+                    loss += rs_loss * self.cfg_heuristic['rs_loss']['weight']
+                
+                # FP32
+                # loss.backward()
+                # self.optimizer.step()
+                
+                # Mixed Precision
+                self.mixed_precision_scaler.scale(loss).backward()
+                self.mixed_precision_scaler.step(self.optimizer)
+                self.mixed_precision_scaler.update()
+
 
             # H: bias shaping
             if 'bias_shaping' in self.cfg_heuristic\

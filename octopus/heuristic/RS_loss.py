@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from . import Heuristic
 
@@ -14,7 +15,7 @@ class RSLoss(Heuristic):
 
     def run(self, data):
         loss = torch.zeros((len(data),3), device=self.model.device)
-        data = data.reshape((-1, 28*28))
+        data = data.view((-1, np.prod(self.model.artifact.input_shape)))
         lb = torch.maximum(data - self.epsilon, torch.tensor(0., requires_grad=True))
         ub = torch.minimum(data + self.epsilon, torch.tensor(1., requires_grad=True))
 
