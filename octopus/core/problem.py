@@ -4,6 +4,7 @@ import numpy as np
 import subprocess
 import sys
 
+
 import torch.nn.functional as F
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
@@ -41,8 +42,12 @@ class Problem:
         self.test_accuracy = []
         
         cfg = self.cfg_train
-        use_gpu = True if 'gpu' in cfg and cfg['gpu'] else False
+        use_gpu = False if 'gpu' not in cfg else cfg['gpu']
         use_cuda = use_gpu and torch.cuda.is_available()
+        amp = False if 'amp' not in cfg else cfg['amp']
+        self.amp = use_gpu and amp
+        if use_cuda:
+            self.logger.info('CUDA enabled.')
         self.device = torch.device("cuda" if use_cuda else "cpu")
         self.artifact = globals()[cfg['artifact']](data_mode=cfg['adv_train'],
                                                     batch_size=cfg['batch_size'],
@@ -51,7 +56,7 @@ class Problem:
 
         self.train_loader, self.test_loader = self.artifact.get_data_loader()
 
-        self.model = VeriNet(self.artifact, self.cfg_train['net_layers'], self.logger, self.device).to(self.device)
+        self.model = VeriNet(self.artifact, self.cfg_train['net_layers'], self.logger, self.device, self.amp).to(self.device)
         self.logger.info(f"Network:\n{self.model}")
         self.model._setup_heuristics(self.cfg_heuristic)
     
@@ -116,7 +121,10 @@ class Problem:
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.cfg_train['lr'])
         self.LR_decay_scheduler = StepLR(self.optimizer, step_size=1, gamma=self.cfg_train['gamma'])
-        self.mixed_precision_scaler = torch.cuda.amp.GradScaler()
+        
+        if self.amp:
+            self.logger.info('CUDA AMP enabled.')
+            self.amp_scaler = torch.cuda.amp.GradScaler()
 
 
         for epoch in range(1, self.cfg_train['epochs'] + 1):
@@ -133,6 +141,10 @@ class Problem:
                 dummy_input = torch.randn([1] + self.artifact.input_shape, device=self.device)
                 torch.onnx.export(self.model, dummy_input, self.model_path, verbose=False)
                 torch.save(self.model.state_dict(), f"{self.model_path[:-4]}pt")
+                
+                if self.cfg_train['save_intermediate']:
+                    torch.onnx.export(self.model, dummy_input, self.model_path+f'.{epoch}', verbose=False)
+                    torch.save(self.model.state_dict(), f"{self.model_path[:-4]}{epoch}.pt")
             
             self.LR_decay_scheduler.step()
         
@@ -144,9 +156,9 @@ class Problem:
 
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
-            
-            with torch.cuda.amp.autocast():
-                self.optimizer.zero_grad()
+            self.optimizer.zero_grad()
+
+            with torch.cuda.amp.autocast(enabled=self.amp):
                 output_pre_softmax = self.model(data)
                 output = F.log_softmax(output_pre_softmax, dim=1)
 
@@ -158,16 +170,17 @@ class Problem:
 
                     rs_loss = self.model.run_heuristics('rs_loss', data)
                     loss += rs_loss * self.cfg_heuristic['rs_loss']['weight']
-                
-                # FP32
-                # loss.backward()
-                # self.optimizer.step()
-                
-                # Mixed Precision
-                self.mixed_precision_scaler.scale(loss).backward()
-                self.mixed_precision_scaler.step(self.optimizer)
-                self.mixed_precision_scaler.update()
+                    
+                if loss.isnan():
+                    raise ValueError('Loss is NaN.')
 
+                if self.amp:
+                    self.amp_scaler.scale(loss).backward()
+                    self.amp_scaler.step(self.optimizer)
+                    self.amp_scaler.update()
+                else:
+                    loss.backward()
+                    self.optimizer.step()
 
             # H: bias shaping
             if 'bias_shaping' in self.cfg_heuristic\
@@ -184,7 +197,7 @@ class Problem:
             
             if batch_idx % self.cfg_train['log_interval'] == 0:
                 batch_stable_ReLU = self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation'], self.test_loader)
-                self.logger.info(f'[Train] epoch: {epoch} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f} Loss: {loss.item():10.6f} SR: {batch_stable_ReLU:5}')
+                self.logger.info(f'[Train] epoch: {epoch} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f} SR: {batch_stable_ReLU:5}')
             else:
                 batch_stable_ReLU = self.train_stable_ReLUs[-1]
 

@@ -138,7 +138,7 @@ class Benchmark:
             slurm_cmd = None
             if self.slurm:
                 lines = ['#!/bin/sh',
-                        f'#SBATCH --job-name=Oct.T',
+                        f'#SBATCH --job-name=O.T',
                         f'#SBATCH --output={train_log_path}',
                         f'#SBATCH --error={train_log_path}']
                 if self.base_settings['train']['gpu']:
@@ -175,6 +175,8 @@ class Benchmark:
                 nb_done += 1
                 continue
             else:
+                print(veri_log_path)
+                print(actual_veri_log_path)
                 nb_todo += 1
             toml.dump(sts, open(toml_path, 'w'))
             
@@ -183,7 +185,7 @@ class Benchmark:
             slurm_cmd = None
             if self.slurm:
                 lines = ['#!/bin/sh',
-                f'#SBATCH --job-name=Oct.V',
+                f'#SBATCH --job-name=O.V',
                 f'#SBATCH --output={veri_log_path}',
                 f'#SBATCH --error={veri_log_path}',
                 'cat /proc/sys/kernel/hostname',

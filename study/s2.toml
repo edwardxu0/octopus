@@ -1,36 +1,41 @@
-name = 'test'
+name = 's2'
 
 [train]
-	artifact = 'MNIST'
+	artifact = 'CIFAR10'
 	net_name = 'NetS'
-	net_layers = [784, 128, 128, 128, 10]
+	net_layers = [3072, 1024, 1024, 1024, 1024, 1024, 1024, 10]
 
-	epochs = 20
+	epochs = 100
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4				# learning rate
-	gamma = 0.7 			# Learning rate step gamma
+	gamma = 0.95 			# Learning rate decay
 	save_model = true
-	save_log = true
-	log_interval = 500		# pring while n-th batch
+	save_intermediate = true
+	log_interval = 100		# pring while n-th batch
 	gpu = true
+	amp = false
 
 	ReLU_estimation = 'TD' # TD: train distribution, IP: interval propagation, VS: verification sampling
 	adv_train = 'nature' # ['nature', 'pgd', 'vae', 'gan', ...]	
 
+
 [heuristic]
-	[heuristic.bias_shaping]
-		mode = 'standard'
-		intensity = 5e-2
-		occurrence = 5e-3
-		start = 1			# inclusive
-		end = 20 			# inclusive
+	#[heuristic.bias_shaping]
+	#	ReLU_estimation = 'TD'
+	#	mode = 'standard'
+	#	intensity = 5e-2
+	#	occurrence = 5e-3
+	#	# decay = 0.98
+	#	start = 1 			# inclusive
+	#	end = 100 			# inclusive
 	
 	#[heuristic.rs_loss]
+	#	ReLU_estimation = 'IP'
 	#	mode = 'standard'
 	#	weight = 1e-4
 	#	epsilon = 1e-1
-	#	start = 2
+	#	start = 1
 	#	end = 9
 
 	#[heuristic.prune]
@@ -41,13 +46,10 @@ name = 'test'
 	#	end = 9
 
 
-
 [verify]
 	time = 600
 	memory = '8G'
-	debug = false
-	save_log = true
-
 	property = 0
 	epsilon = 0.02
-	verifier = 'eran_deepzono'
+	save_log = true
+	verifier = 'neurify'

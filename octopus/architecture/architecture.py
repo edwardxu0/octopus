@@ -6,8 +6,8 @@ from .basic_net import BasicNet
 
 
 class VeriNet(BasicNet):
-    def __init__(self, artifact, layers, logger, device):
-        super(VeriNet, self).__init__(logger, device)
+    def __init__(self, artifact, layers, logger, device, amp):
+        super(VeriNet, self).__init__(logger, device, amp)
         self.artifact = artifact
         self.set_layers(layers)
         super().__setup__()

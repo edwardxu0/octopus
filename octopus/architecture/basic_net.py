@@ -10,10 +10,11 @@ from ..heuristic.prune import Prune
 
 
 class BasicNet(nn.Module):
-    def __init__(self, logger, device):
+    def __init__(self, logger, device, amp):
         super(BasicNet, self).__init__()
         self.logger = logger
         self.device = device
+        self.amp = amp
 
     
     def __setup__(self):

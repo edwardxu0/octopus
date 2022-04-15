@@ -32,7 +32,11 @@ Oh-Crazy Training-Oriented Provable Unified System(OCTOPUS) for DNN verification
 
 ### 1.3. Benchmark Execution
 
-## 2. PLAN:
+## 2. Existing PROBLEMS
+* [ ]: CUDA AMP doesn't work with RS Loss.
+   
+
+## 3. PLAN:
 #### 2.1. Attic:
 * [x] explore ways to incoordinate the unsafe ReLUs into back propagation. [D,N]
 * [x] explore safe/unsafe ReLUs according to each image/label/class.
@@ -59,7 +63,11 @@ Oh-Crazy Training-Oriented Provable Unified System(OCTOPUS) for DNN verification
 * [x] Multiple ReLU estimations. TD/VS/IP ...
 * [x] Explore when to apply RSLoss/BS.
 * [x] Explore RSLoss/BS to verification.
+* [x] CUDA AMP.
 * [ ] BS decay/weights of RSLoss.
 * [ ] Explore combinations of RSLoss/BS to verification.
 
-### 2.4. W3[D]:
+### 2.4.:
+* [ ] Logging with octo
+* [ ] Save slurm scripts separately.
+* [ ] Separate host and slurm logs.
