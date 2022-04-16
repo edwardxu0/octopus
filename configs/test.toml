@@ -3,7 +3,7 @@ name = 'test'
 [train]
 	artifact = 'MNIST'
 	net_name = 'NetS'
-	net_layers = [784, 128, 128, 128, 10]
+	net_layers = [128, 128, 128]		# hidden layers
 
 	epochs = 2
 	batch_size = 64

@@ -143,7 +143,7 @@ class Problem:
                 
                 if self.cfg_train['save_intermediate']:
                     torch.onnx.export(self.model, dummy_input, self.model_path+f'.{epoch}', verbose=False)
-                    torch.save(self.model.state_dict(), f"{self.model_path[:-4]}{epoch}.pt")
+                    torch.save(self.model.state_dict(), f"{self.model_path[:-4]}.pt.{epoch}")
             
             self.LR_decay_scheduler.step()
         
@@ -342,7 +342,11 @@ class Problem:
                 veri_ans = 'timeout'
                 veri_time = float(l.strip().split()[-3])
                 break
-            
+            elif ' of memory' in l:
+                veri_ans = 'memout'
+                veri_time = float(l.strip().split()[-3])
+                break
+
         return veri_ans, veri_time
 
     def _save_meta(self):

@@ -2,6 +2,7 @@ import os
 import copy
 import time
 import toml
+import uuid
 import importlib
 import numpy as np
 import pandas as pd
@@ -182,15 +183,18 @@ class Benchmark:
             
             cmd = f'python -m octopus {toml_path} verify --seed {s}'
 
+            tmpdir = f'/tmp/{uuid.uuid1()}'
             slurm_cmd = None
             if self.slurm:
                 lines = ['#!/bin/sh',
-                f'#SBATCH --job-name=O.V',
-                f'#SBATCH --output={veri_log_path}',
-                f'#SBATCH --error={veri_log_path}',
-                'cat /proc/sys/kernel/hostname',
-                'source .env.d/openenv.sh',
-                cmd]
+                         f'#SBATCH --job-name=O.V',
+                         f'#SBATCH --output={veri_log_path}',
+                         f'#SBATCH --error={veri_log_path}',
+                         f'export TMPDIR={tmpdir}',
+                         'cat /proc/sys/kernel/hostname',
+                         'source .env.d/openenv.sh',
+                         cmd,
+                         f'rm -rf {tmpdir}',]
                 lines = [x+'\n' for x in lines]
                 
                 open(self.slurm_config_path,'w').writelines(lines)
@@ -239,7 +243,7 @@ class Benchmark:
                 print('rm', veri_log_path)
                 print('rm', actual_veri_log_path)
             
-            df.loc[len(df.index)] = [a, n, h, s, p, e, v, accuracy, stable_relu, self.code_veri_answer[answer], time]
+            #df.loc[len(df.index)] = [a, n, h, s, p, e, v, accuracy, stable_relu, self.code_veri_answer[answer], time]
         print('--------------------')
         return df
         

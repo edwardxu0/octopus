@@ -14,6 +14,7 @@ class VeriNet(BasicNet):
 
 
     def set_layers(self, layers, weights=None, bias=None):
+        layers = [np.prod(self.artifact.input_shape)] + layers + [np.prod(self.artifact.output_shape)]
         self.layers = {}
         for i,l in enumerate(layers[1:-1]):
             # add FC layers
