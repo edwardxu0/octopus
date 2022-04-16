@@ -12,11 +12,10 @@ class VeriNet(BasicNet):
         self.set_layers(layers)
         super().__setup__()
 
-
     def set_layers(self, layers, weights=None, bias=None):
         layers = [np.prod(self.artifact.input_shape)] + layers + [np.prod(self.artifact.output_shape)]
         self.layers = {}
-        for i,l in enumerate(layers[1:-1]):
+        for i, l in enumerate(layers[1:-1]):
             # add FC layers
             if type(l) == int:
                 layer_name = f'FC{i+1}'
@@ -35,14 +34,14 @@ class VeriNet(BasicNet):
             # TODO: add conv layers
             else:
                 assert False
-            
+
             # add a dropout layer before the output layer
             if i == len(layers)-3:
                 layer_name = f'Dropout1'
                 layer = nn.Dropout(0.5)
                 self.layers[layer_name] = layer
                 self.__setattr__(layer_name, layer)
-            
+
         # add output layer
         # check last hidden layer to be a FC layer
         if type(layers[-2]) == int:
@@ -57,7 +56,6 @@ class VeriNet(BasicNet):
         # TODO:check last hidden layer to be a conv layer
         else:
             assert False
-        
 
     def forward(self, x):
         # reshape input if first hidden layer is a FC layer
@@ -65,7 +63,7 @@ class VeriNet(BasicNet):
             x = x.view(-1, np.prod(self.artifact.input_shape))
         else:
             assert False
-        
+
         # workout the network
         for l in self.layers:
             x = self.layers[l](x)
@@ -76,7 +74,7 @@ class VeriNet(BasicNet):
         for l in list(self.layers.keys()):
             del(self.layers[l])
             self.__delattr__(l)
-    
+
         torch.cuda.empty_cache()
         self.__delattr__('layers')
         self.logger.info('Model cleared.')

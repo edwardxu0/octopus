@@ -4,22 +4,18 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Generate Verifiable Networks', prog='octopus')
-        
+
     parser.add_argument('configs', type=str,
                         help='Configurations file.')
     parser.add_argument('task', type=str,
-                        choices=['train', 'verify', 'analyze', 'all'],
-                        help='Select tasks to perform.')
+                        choices=['T', 'V', 'A', 'AA'],
+                        help='Select tasks to perform, including [T]rain, [V]erify, [A]nalyze, [AA]ll \'bove.')
     parser.add_argument('--seed', type=int,
                         default=0,
                         help='Random seed.')
     parser.add_argument('--result_dir', type=str,
                         default='./results/',
                         help='Result directory.')
-    parser.add_argument('--platform', type=str,
-                        default='local',
-                        choices=['local', 'slurm'],
-                        help='Platform to run jobs.')
     parser.add_argument('--override', action='store_true',
                         help='Overrides training/verification tasks.')
     parser.add_argument('--debug', action='store_true',
@@ -30,13 +26,12 @@ def parse_args():
     return parser.parse_args()
 
 
-
 # Training settings
 def _parse_args():
-    parser.add_argument('--problem', type=str, default='MNIST', choices=['MNIST','FashionMNIST'],
+    parser.add_argument('--problem', type=str, default='MNIST', choices=['MNIST', 'FashionMNIST'],
                         help='Which DL problem to run?')
     parser.add_argument('--net-name', type=str, default='NetS',
-                        choices=['NetS','NetM','NetL','MnistConv'],
+                        choices=['NetS', 'NetM', 'NetL', 'MnistConv'],
                         help='network name')
     parser.add_argument('--batch-size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 64)')
@@ -72,12 +67,12 @@ def _parse_args():
                         help='directory containing pruning data')
     parser.add_argument('--adv_train', type=str, default='nature',
                         help='adversarial training option')
-    #pruning params 
+    # pruning params
     parser.add_argument('--pr_ratio', type=float, default=0.2,
                         help='pruning ratio : (default: 0.2)')
 
     # rurh params
-    parser.add_argument('--rurh', type=str, default=None,choices=[None, 'basic', 'upbd', 'ral'],
+    parser.add_argument('--rurh', type=str, default=None, choices=[None, 'basic', 'upbd', 'ral'],
                         help='Inject the (r)educing (u)nsafe (r)eLU (h)euristic.\
                             Strategy of rurh 1) None: ... 2) upbd: upper bound 3) ral: relative accuracy loss')
     parser.add_argument('--rurh_ocrc', type=float, default=None,
@@ -93,8 +88,6 @@ def _parse_args():
     parser.add_argument('--rurh_deactive_post', type=int, default=1,
                         help='deactive rurh for the ending n epochs')
 
-
-    
     # rs loss
     parser.add_argument('--rs', type=str, default=None, choices=[None, 'basic'],
                         help='ReLU Stable loss.')

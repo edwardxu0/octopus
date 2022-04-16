@@ -3,6 +3,8 @@ import toml
 import pathlib
 import logging
 
+from .logging import initialize_logger
+
 
 def configure(args):
     config_file = open(args.configs, 'r').read()
@@ -26,7 +28,6 @@ def configure(args):
 class Settings():
     def __init__(self, cfg):
         self.name = cfg['name']
-        self.logging_level = cfg['logging_level']
         self.seed = cfg['seed']
         self.task = cfg['task']
         self.override = cfg['override']
@@ -44,16 +45,13 @@ class Settings():
                             'memout': 4,
                             'error': 5}
 
-        self.tmp_dir = './tmp'
         sub_dirs = {'train_log', 'model', 'property', 'figure', 'veri_log'}
         self._make_dirs(sub_dirs)
-
+        self.logger = initialize_logger('OCTOPUS', cfg['logging_level'])
 
     def _make_dirs(self, sub_dirs):
-        pathlib.Path(self.tmp_dir).mkdir(parents=True, exist_ok=True)
         pathlib.Path().mkdir(parents=True, exist_ok=True)
         for sd in sub_dirs:
             sdp = os.path.join(self.result_dir, sd)
             self.sub_dirs[sd+'_dir'] = sdp
             pathlib.Path(sdp).mkdir(parents=True, exist_ok=True)
-        

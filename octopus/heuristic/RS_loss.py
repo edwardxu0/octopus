@@ -10,11 +10,9 @@ class RSLoss(Heuristic):
         self.mode = cfg['mode']
         assert cfg['mode'] == 'standard'
         self.epsilon = cfg['epsilon']
-        
-
 
     def run(self, data):
-        loss = torch.zeros((len(data),3), device=self.model.device)
+        loss = torch.zeros((len(data), 3), device=self.model.device)
         data = data.view((-1, np.prod(self.model.artifact.input_shape)))
         lb = torch.maximum(data - self.epsilon, torch.tensor(0., requires_grad=True))
         ub = torch.minimum(data + self.epsilon, torch.tensor(1., requires_grad=True))
@@ -24,15 +22,15 @@ class RSLoss(Heuristic):
             b = self.model.__getattr__(name).bias
             lb, ub = self._interval_arithmetic(lb, ub, w, b)
             rs_loss = self._l_relu_stable(lb, ub)
-            loss[i] +=  rs_loss
+            loss[i] += rs_loss
         loss = torch.sum(torch.mean(loss, axis=1))
         return loss
 
     """RS Loss Function"""
+
     def _l_relu_stable(self, lb, ub, norm_constant=1.0):
-        loss = -torch.sum(torch.tanh(torch.tensor(1.0, requires_grad=True)+ norm_constant * lb * ub))
+        loss = -torch.sum(torch.tanh(torch.tensor(1.0, requires_grad=True) + norm_constant * lb * ub))
         return loss
-    
 
     @staticmethod
     def _interval_arithmetic(lb, ub, W, b):
@@ -42,10 +40,10 @@ class RSLoss(Heuristic):
         new_ub = torch.matmul(ub, W_max) + torch.matmul(lb, W_min) + b
         return new_lb, new_ub
 
-
     # TODO: refine this ...
     # sparsity of weight matrix
     # unused
+
     def get_WD_loss(self, device):
         assert False
         loss = torch.zeros(3).to(device=device)
