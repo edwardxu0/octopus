@@ -248,7 +248,7 @@ class Benchmark:
                 print('rm', veri_log_path)
                 print('rm', actual_veri_log_path)
             
-            #df.loc[len(df.index)] = [a, n, h, s, p, e, v, accuracy, stable_relu, self.code_veri_answer[answer], time]
+            df.loc[len(df.index)] = [a, n, h, s, p, e, v, accuracy, stable_relu, self.code_veri_answer[answer], time]
         print('--------------------')
         return df
         
