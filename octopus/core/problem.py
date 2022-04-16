@@ -138,7 +138,7 @@ class Problem:
 
                 if self.cfg_train['save_intermediate']:
                     torch.onnx.export(self.model, dummy_input, self.model_path+f'.{epoch}', verbose=False)
-                    torch.save(self.model.state_dict(), f"{self.model_path[:-4]}.pt.{epoch}")
+                    torch.save(self.model.state_dict(), f"{self.model_path[:-5]}.pt.{epoch}")
 
             self.LR_decay_scheduler.step()
 

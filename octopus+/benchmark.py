@@ -91,19 +91,20 @@ class Benchmark:
 
     def _get_problem_paths(self, task, **kwargs):
         sts = copy.deepcopy(self.base_settings)
-
+        
         a, n, h, s = list(kwargs.values())[:4]
         sts['train']['artifact'] = a
         sts['train']['net_name'] = n
         sts['train']['net_layers'] = self.networks[n]
+        sts['heuristic'] = {}
         if h != 'base':
             sts['heuristic'][h] = self.heuristics[h]
 
         model_name = Problem.get_model_name(sts['train'], sts['heuristic'], s)
         if task == 'T':
             log_path = os.path.join(self.sub_dirs['train_log_dir'], f"{model_name}.txt")
-            config_dir = self.sub_dirs['train_config_dir']
-            slurm_script_path = self.sub_dirs['train_slurm_dir']
+            config_path = os.path.join(self.sub_dirs['train_config_dir'], f'{model_name}.toml')
+            slurm_script_path = None if not self.slurm else os.path.join(self.sub_dirs['train_slurm_dir'], f"{model_name}.slurm")
 
         elif task == 'V':
             a, n, h, s, p, e, v = kwargs.values()
@@ -113,12 +114,10 @@ class Benchmark:
 
             # configure log path
             log_path = os.path.join(self.sub_dirs['veri_log_dir'], f"{model_name}_P={p}_E={e}_V={v}.txt")
-            config_dir = self.sub_dirs['veri_config_dir']
-            slurm_script_path = self.sub_dirs['veri_slurm_dir']
+            config_path = os.path.join(self.sub_dirs['veri_config_dir'], f"{model_name}_P={p}_E={e}_V={v}.toml")
+            slurm_script_path = None if not self.slurm else os.path.join(self.sub_dirs['veri_slurm_dir'], f"{model_name}_P={p}_E={e}_V={v}.slurm")
 
         # dump octopus configurations
-        config_path = os.path.join(config_dir, f'{a}_{n}_{h}_{s}.toml')
-
         return sts, config_path, slurm_script_path, log_path
 
     def train(self):
@@ -129,14 +128,14 @@ class Benchmark:
             sts, config_path, slurm_script_path, log_path = self._get_problem_paths('T', a=a, n=n, h=h, s=s)
 
             # check if done
-            if os.path.exists(log_path):
+            if os.path.exists(log_path) and not self.override:
                 nb_done += 1
                 continue
             else:
                 nb_todo += 1
 
             toml.dump(sts, open(config_path, 'w'))
-            cmd = f"python -m octopus {config_path} train --seed {s}"
+            cmd = f"python -m octopus {config_path} T --seed {s}"
 
             slurm_cmd = None
             if self.slurm:
@@ -157,7 +156,7 @@ class Benchmark:
 
                 lines = [x+'\n' for x in lines]
                 open(slurm_script_path, 'w').writelines(lines)
-                param_node = f'-w {self.veri_nodes[i%len(self.veri_nodes)]}' if self.veri_nodes else ''
+                param_node = f'-w {self.train_nodes[i%len(self.train_nodes)]}' if self.train_nodes else ''
                 slurm_cmd = f'sbatch {param_node} {slurm_script_path}'
 
             self._exec(cmd, slurm_cmd)
@@ -172,14 +171,14 @@ class Benchmark:
                 'V', a=a, n=n, h=h, s=s, p=p, e=e, v=v)
 
             # check if done
-            if os.path.exists(log_path):
+            if os.path.exists(log_path) and not self.override:
                 nb_done += 1
                 continue
             else:
                 nb_todo += 1
             toml.dump(sts, open(config_path, 'w'))
 
-            cmd = f'python -m octopus {config_path} verify --seed {s}'
+            cmd = f'python -m octopus {config_path} V --seed {s}'
 
             tmpdir = f'/tmp/{uuid.uuid1()}'
             slurm_cmd = None
