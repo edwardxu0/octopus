@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 
-from .basic_net import BasicNet
+from . import BasicNet
 
 
 class VeriNet(BasicNet):

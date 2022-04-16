@@ -54,20 +54,21 @@ Oh-Crazy Training-Oriented Provable Unified System(OCTOPUS) for DNN verification
 * [x] re-architecture the MODELS to accept unified functions.
 * [x] refactor code base to support all the changes.
 * [x] fix RS loss.
+
+### 2.3. W2[D]:
 * [x] a unified way to control heuristics pre/during/post training.
 * [x] a unified way to save logs/models/meta-data.
 * [x] a unified pipeline with DNNV/analysis.
-
-### 2.3. W2[D]:
 * [x] Enhance efficiency of RSLoss/BS.
 * [x] Multiple ReLU estimations. TD/VS/IP ...
 * [x] Explore when to apply RSLoss/BS.
 * [x] Explore RSLoss/BS to verification.
+
+### 2.4.:
+* [ ] Logging with octopus+.
+* [ ] Save slurm scripts separately.
+* [ ] Separate host and slurm logs.
+* [ ] Refine BS from numpy to torch.
 * [x] CUDA AMP.
 * [ ] BS decay/weights of RSLoss.
 * [ ] Explore combinations of RSLoss/BS to verification.
-
-### 2.4.:
-* [ ] Logging with octo
-* [ ] Save slurm scripts separately.
-* [ ] Separate host and slurm logs.

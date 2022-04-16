@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import StepLR
 from octopus.artifact.artifacts import *
 
 from ..plot.train_progress import ProgressPlot
-from ..architecture.architecture import VeriNet
+from ..architecture.VeriNet import VeriNet
 
 
 class Problem:
@@ -45,7 +45,7 @@ class Problem:
         use_gpu = False if 'gpu' not in cfg else cfg['gpu']
         use_cuda = use_gpu and torch.cuda.is_available()
         amp = False if 'amp' not in cfg else cfg['amp']
-        self.amp = use_gpu and amp
+        self.amp = use_cuda and amp
         if use_cuda:
             self.logger.info('CUDA enabled.')
         self.device = torch.device("cuda" if use_cuda else "cpu")
@@ -126,7 +126,6 @@ class Problem:
             self.logger.info('CUDA AMP enabled.')
             self.amp_scaler = torch.cuda.amp.GradScaler()
 
-
         for epoch in range(1, self.cfg_train['epochs'] + 1):
             self._train_epoch(epoch)
             self._test_epoch(epoch)
@@ -158,7 +157,12 @@ class Problem:
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
 
-            with torch.cuda.amp.autocast(enabled=self.amp):
+            # Use AMP
+            # equivalent to:
+            # with torch.cuda.amp.autocast(enabled=self.amp):
+            # to disable warning when cuda==false and amp==true.
+            with torch.autocast(self.device.type, enabled=self.amp):
+
                 output_pre_softmax = self.model(data)
                 output = F.log_softmax(output_pre_softmax, dim=1)
 
@@ -187,12 +191,12 @@ class Problem:
                 and batch_idx != 0\
                 and self.cfg_heuristic['bias_shaping']['start'] <= epoch <= self.cfg_heuristic['bias_shaping']['end']:
 
-                if np.random.rand() < self.cfg_heuristic['bias_shaping']['occurrence']:
-                    # print('before', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
-                    if self.model.run_heuristics('bias_shaping', data):
-                        BS_point = len(self.train_loader) * (epoch-1) + batch_idx
-                        self.train_BS_points += [BS_point]
-                    # print('after', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
+            
+                # print('before', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
+                if self.model.run_heuristics('bias_shaping', data):
+                    BS_point = len(self.train_loader) * (epoch-1) + batch_idx
+                    self.train_BS_points += [BS_point]
+                # print('after', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
 
             
             if batch_idx % self.cfg_train['log_interval'] == 0:
@@ -223,8 +227,8 @@ class Problem:
         test_loss /= len(self.test_loader.dataset)
         test_accuracy = correct / len(self.test_loader.dataset)
         self.test_accuracy += [test_accuracy]
-
-        self.logger.info(f'[Test] epoch: {epoch} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}%.\n')
+        batch_stable_ReLU = self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation'], self.test_loader)
+        self.logger.info(f'[Test] epoch: {epoch} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}% SR: {batch_stable_ReLU:5}\n')
 
 
     def _plot_train(self):

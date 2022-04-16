@@ -1,23 +1,26 @@
 name = 'test'
 
 [train]
-	artifact = 'CIFAR10'
+	artifact = 'MNIST'
 	net_name = 'NetS'
-	net_layers = [3072, 1024, 1024, 1024, 1024, 1024, 1024, 10]
+	net_layers = [784, 128, 128, 128, 10]
 
 	epochs = 2
 	batch_size = 64
 	test_batch_size = 1000
-	lr = 1e-4				# learning rate
-	gamma = 1 			# Learning rate decay
+	lr = 1e-4							# learning rate
+	gamma = 1 							# Learning rate decay
 	save_model = true
 	save_intermediate = true
-	log_interval = 500		# pring while n-th batch
+	log_interval = 500					# Stable ReLU estimation/print interval
 	gpu = true
-	amp = true
+	amp = true							# enabled only when gpu == true
 
-	ReLU_estimation = 'VS' # TD: train distribution, IP: interval propagation, VS: verification sampling
-	adv_train = 'nature' # ['nature', 'pgd', 'vae', 'gan', ...]	
+	# TD: train distribution
+	# VS: verification sampling
+	# IP: interval propagation
+	ReLU_estimation = 'TD'
+	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
 
 
 [heuristic]
