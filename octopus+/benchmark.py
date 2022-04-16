@@ -45,9 +45,12 @@ class Benchmark:
 
         self.tmp_dir = './tmp'
         self.sub_dirs = {}
-        sub_dirs = {'train_log', 'model', 'property', 'figure', 'veri_log'}
+        sub_dirs = ['train_log', 'model', 'property', 'figure', 'veri_log']
+        if self.slurm:
+            sub_dirs += ['train_slurm', 'veri_slurm']
         for sd in sub_dirs:
             sdp = os.path.join(self.result_dir, sd)
+            Path(sdp).mkdir(exist_ok=True, parents=True)
             self.sub_dirs[sd+'_dir'] = sdp
 
 
@@ -68,6 +71,7 @@ class Benchmark:
 
     def _exec(self, cmd, slurm_cmd):
         if not self.go:
+            print(slurm_cmd)
             print('Dry run: ', cmd)
             exit()
         else:
@@ -191,16 +195,17 @@ class Benchmark:
                          f'#SBATCH --output={veri_log_path}',
                          f'#SBATCH --error={veri_log_path}',
                          f'export TMPDIR={tmpdir}',
+                         f'mkdir {tmpdir}',
                          'cat /proc/sys/kernel/hostname',
                          'source .env.d/openenv.sh',
                          cmd,
                          f'rm -rf {tmpdir}',]
                 lines = [x+'\n' for x in lines]
-                
-                open(self.slurm_config_path,'w').writelines(lines)
 
+                slurm_script_path = os.path.join(self.sub_dirs['veri_slurm_dir'],actual_veri_log_path.split('/')[-1])
+                open(slurm_script_path,'w').writelines(lines)
                 param_node = f'-w {self.veri_nodes[i%len(self.veri_nodes)]}' if self.veri_nodes else ''
-                slurm_cmd = f'sbatch {param_node} {self.slurm_config_path}'
+                slurm_cmd = f'sbatch {param_node} {slurm_script_path}'
 
             self._exec(cmd, slurm_cmd)
 

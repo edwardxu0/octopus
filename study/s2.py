@@ -5,12 +5,12 @@ train_nodes_ex = 'affogato12,affogato13,affogato14,cheetah01,lynx08,lynx09,ai04'
 veri_nodes = ['doppio'+x for x in ['01','02','03','04','05']]#,'06','07','08','09','10']]
 veri_nodes_ex = None
 
-artifacts = ['FashionMNIST', 'CIFAR10']
+artifacts = ['MNIST', 'FashionMNIST', 'CIFAR10']
 networks = {'NetS':[128, 128, 128],
             'NetM':[1024, 1024, 1024],
             'NetL':[1024, 1024, 1024, 1024, 1024, 1024]}
 
-seeds = [*range(1)]
+seeds = [*range(3)]
 
 heuristics = {'bias_shaping':{
                                 'mode':'standard',
