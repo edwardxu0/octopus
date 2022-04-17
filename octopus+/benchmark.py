@@ -121,6 +121,7 @@ class Benchmark:
         return sts, config_path, slurm_script_path, log_path
 
     def train(self):
+        self.logger.info('Training ...')
         nb_done = 0
         nb_todo = 0
         for i, (a, n, h, s) in enumerate(self.problems_T):
@@ -164,6 +165,7 @@ class Benchmark:
         self.logger.info(f'Tasks: done: {nb_done}, todo: {nb_todo}, total: {len(self.problems_T)}.')
 
     def verify(self):
+        self.logger.info('Verifying ...')
         nb_done = 0
         nb_todo = 0
         for i, (a, n, h, s, p, e, v) in enumerate(self.problems_V):
@@ -205,6 +207,7 @@ class Benchmark:
 
     # Analyze logs
     def analyze(self):
+        self.logger.info('Analyzing ...')
         # self.analyze_training()
         df_cache_path = os.path.join(self.result_dir, 'result.feather')
         if os.path.exists(df_cache_path) and not self.override:
