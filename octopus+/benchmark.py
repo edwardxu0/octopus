@@ -216,11 +216,13 @@ class Benchmark:
         else:
             self.logger.info('Parsing log files ...')
             df = self._parse_logs()
-            df.to_feather(df_cache_path)
-            self.logger.info('Result cached.')
-
-        self._analyze_training(df)
-        self._analyze_verification(df)
+            if self.go:
+                df.to_feather(df_cache_path)
+                self.logger.info('Result cached.')
+        
+        if self.go:
+            self._analyze_training(df)
+            self._analyze_verification(df)
 
     def _parse_logs(self):
         df = pd.DataFrame({x: [] for x in self.labels})
@@ -230,15 +232,16 @@ class Benchmark:
             _, _, _, train_log_path = self._get_problem_paths('T', a=a, n=n, h=h, s=s)
             lines = open(train_log_path, 'r').readlines()
             assert '[Test]' in lines[-4]
-            accuracy = float(lines[-4].strip().split()[-1][:-2])
+            accuracy = float(lines[-4].strip().split()[-3][:-1])
             stable_relu = int(lines[-4].strip().split()[-1])
 
             _, _, _, veri_log_path = self._get_problem_paths('V', a=a, n=n, h=h, s=s, p=p, e=e, v=v)
             answer, time = Problem.analyze_veri_log(veri_log_path)
             if answer is None or time is None:
                 print('rm', veri_log_path)
-
-            df.loc[len(df.index)] = [a, n, h, s, p, e, v, accuracy, stable_relu, self.code_veri_answer[answer], time]
+            
+            if self.go:
+                df.loc[len(df.index)] = [a, n, h, s, p, e, v, accuracy, stable_relu, self.code_veri_answer[answer], time]
         self.logger.info('--------------------')
         return df
 
