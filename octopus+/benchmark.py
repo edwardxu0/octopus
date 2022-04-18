@@ -180,7 +180,7 @@ class Benchmark:
                 nb_todo += 1
             toml.dump(sts, open(config_path, 'w'))
 
-            cmd = f'python -m octopus {config_path} V --seed {s}'
+            cmd = f'python -m octopus {config_path} V --seed {s} --debug'
 
             tmpdir = f'/tmp/{uuid.uuid1()}'
             slurm_cmd = None

@@ -134,11 +134,11 @@ class Problem:
             if self.cfg_train['save_model']:
                 dummy_input = torch.randn([1] + self.artifact.input_shape, device=self.device)
                 torch.onnx.export(self.model, dummy_input, self.model_path, verbose=False)
-                torch.save(self.model.state_dict(), f"{self.model_path[:-4]}pt")
+                torch.save(self.model.state_dict(), f"{self.model_path[:-5]}.pt")
 
                 if self.cfg_train['save_intermediate']:
-                    torch.onnx.export(self.model, dummy_input, self.model_path+f'.{epoch}', verbose=False)
-                    torch.save(self.model.state_dict(), f"{self.model_path[:-5]}.pt.{epoch}")
+                    torch.onnx.export(self.model, dummy_input, f"{self.model_path[:-5]}.{epoch}.onnx", verbose=False)
+                    torch.save(self.model.state_dict(), f"{self.model_path[:-5]}.{epoch}.pt")
 
             self.LR_decay_scheduler.step()
 
@@ -266,6 +266,22 @@ class Problem:
             self.logger.info('Skipping verified problem.')
         else:
 
+            # TODO: this is temp to verify the best acc epoch, fix later
+            model_path = self.model_path
+            train_log_path = os.path.join(self.sub_dirs['result_dir'], 'train_log', self.model_name+'.txt')
+            # print(train_log_path)
+            lines = [x.strip() for x in open(train_log_path, 'r').readlines() if ' [Test] 'in x]
+            acc_train = np.array([float(x.split()[-3][:-1]) for x in lines])
+            acc_relu = np.array([float(x.split()[-1]) for x in lines])
+            assert acc_train.shape[0] == 100 and acc_relu.shape[0] == 100
+            best_epoch_acc_train = np.argmax(acc_train) + 1
+            best_epoch_acc_relu = np.argmax(acc_relu) + 1
+            self.logger.debug(f"acc_train:, {acc_train}, argmax:, {np.argmax(acc_train)}, best_epoch:, {best_epoch_acc_train}")
+            self.logger.debug(f"acc_relu:, {acc_relu}, argmax: {np.argmax(acc_relu)}, best_epoch, {best_epoch_acc_relu}")
+            model_path = f'{self.model_path[:-5]}.{best_epoch_acc_train}.onnx'
+            assert os.path.exists(model_path)
+            self.logger.debug(f'Best model: {model_path}')
+
             # generate property
             self.logger.info('Generating property ...')
             prop_path = self.artifact.gen_property(prop, eps, self.sub_dirs['property_dir'])
@@ -273,7 +289,7 @@ class Problem:
             # compose DNNV command
             res_monitor_path = os.path.join(os.environ['DNNV'], 'tools', 'resmonitor.py')
             cmd = f"python3 {res_monitor_path} -T {cfg['time']} -M {cfg['memory']}"
-            cmd += f" ./tools/run_DNNV.sh {prop_path} -N N {self.model_path}"
+            cmd += f" ./tools/run_DNNV.sh {prop_path} -N N {model_path}"
 
             if 'eran' in verifier:
                 cmd += f" --eran --eran.domain {verifier.split('_')[1]}"
