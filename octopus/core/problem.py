@@ -3,6 +3,7 @@ import os
 import numpy as np
 import subprocess
 import sys
+import logging
 
 
 import torch.nn.functional as F
@@ -31,14 +32,10 @@ class Problem:
         np.random.seed(settings.seed)
         torch.set_printoptions(threshold=100000)
 
-        self.model_name = self.get_model_name(self.cfg_train, self.cfg_heuristic, self.seed)
+        self.model_name = self.Utility.get_model_name(self.cfg_train, self.cfg_heuristic, self.seed)
         self.model_path = os.path.join(self.sub_dirs['model_dir'], f"{self.model_name}.onnx")
-
-        # setup train data collectors
-        self.train_stable_ReLUs = []
-        self.train_BS_points = []
-        self.train_loss = []
-        self.test_accuracy = []
+        self.train_log_path = os.path.join(self.sub_dirs['train_log_dir'],
+                                           f"{self.model_name}.txt")
 
         cfg = self.cfg_train
         use_gpu = False if 'gpu' not in cfg else cfg['gpu']
@@ -52,58 +49,26 @@ class Problem:
                                                    batch_size=cfg['batch_size'],
                                                    test_batch_size=cfg['test_batch_size'],
                                                    use_cuda=self.device)
-
         self.train_loader, self.test_loader = self.artifact.get_data_loader()
-
         self.model = VeriNet(self.artifact, self.cfg_train['net_layers'],
                              self.logger, self.device, self.amp).to(self.device)
         self.logger.info(f"Network:\n{self.model}")
-        self.model._setup_heuristics(self.cfg_heuristic)
-
-    @staticmethod
-    def get_model_name(cfg_train, cfg_heuristic, seed):
-        name = f"A={cfg_train['artifact']}"
-        name += f"_N={cfg_train['net_name']}"
-        name += f"_RE={cfg_train['ReLU_estimation']}"
-
-        for h in cfg_heuristic:
-            x = cfg_heuristic[h]
-
-            if h == 'bias_shaping':
-                if x['mode'] == 'standard':
-                    m = 'S'
-                else:
-                    raise NotImplementedError
-                name += f"_BS={m}:{x['intensity']}:{x['occurrence']}:{x['start']}:{x['end']}"
-
-            elif h == 'rs_loss':
-                if x['mode'] == 'standard':
-                    m = 'S'
-                else:
-                    raise NotImplementedError
-                name += f"_RS={m}:{x['weight']}:{x['start']}:{x['end']}"
-
-            elif h == 'prune':
-                if x['mode'] == 'structure':
-                    m = 'S'
-                else:
-                    raise NotImplementedError
-
-                if 're_arch' not in x:
-                    r = '-'
-                elif x['re_arch'] == 'standard':
-                    r = 'S'
-                else:
-                    raise NotImplementedError
-
-                name += f"_PR={m}:{r}:{x['sparsity']}:{x['start']}:{x['end']}"
-
-            else:
-                assert False
-        name += f'_seed={seed}'
-        return name
 
     # Training ...
+    def _setup_train(self):
+        if 'save_log' in self.cfg_train and self.cfg_train['save_log']:
+            self.logger.debug(f'Saving training log to: {self.train_log_path}')
+            file_handler = logging.FileHandler(self.train_log_path, 'w')
+            self.logger.addHandler(file_handler)
+
+        # setup train data collectors
+        self.train_stable_ReLUs = []
+        self.train_BS_points = []
+        self.train_loss = []
+        self.test_accuracy = []
+
+        # configure heuristics
+        self.model._setup_heuristics(self.cfg_heuristic)
 
     def _trained(self):
         # TODO: account for log file and # epochs
@@ -113,6 +78,8 @@ class Problem:
         if self._trained() and not self.override:
             self.logger.info('Skipping trained network.')
             return
+
+        self._setup_train()
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.cfg_train['lr'])
         self.LR_decay_scheduler = StepLR(self.optimizer, step_size=1, gamma=self.cfg_train['gamma'])
@@ -127,11 +94,13 @@ class Problem:
 
             # H: pruning
             if 'prune' in self.cfg_heuristic\
-                    and self.cfg_heuristic['prune']['start'] <= epoch <= self.cfg_heuristic['prune']['end']:
+                    and self.Utility.heuristic_enabled_epochwise(epoch, self.cfg_heuristic['prune']['start'],
+                                                                 self.cfg_heuristic['prune']['end']):
                 self.model.run_heuristics('prune', None)
 
             # save model
             if self.cfg_train['save_model']:
+                self.logger.debug(f'Saving model: {self.model_path}')
                 dummy_input = torch.randn([1] + self.artifact.input_shape, device=self.device)
                 torch.onnx.export(self.model, dummy_input, self.model_path, verbose=False)
                 torch.save(self.model.state_dict(), f"{self.model_path[:-5]}.pt")
@@ -164,7 +133,9 @@ class Problem:
 
                 # H: RS loss
                 if 'rs_loss' in self.cfg_heuristic\
-                        and self.cfg_heuristic['rs_loss']['start'] <= epoch <= self.cfg_heuristic['rs_loss']['end']:
+                    and self.Utility.heuristic_enabled_epochwise(epoch,
+                                                                 self.cfg_heuristic['rs_loss']['start'],
+                                                                 self.cfg_heuristic['rs_loss']['end']):
 
                     rs_loss = self.model.run_heuristics('rs_loss', data)
                     loss += rs_loss * self.cfg_heuristic['rs_loss']['weight']
@@ -183,7 +154,8 @@ class Problem:
             # H: bias shaping
             if 'bias_shaping' in self.cfg_heuristic\
                     and batch_idx != 0\
-                    and self.cfg_heuristic['bias_shaping']['start'] <= epoch <= self.cfg_heuristic['bias_shaping']['end']:
+                    and self.Utility.heuristic_enabled_epochwise(epoch,
+                                                                 self.cfg_heuristic['bias_shaping']['start'], self.cfg_heuristic['bias_shaping']['end']):
 
                 # print('before', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
                 if self.model.run_heuristics('bias_shaping', data):
@@ -250,8 +222,7 @@ class Problem:
     def _verified(self, prop, eps, verifier):
         assert self._trained()
         # TODO: account for verification completion
-        self.veri_log_path = os.path.join(self.sub_dirs['veri_log_dir'],
-                                          f"{self.model_name}_P={prop}_E={eps}_V={verifier}.txt")
+
         return os.path.exists(self.veri_log_path)
 
     def verify(self):
@@ -261,26 +232,18 @@ class Problem:
         verifier = cfg['verifier']
         debug = cfg['debug'] if 'debug' in cfg else None
         save_log = cfg['save_log'] if 'save_log' in cfg else None
+        target_model = cfg['target_model'] if 'target_model' in cfg else None
+        target_epoch = self.Utility.get_target_epoch(target_model, self.train_log_path)
+        target_epoch = self.cfg_train['epochs'] if not target_epoch else target_epoch
+        self.veri_log_path = os.path.join(self.sub_dirs['veri_log_dir'],
+                                          f"{self.model_name}_epoch={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt")
 
         if self._verified(prop, eps, verifier) and save_log and not self.override:
             self.logger.info('Skipping verified problem.')
         else:
-
-            # TODO: this is temp to verify the best acc epoch, fix later
-            model_path = self.model_path
-            train_log_path = os.path.join(self.sub_dirs['result_dir'], 'train_log', self.model_name+'.txt')
-            # print(train_log_path)
-            lines = [x.strip() for x in open(train_log_path, 'r').readlines() if ' [Test] 'in x]
-            acc_train = np.array([float(x.split()[-3][:-1]) for x in lines])
-            acc_relu = np.array([float(x.split()[-1]) for x in lines])
-            assert acc_train.shape[0] == 100 and acc_relu.shape[0] == 100
-            best_epoch_acc_train = np.argmax(acc_train) + 1
-            best_epoch_acc_relu = np.argmax(acc_relu) + 1
-            self.logger.debug(f"acc_train:, {acc_train}, argmax:, {np.argmax(acc_train)}, best_epoch:, {best_epoch_acc_train}")
-            self.logger.debug(f"acc_relu:, {acc_relu}, argmax: {np.argmax(acc_relu)}, best_epoch, {best_epoch_acc_relu}")
-            model_path = f'{self.model_path[:-5]}.{best_epoch_acc_train}.onnx'
+            model_path = f'{self.model_path[:-5]}.{target_epoch}.onnx'
+            self.logger.debug(f'Target model: {model_path}')
             assert os.path.exists(model_path)
-            self.logger.debug(f'Best model: {model_path}')
 
             # generate property
             self.logger.info('Generating property ...')
@@ -322,38 +285,121 @@ class Problem:
                               self.cfg_verify['epsilon'],
                               self.cfg_verify['verifier'])
         self.logger.debug(f'Analyzing log: {self.veri_log_path}')
-        veri_ans, veri_time = self.analyze_veri_log(self.veri_log_path)
+        veri_ans, veri_time = self.Utility.analyze_veri_log(self.veri_log_path)
         if veri_ans and veri_time:
             self.logger.info(f'Result: {veri_ans}, {veri_time}s.')
         else:
             self.logger.info(f'Failed.')
 
-    @staticmethod
-    def analyze_veri_log(log_path):
-        lines = open(log_path, 'r').readlines()
-        lines.reverse()
-        veri_ans = None
-        veri_time = None
-        for l in lines:
-            if '  result: ' in l:
-                if 'Error' in l:
-                    veri_ans = 'error'
-                else:
-                    veri_ans = l.strip().split()[-1]
-
-            elif '  time: ' in l:
-                veri_time = float(l.strip().split()[-1])
-
-            elif ' Timeout' in l:
-                veri_ans = 'timeout'
-                veri_time = float(l.strip().split()[-3])
-                break
-            elif ' of memory' in l:
-                veri_ans = 'memout'
-                veri_time = float(l.strip().split()[-3])
-                break
-
-        return veri_ans, veri_time
-
     def _save_meta(self):
         ...
+
+    class Utility:
+        @staticmethod
+        def get_model_name(cfg_train, cfg_heuristic, seed):
+            name = f"A={cfg_train['artifact']}"
+            name += f"_N={cfg_train['net_name']}"
+            name += f"_RE={cfg_train['ReLU_estimation']}"
+
+            def parse_start_end(x):
+                return str(x['start']).replace(' ', '')+':'+str(x['end']).replace(' ', '')
+
+            for h in cfg_heuristic:
+                x = cfg_heuristic[h]
+
+                if h == 'bias_shaping':
+                    if x['mode'] == 'standard':
+                        m = 'S'
+                    else:
+                        raise NotImplementedError
+                    name += f"_BS={m}:{x['intensity']}:{x['occurrence']}:{parse_start_end(x)}"
+
+                elif h == 'rs_loss':
+                    if x['mode'] == 'standard':
+                        m = 'S'
+                    else:
+                        raise NotImplementedError
+                    name += f"_RS={m}:{x['weight']}:{parse_start_end(x)}"
+
+                elif h == 'prune':
+                    if x['mode'] == 'structure':
+                        m = 'S'
+                    else:
+                        raise NotImplementedError
+
+                    if 're_arch' not in x:
+                        r = '-'
+                    elif x['re_arch'] == 'standard':
+                        r = 'S'
+                    else:
+                        raise NotImplementedError
+
+                    name += f"_PR={m}:{r}:{x['sparsity']}:{parse_start_end(x)}"
+
+                else:
+                    assert False
+            name += f'_seed={seed}'
+            return name
+
+        @ staticmethod
+        def get_verification_postfix(cfg_verify):
+            p = cfg_verify['property']
+            e = cfg_verify['epsilon']
+            v = cfg_verify['verifier']
+            return f'P={p}_E={e}_V={v}'
+
+        @ staticmethod
+        def heuristic_enabled_epochwise(epoch, start, end):
+            assert type(start) == type(end)
+            if isinstance(start, int):
+                enabled = start <= epoch <= end
+            elif isinstance(start, list):
+                enabled = any([x[0] <= epoch <= x[1] for x in zip(start, end)])
+            else:
+                assert False
+            return enabled
+
+        @ staticmethod
+        def get_target_epoch(target_model, train_log_path):
+            if not target_model or target_model == 'last':
+                target_epoch = None
+            elif target_model.startswith('best'):
+                lines = [x.strip() for x in open(train_log_path, 'r').readlines() if '[Test] ' in x]
+                acc_train = np.array([float(x.split()[-3][:-1]) for x in lines])
+                acc_relu = np.array([float(x.split()[-1]) for x in lines])
+                best_epoch_acc_test = np.argmax(acc_train) + 1
+                best_epoch_acc_relu = np.argmax(acc_relu) + 1
+                target_epoch = best_epoch_acc_test
+
+            elif target_model.startswith('top'):
+                raise NotImplementedError
+            else:
+                assert False, f'Unknown target_model: {target_model}'
+            return target_epoch
+
+        @ staticmethod
+        def analyze_veri_log(log_path):
+            lines = open(log_path, 'r').readlines()
+            lines.reverse()
+            veri_ans = None
+            veri_time = None
+            for l in lines:
+                if '  result: ' in l:
+                    if 'Error' in l:
+                        veri_ans = 'error'
+                    else:
+                        veri_ans = l.strip().split()[-1]
+
+                elif '  time: ' in l:
+                    veri_time = float(l.strip().split()[-1])
+
+                elif ' Timeout' in l:
+                    veri_ans = 'timeout'
+                    veri_time = float(l.strip().split()[-3])
+                    break
+                elif ' of memory' in l:
+                    veri_ans = 'memout'
+                    veri_time = float(l.strip().split()[-3])
+                    break
+
+            return veri_ans, veri_time

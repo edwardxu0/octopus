@@ -22,4 +22,5 @@ name = 's2'
 	property = 0
 	epsilon = 0.02
 	save_log = true
+	target_model = 'best'
 	verifier = 'neurify'

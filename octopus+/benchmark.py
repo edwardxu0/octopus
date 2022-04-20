@@ -6,6 +6,7 @@ import uuid
 import importlib
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 import matplotlib.pyplot as plt
 
@@ -14,6 +15,7 @@ from pathlib import Path
 from octopus.core.problem import Problem
 
 from octopus.plot.box_plot import colored_box_plot
+from matplotlib.ticker import (AutoMinorLocator, MultipleLocator)
 
 
 class Benchmark:
@@ -37,7 +39,7 @@ class Benchmark:
                                  'error': 5}
 
         self.labels = ['artifact', 'network', 'heuristic', 'seed', 'property',
-                       'epsilon', 'verifier', 'accuracy', 'stable relu', 'veri ans', 'veri time']
+                       'epsilon', 'verifier', 'test accuracy', 'stable relu', 'relu accuracy', 'veri ans', 'veri time']
 
         self.sub_dirs = {}
         sub_dirs = ['train_config', 'train_log', 'model', 'veri_config', 'veri_log', 'property', 'figure', ]
@@ -91,7 +93,7 @@ class Benchmark:
 
     def _get_problem_paths(self, task, **kwargs):
         sts = copy.deepcopy(self.base_settings)
-        
+
         a, n, h, s = list(kwargs.values())[:4]
         sts['train']['artifact'] = a
         sts['train']['net_name'] = n
@@ -100,11 +102,12 @@ class Benchmark:
         if h != 'base':
             sts['heuristic'][h] = self.heuristics[h]
 
-        model_name = Problem.get_model_name(sts['train'], sts['heuristic'], s)
+        model_name = Problem.Utility.get_model_name(sts['train'], sts['heuristic'], s)
         if task == 'T':
             log_path = os.path.join(self.sub_dirs['train_log_dir'], f"{model_name}.txt")
             config_path = os.path.join(self.sub_dirs['train_config_dir'], f'{model_name}.toml')
-            slurm_script_path = None if not self.slurm else os.path.join(self.sub_dirs['train_slurm_dir'], f"{model_name}.slurm")
+            slurm_script_path = None if not self.slurm else os.path.join(
+                self.sub_dirs['train_slurm_dir'], f"{model_name}.slurm")
 
         elif task == 'V':
             a, n, h, s, p, e, v = kwargs.values()
@@ -115,7 +118,8 @@ class Benchmark:
             # configure log path
             log_path = os.path.join(self.sub_dirs['veri_log_dir'], f"{model_name}_P={p}_E={e}_V={v}.txt")
             config_path = os.path.join(self.sub_dirs['veri_config_dir'], f"{model_name}_P={p}_E={e}_V={v}.toml")
-            slurm_script_path = None if not self.slurm else os.path.join(self.sub_dirs['veri_slurm_dir'], f"{model_name}_P={p}_E={e}_V={v}.slurm")
+            slurm_script_path = None if not self.slurm else os.path.join(
+                self.sub_dirs['veri_slurm_dir'], f"{model_name}_P={p}_E={e}_V={v}.slurm")
 
         # dump octopus configurations
         return sts, config_path, slurm_script_path, log_path
@@ -219,10 +223,12 @@ class Benchmark:
             if self.go:
                 df.to_feather(df_cache_path)
                 self.logger.info('Result cached.')
-        
+
+        self.logger.debug(f'Data frame: \n{df}')
+
         if self.go:
             self._analyze_training(df)
-            self._analyze_verification(df)
+            # self._analyze_verification(df)
 
     def _parse_logs(self):
         df = pd.DataFrame({x: [] for x in self.labels})
@@ -230,31 +236,43 @@ class Benchmark:
         self.logger.info('--------------------')
         for i, (a, n, h, s, p, e, v) in enumerate(self.problems_V):
             _, _, _, train_log_path = self._get_problem_paths('T', a=a, n=n, h=h, s=s)
+            '''
             lines = open(train_log_path, 'r').readlines()
             assert '[Test]' in lines[-4]
-            accuracy = float(lines[-4].strip().split()[-3][:-1])
+            test_accuracy = float(lines[-4].strip().split()[-3][:-1])
             stable_relu = int(lines[-4].strip().split()[-1])
+            '''
+
+            lines = [x for x in open(train_log_path, 'r').readlines() if '[Test]' in x]
+            assert len(lines) == 100
+            # select the best accuracy instead of last epoch's accuracy
+            best_epoch = np.argmax([float(x.strip().split()[-3][:-1]) for x in lines])
+            test_accuracy = [float(x.strip().split()[-3][:-1]) for x in lines][best_epoch]
+            stable_relu = [float(x.strip().split()[-1]) for x in lines][best_epoch]
+            relu_accuracy = stable_relu / np.sum(self.networks[n])*100
 
             _, _, _, veri_log_path = self._get_problem_paths('V', a=a, n=n, h=h, s=s, p=p, e=e, v=v)
-            answer, time = Problem.analyze_veri_log(veri_log_path)
+            answer, time = Problem.Utility.analyze_veri_log(veri_log_path)
             if answer is None or time is None:
                 print('rm', veri_log_path)
-            
+
             if self.go:
-                df.loc[len(df.index)] = [a, n, h, s, p, e, v, accuracy, stable_relu, self.code_veri_answer[answer], time]
+                df.loc[len(df.index)] = [a, n, h, s, p, e, v, test_accuracy,
+                                         stable_relu, relu_accuracy, self.code_veri_answer[answer], time]
         self.logger.info('--------------------')
         return df
 
     def _analyze_training(self, df):
-        ...
+        self._train_boxplot(df)
+        # self._train_catplot(df)
 
-    def _analyze_verification(self, df):
-
-        self.logger.info('Plotting training overview ...')
+    def _train_boxplot(self, df):
+        self.logger.info('Plotting training ...')
         # plot accuracy/stable relu among network/heuristic pairs.
         x_labels = []
-        collection_accuracy = []
-        collection_stable_relu = []
+        c_test_acc = []
+        c_relu_acc = []
+        # c_stable_relu = []
         for a in self.artifacts:
             for n in self.networks:
                 for h in self.heuristics.keys():
@@ -262,37 +280,73 @@ class Benchmark:
                     dft = dft[dft['artifact'] == a]
                     dft = dft[dft['network'] == n]
                     dft = dft[dft['heuristic'] == h]
+                    dft = dft[dft['property'] == self.props[0]]
+                    dft = dft[dft['epsilon'] == self.epsilons[0]]
+                    dft = dft[dft['verifier'] == self.verifiers[0]]
 
-                    acc = np.array(list(set(dft['accuracy'].values.tolist())))
-                    stable_relu = np.array(list(set(dft['stable relu'].values.tolist())))
+                    x_labels += [f'{a[0]}:{n[-1]}:{h[:2]}']
 
-                    # TODO: make multiple plots for different artifacts
-                    #x_labels += [f'{a} {n} {h}']
-                    x_labels += [f'{n} {h}']
-                    collection_accuracy += [acc]
-                    collection_stable_relu += [stable_relu]
+                    test_acc = dft['test accuracy'].values
+                    relu_acc = dft['relu accuracy'].values
+                    # stable_relu = dft['stable relu'].values
+                    c_test_acc += [test_acc]
+                    c_relu_acc += [relu_acc]
+                    # c_stable_relu += [stable_relu]
 
-        collection_accuracy = np.array(collection_accuracy, dtype=object)
-        collection_stable_relu = np.array(collection_stable_relu, dtype=object)
+        c_test_acc = np.array(c_test_acc, dtype=object)
+        c_relu_acc = np.array(c_relu_acc, dtype=object)
+        # c_ = np.array(c_stable_relu, dtype=object)
 
-        fig, ax1 = plt.subplots(1, 1)
+        fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
         ax2 = ax1.twinx()
+        bp1 = colored_box_plot(ax1, c_test_acc.T, 'red', 'tan')
+        bp2 = colored_box_plot(ax2, c_relu_acc.T, 'blue', 'cyan')
+        # bp2 = colored_box_plot(ax2, collection_stable_relu.T, 'blue', 'cyan')
 
-        bp1 = colored_box_plot(ax1, collection_accuracy, 'red', 'tan')
-        bp2 = colored_box_plot(ax2, collection_stable_relu, 'blue', 'cyan')
+        plt.legend([bp1["boxes"][0], bp2["boxes"][0]], ['Test Acc.', 'ReLU Acc.'], loc='center left')
 
-        plt.legend([bp1["boxes"][0], bp2["boxes"][0]], ['Accuracy', 'Stable ReLU'], loc='upper left')
+        xticks = np.arange(1, len(c_test_acc)+1, 1)
+        ax1.set_xticks(xticks)
+        ax1.set_xticklabels(x_labels, rotation=90)
 
-        ax1.set_xticklabels(x_labels*2, rotation=90)
+        ax1.xaxis.set_major_locator(MultipleLocator(len(self.heuristics)))
+        ax1.xaxis.set_minor_locator(MultipleLocator(1))
+
+        ax1.grid(which='major', axis='x', color='grey', linestyle='--', linewidth=1)
+        ax1.grid(which='minor', axis='x', color='grey', linestyle=':', linewidth=0.25)
+
         ax1.set_ylabel('Test Accuracy(%)')
-        ax2.set_ylabel('# Stable ReLUs')
-        ax1.set_xlabel('Network/Heuristics')
-        plt.title('Test Accuracy/# Stable ReLUs vs. Heuristics and Networks pairs')
+        ax2.set_ylabel('ReLU Accuracy(%)')
+        ax1.set_xlabel('Artifact:Network:Heuristics')
+        plt.title('Test/ReLU Accuracy vs. Artifact, Network, and Heuristics Triples')
         plt.savefig(os.path.join(self.result_dir, 'Training_overview.pdf'), format="pdf", bbox_inches="tight")
-
         fig.clear()
         plt.close(fig)
 
+    def _train_catplot(self, df):
+        dft = df
+        dft = dft[dft['artifact'] == "MNIST"]
+        dft = dft[dft['property'] == self.props[0]]
+        dft = dft[dft['epsilon'] == self.epsilons[0]]
+        dft = dft[dft['verifier'] == self.verifiers[0]]
+
+        fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
+        ax2 = ax1.twinx()
+
+        # bp1 = colored_box_plot(ax1, collection_accuracy.T, 'red', 'tan')
+        # bp2 = colored_box_plot(ax2, collection_stable_relu.T, 'blue', 'cyan')
+        # bp2 = colored_box_plot(ax2, collection_accuracy_relu.T, 'blue', 'cyan')
+
+        # plt.legend([bp1["boxes"][0], bp2["boxes"][0]], ['Test Acc.', 'ReLU Acc.'], loc='center left')
+
+        fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
+        sns.catplot(ax=ax1, x="network", y="test accuracy", hue='heuristic',
+                    col='artifact', kind='box', data=df, palette="Set3")
+        plt.savefig(os.path.join(self.result_dir, 'Training_overview_catplot1.pdf'), format="pdf", bbox_inches="tight")
+        fig.clear()
+        plt.close(fig)
+
+    def _analyze_verification(self, df):
         self.logger.info('Plotting verification ...')
         for a in self.artifacts:
             for n in self.networks:

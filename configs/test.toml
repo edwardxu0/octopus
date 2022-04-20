@@ -12,6 +12,7 @@ name = 'test'
 	gamma = 1 							# Learning rate decay
 	save_model = true
 	save_intermediate = true
+	save_log = true
 	log_interval = 500					# Stable ReLU estimation/print interval
 	gpu = true
 	amp = true							# enabled only when gpu == true
@@ -30,8 +31,8 @@ name = 'test'
 		intensity = 5e-2
 		occurrence = 5e-3
 		# decay = 0.98
-		start = 1 			# inclusive
-		end = 100 			# inclusive
+		start = [1,2] 			# inclusive
+		end = [1,2] 			# inclusive
 	
 	#[heuristic.rs_loss]
 	#	ReLU_estimation = 'IP'
@@ -54,5 +55,7 @@ name = 'test'
 	memory = '8G'
 	property = 0
 	epsilon = 0.02
+	debug = false
 	save_log = true
+	target_model = 'best test accuracy'
 	verifier = 'neurify'

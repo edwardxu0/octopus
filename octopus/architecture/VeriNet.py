@@ -10,7 +10,6 @@ class VeriNet(BasicNet):
         super(VeriNet, self).__init__(logger, device, amp)
         self.artifact = artifact
         self.set_layers(layers)
-        super().__setup__()
 
     def set_layers(self, layers, weights=None, bias=None):
         layers = [np.prod(self.artifact.input_shape)] + layers + [np.prod(self.artifact.output_shape)]
@@ -56,6 +55,7 @@ class VeriNet(BasicNet):
         # TODO:check last hidden layer to be a conv layer
         else:
             assert False
+        super().__setup__()
 
     def forward(self, x):
         # reshape input if first hidden layer is a FC layer
@@ -76,5 +76,6 @@ class VeriNet(BasicNet):
             self.__delattr__(l)
 
         torch.cuda.empty_cache()
+        super().__setup__()
         self.__delattr__('layers')
         self.logger.info('Model cleared.')
