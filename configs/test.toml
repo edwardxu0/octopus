@@ -57,5 +57,15 @@ name = 'test'
 	epsilon = 0.02
 	debug = false
 	save_log = true
-	target_model = 'best test accuracy'
 	verifier = 'neurify'
+	
+	# model selection strategy for verification
+	# last(default): last epoch model
+	#
+	# For all below: must save intermediate models(save_intermediate = true)
+	# best test accuracy: model with the best test accuracy
+	# best relu accuracy: model with the most amount of stable relus
+	# top [x] test accuaracy: model with the most amount of stable relus with [x]% accuarcy difference of the model with the best tests accuracy
+	# top [x] relu accuaracy: model with the best test accuracy with [x]% stable relu difference of the model with the most amount of stable relus
+	target_model = 'top 1 test accuracy'
+

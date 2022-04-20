@@ -72,46 +72,50 @@ class Problem:
 
     def _trained(self):
         # TODO: account for log file and # epochs
-        return os.path.exists(self.model_path)
+        trained = True
+        if 'save_log' in self.cfg_train and self.cfg_train['save_log']:
+            if not os.path.exists(self.train_log_path):
+                trained = False
+            else:
+                trained = len([x for x in open(self.train_log_path, 'r').readlines()
+                              if '[Test] ' in x]) == self.cfg_train['epochs']
+        if not os.path.exists(self.model_path):
+            trained = False
+
+        return trained
 
     def train(self):
         if self._trained() and not self.override:
             self.logger.info('Skipping trained network.')
-            return
+        else:
+            self._setup_train()
 
-        self._setup_train()
+            self.optimizer = optim.Adam(self.model.parameters(), lr=self.cfg_train['lr'])
+            self.LR_decay_scheduler = StepLR(self.optimizer, step_size=1, gamma=self.cfg_train['gamma'])
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.cfg_train['lr'])
-        self.LR_decay_scheduler = StepLR(self.optimizer, step_size=1, gamma=self.cfg_train['gamma'])
+            if self.amp:
+                self.logger.info('CUDA AMP enabled.')
+                self.amp_scaler = torch.cuda.amp.GradScaler()
 
-        if self.amp:
-            self.logger.info('CUDA AMP enabled.')
-            self.amp_scaler = torch.cuda.amp.GradScaler()
+            for epoch in range(1, self.cfg_train['epochs'] + 1):
+                self._train_epoch(epoch)
+                self._test_epoch(epoch)
 
-        for epoch in range(1, self.cfg_train['epochs'] + 1):
-            self._train_epoch(epoch)
-            self._test_epoch(epoch)
+                # save model
+                if self.cfg_train['save_model']:
+                    self.logger.debug(f'Saving model: {self.model_path}')
+                    dummy_input = torch.randn([1] + self.artifact.input_shape, device=self.device)
+                    torch.onnx.export(self.model, dummy_input, self.model_path, verbose=False)
+                    torch.save(self.model.state_dict(), f"{self.model_path[:-5]}.pt")
 
-            # H: pruning
-            if 'prune' in self.cfg_heuristic\
-                    and self.Utility.heuristic_enabled_epochwise(epoch, self.cfg_heuristic['prune']['start'],
-                                                                 self.cfg_heuristic['prune']['end']):
-                self.model.run_heuristics('prune', None)
+                    if self.cfg_train['save_intermediate']:
+                        torch.onnx.export(self.model, dummy_input,
+                                          f"{self.model_path[:-5]}.{epoch}.onnx", verbose=False)
+                        torch.save(self.model.state_dict(), f"{self.model_path[:-5]}.{epoch}.pt")
 
-            # save model
-            if self.cfg_train['save_model']:
-                self.logger.debug(f'Saving model: {self.model_path}')
-                dummy_input = torch.randn([1] + self.artifact.input_shape, device=self.device)
-                torch.onnx.export(self.model, dummy_input, self.model_path, verbose=False)
-                torch.save(self.model.state_dict(), f"{self.model_path[:-5]}.pt")
+                self.LR_decay_scheduler.step()
 
-                if self.cfg_train['save_intermediate']:
-                    torch.onnx.export(self.model, dummy_input, f"{self.model_path[:-5]}.{epoch}.onnx", verbose=False)
-                    torch.save(self.model.state_dict(), f"{self.model_path[:-5]}.{epoch}.pt")
-
-            self.LR_decay_scheduler.step()
-
-            self._plot_train()
+                self._plot_train()
 
     def _train_epoch(self, epoch):
         self.model.train()
@@ -131,7 +135,7 @@ class Problem:
 
                 loss = F.nll_loss(output, target)
 
-                # H: RS loss
+                # [H] RS loss
                 if 'rs_loss' in self.cfg_heuristic\
                     and self.Utility.heuristic_enabled_epochwise(epoch,
                                                                  self.cfg_heuristic['rs_loss']['start'],
@@ -151,7 +155,7 @@ class Problem:
                     loss.backward()
                     self.optimizer.step()
 
-            # H: bias shaping
+            # [H] bias shaping
             if 'bias_shaping' in self.cfg_heuristic\
                     and batch_idx != 0\
                     and self.Utility.heuristic_enabled_epochwise(epoch,
@@ -172,6 +176,14 @@ class Problem:
 
             self.train_stable_ReLUs += [batch_stable_ReLU]
             self.train_loss += [loss.item()]
+
+        # [H] pruning
+        # prune after entire epoch trained
+        # using pre-activation values of last mini-batch
+        if 'prune' in self.cfg_heuristic\
+                and self.Utility.heuristic_enabled_epochwise(epoch, self.cfg_heuristic['prune']['start'],
+                                                             self.cfg_heuristic['prune']['end']):
+            self.model.run_heuristics('prune', data)
 
     def _test_epoch(self, epoch):
         self.model.eval()
@@ -218,8 +230,22 @@ class Problem:
         p_plot.clear()
 
     # Verification ...
+    def _setup_verification(self):
+        target_model = self.cfg_verify['target_model'] if 'target_model' in self.cfg_verify else None
 
-    def _verified(self, prop, eps, verifier):
+        if 'save_intermediate' not in self.cfg_train or not self.cfg_train['save_intermediate']\
+                and target_model not in [None, 'last']:
+            raise ValueError(
+                '\'save_intermediate = true\' is required for verification model selection strategy other than \'last\' epoch.')
+
+        target_epoch = self.Utility.get_target_epoch(target_model, self.train_log_path)
+        target_epoch = self.cfg_train['epochs'] if not target_epoch else target_epoch
+
+        self.veri_log_path = os.path.join(self.sub_dirs['veri_log_dir'],
+                                          f"{self.model_name}_e={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt")
+        return target_epoch
+
+    def _verified(self):
         assert self._trained()
         # TODO: account for verification completion
 
@@ -232,18 +258,19 @@ class Problem:
         verifier = cfg['verifier']
         debug = cfg['debug'] if 'debug' in cfg else None
         save_log = cfg['save_log'] if 'save_log' in cfg else None
-        target_model = cfg['target_model'] if 'target_model' in cfg else None
-        target_epoch = self.Utility.get_target_epoch(target_model, self.train_log_path)
-        target_epoch = self.cfg_train['epochs'] if not target_epoch else target_epoch
-        self.veri_log_path = os.path.join(self.sub_dirs['veri_log_dir'],
-                                          f"{self.model_name}_e={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt")
 
-        if self._verified(prop, eps, verifier) and save_log and not self.override:
+        target_epoch = self._setup_verification()
+
+        if self._verified() and save_log and not self.override:
             self.logger.info('Skipping verified problem.')
         else:
-            model_path = f'{self.model_path[:-5]}.{target_epoch}.onnx'
+            if 'save_intermediate' not in self.cfg_train or not self.cfg_train['save_intermediate']:
+                model_path = self.model_path
+            else:
+                model_path = f'{self.model_path[:-5]}.{target_epoch}.onnx'
             self.logger.debug(f'Target model: {model_path}')
-            assert os.path.exists(model_path)
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f'Missing model file: {model_path}')
 
             # generate property
             self.logger.info('Generating property ...')
@@ -374,29 +401,52 @@ class Problem:
                     elif target_model == "best relu accuracy":
                         target_epoch = np.argmax(acc_relu) + 1
                     else:
-                        assert false
+                        assert False
                 else:
                     threshold = float(target_model.split()[1])
-                    max_test = np.max(acc_test)
-                    # print(acc_test, threshold, max_test)
-                    candidates = np.where(acc_test >= max_test-threshold)
-                    # print(candidates)
-                    max_relu = np.max(acc_relu[candidates])
-                    # print(max_relu)
 
-                    candidates = np.where(acc_relu == max_relu)
-                    # print(candidates)
-                    max_test = np.max(acc_test[candidates])
-                    # print(max_test)
-                    set_relu = set(np.where(acc_relu == max_relu)[0].tolist())
-                    set_test = set(np.where(acc_test == max_test)[0].tolist())
-                    # print(set_relu)
-                    # print(set_test)
-                    final_candidates = set_relu.intersection(set_test)
-                    assert len(final_candidates) == 1
-                    target_epoch = final_candidates.pop()
-                    # print(target_epoch)
+                    if target_model.endswith('test accuracy'):
+                        max_test = np.max(acc_test)
+                        # print(acc_test, threshold, max_test)
+                        candidates = np.where(acc_test >= max_test-threshold)
+                        # print(candidates)
+                        max_relu = np.max(acc_relu[candidates])
+                        # print(max_relu)
 
+                        candidates = np.where(acc_relu == max_relu)
+                        # print(candidates)
+                        max_test = np.max(acc_test[candidates])
+                        # print(max_test)
+                        set_relu = set(np.where(acc_relu == max_relu)[0].tolist())
+                        set_test = set(np.where(acc_test == max_test)[0].tolist())
+                        # print(set_relu)
+                        # print(set_test)
+                        final_candidates = set_relu.intersection(set_test)
+                        assert len(final_candidates) == 1
+                        target_epoch = final_candidates.pop()
+                        # print(target_epoch)
+
+                    elif target_model.endswith('relu accuracy'):
+                        max_relu = np.max(acc_relu)
+                        candidates = np.where(acc_relu >= max_relu-threshold)
+                        # print(candidates)
+                        max_test = np.max(acc_test[candidates])
+                        # print(max_relu)
+
+                        candidates = np.where(acc_test == max_test)
+                        # print(candidates)
+                        max_relu = np.max(acc_relu[candidates])
+                        # print(max_test)
+                        set_test = set(np.where(acc_test == max_test)[0].tolist())
+                        set_relu = set(np.where(acc_relu == max_relu)[0].tolist())
+                        # print(set_relu)
+                        # print(set_test)
+                        final_candidates = set_test.intersection(set_relu)
+                        assert len(final_candidates) == 1
+                        target_epoch = final_candidates.pop()
+                        # print(target_epoch)
+                    else:
+                        assert False
             else:
                 assert False, f'Unknown target_model: {target_model}'
             return target_epoch

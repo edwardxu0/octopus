@@ -23,10 +23,5 @@ name = 's2'
 	epsilon = 0.02
 	save_log = true
 	
-	# strategy of selecting model to verify
-	# best test accuracy: model with the best test accuracy
-	# best relu accuracy: model with the most amount of stable relus
-	# top [x] test accuaracy: model with the most amount of stable relus with [x]% accuarcy difference of the model with the best tests accuracy
-	# top [x] relu accuaracy: model with the best test accuracy with [x]% stable relu difference of the model with the most amount of stable relus
 	target_model = 'top 1 test accuracy'
 	verifier = 'neurify'
