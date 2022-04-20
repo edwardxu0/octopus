@@ -64,6 +64,7 @@ class Benchmark:
             if not x.startswith('__'):
                 self.__setattr__(x, module.__dict__[x])
 
+
     def _define_problems(self):
         self.logger.info('Configuring problems ...')
         self.problems_T = []
@@ -103,8 +104,8 @@ class Benchmark:
             sts['heuristic'][h] = self.heuristics[h]
 
         model_name = Problem.Utility.get_model_name(sts['train'], sts['heuristic'], s)
+        log_path = os.path.join(self.sub_dirs['train_log_dir'], f"{model_name}.txt")
         if task == 'T':
-            log_path = os.path.join(self.sub_dirs['train_log_dir'], f"{model_name}.txt")
             config_path = os.path.join(self.sub_dirs['train_config_dir'], f'{model_name}.toml')
             slurm_script_path = None if not self.slurm else os.path.join(
                 self.sub_dirs['train_slurm_dir'], f"{model_name}.slurm")
@@ -116,8 +117,13 @@ class Benchmark:
             sts['verify']['verifier'] = v
 
             # configure log path
-            log_path = os.path.join(self.sub_dirs['veri_log_dir'], f"{model_name}_P={p}_E={e}_V={v}.txt")
-            config_path = os.path.join(self.sub_dirs['veri_config_dir'], f"{model_name}_P={p}_E={e}_V={v}.toml")
+            target_model = sts['verify']['target_model'] if 'target_model' in sts['verify'] else None
+            target_epoch = Problem.Utility.get_target_epoch(target_model, log_path)
+            target_epoch = sts['train']['epochs'] if not target_epoch else target_epoch
+            veri_name_postfix = Problem.Utility.get_verification_postfix(sts['verify'])
+            veri_name = f"{model_name}_e={target_epoch}_{veri_name_postfix}"
+            log_path = os.path.join(self.sub_dirs['veri_log_dir'],f'{veri_name}.txt')
+            config_path = os.path.join(self.sub_dirs['veri_config_dir'], f"{veri_name}.toml")
             slurm_script_path = None if not self.slurm else os.path.join(
                 self.sub_dirs['veri_slurm_dir'], f"{model_name}_P={p}_E={e}_V={v}.slurm")
 
@@ -175,7 +181,6 @@ class Benchmark:
         for i, (a, n, h, s, p, e, v) in enumerate(self.problems_V):
             sts, config_path, slurm_script_path, log_path = self._get_problem_paths(
                 'V', a=a, n=n, h=h, s=s, p=p, e=e, v=v)
-
             # check if done
             if os.path.exists(log_path) and not self.override:
                 nb_done += 1

@@ -236,7 +236,7 @@ class Problem:
         target_epoch = self.Utility.get_target_epoch(target_model, self.train_log_path)
         target_epoch = self.cfg_train['epochs'] if not target_epoch else target_epoch
         self.veri_log_path = os.path.join(self.sub_dirs['veri_log_dir'],
-                                          f"{self.model_name}_epoch={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt")
+                                          f"{self.model_name}_e={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt")
 
         if self._verified(prop, eps, verifier) and save_log and not self.override:
             self.logger.info('Skipping verified problem.')
@@ -363,16 +363,40 @@ class Problem:
         def get_target_epoch(target_model, train_log_path):
             if not target_model or target_model == 'last':
                 target_epoch = None
-            elif target_model.startswith('best'):
+            elif target_model.startswith('best') or target_model.startswith('top'):
                 lines = [x.strip() for x in open(train_log_path, 'r').readlines() if '[Test] ' in x]
-                acc_train = np.array([float(x.split()[-3][:-1]) for x in lines])
+                acc_test = np.array([float(x.split()[-3][:-1]) for x in lines])
                 acc_relu = np.array([float(x.split()[-1]) for x in lines])
-                best_epoch_acc_test = np.argmax(acc_train) + 1
-                best_epoch_acc_relu = np.argmax(acc_relu) + 1
-                target_epoch = best_epoch_acc_test
 
-            elif target_model.startswith('top'):
-                raise NotImplementedError
+                if target_model.startswith('best'):
+                    if target_model == "best test accuracy":
+                        target_epoch = np.argmax(acc_test) + 1
+                    elif target_model == "best relu accuracy":
+                        target_epoch = np.argmax(acc_relu) + 1
+                    else:
+                        assert false
+                else:
+                    threshold = float(target_model.split()[1])
+                    max_test = np.max(acc_test)
+                    # print(acc_test, threshold, max_test)
+                    candidates = np.where(acc_test >= max_test-threshold)
+                    # print(candidates)
+                    max_relu = np.max(acc_relu[candidates])
+                    # print(max_relu)
+
+                    candidates = np.where(acc_relu == max_relu)
+                    # print(candidates)
+                    max_test = np.max(acc_test[candidates])
+                    # print(max_test)
+                    set_relu = set(np.where(acc_relu == max_relu)[0].tolist())
+                    set_test = set(np.where(acc_test == max_test)[0].tolist())
+                    # print(set_relu)
+                    # print(set_test)
+                    final_candidates = set_relu.intersection(set_test)
+                    assert len(final_candidates) == 1
+                    target_epoch = final_candidates.pop()
+                    # print(target_epoch)
+
             else:
                 assert False, f'Unknown target_model: {target_model}'
             return target_epoch

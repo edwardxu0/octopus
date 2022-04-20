@@ -8,6 +8,7 @@ veri_nodes = ['doppio'+x for x in ['01', '02', '03', '04', '05']]  # ,'06','07',
 veri_nodes_ex = None
 
 artifacts = ['MNIST', 'FashionMNIST', 'CIFAR10']
+
 networks = {'NetS': [128]*3,
             'NetM': [1024]*3,
             'NetL': [1024]*6}
@@ -33,7 +34,7 @@ heuristics = {'bias_shaping': {
 
 props = [*range(3)]
 
-epsilons = np.linspace(0.02,0.2,10)
+epsilons = np.linspace(2,20,10)/100
 
 verifiers = ['neurify', 'eran_deepzono', 'nnenum']
 
