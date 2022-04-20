@@ -6,12 +6,14 @@ from . import Heuristic
 
 class RSLoss(Heuristic):
     def __init__(self, model, cfg):
+        super().__init__(model.logger)
         self.model = model
         self.mode = cfg['mode']
         assert cfg['mode'] == 'standard'
         self.epsilon = cfg['epsilon']
 
-    def run(self, data):
+    def run(self, **kwargs):
+        data = kwargs['data']
         loss = torch.zeros((len(data), 3), device=self.model.device)
         data = data.view((-1, np.prod(self.model.artifact.input_shape)))
         lb = torch.maximum(data - self.epsilon, torch.tensor(0., requires_grad=True))

@@ -6,6 +6,7 @@ from . import Heuristic
 
 class BiasShaping(Heuristic):
     def __init__(self, model, cfg):
+        super().__init__(model.logger)
         self.model = model
         # self.cfg = cfg
         self.mode = cfg['mode']
@@ -13,7 +14,7 @@ class BiasShaping(Heuristic):
         self.occurrence = cfg['occurrence']
         self.device = model.device
 
-    def run(self, data):
+    def run(self, **kwargs):
 
         BS_switch = False
 
@@ -48,7 +49,7 @@ class BiasShaping(Heuristic):
                 assert len(np.where(val_abs_min == 0)[0]) == safe_ge_zero + safe_le_zero
 
                 n = round(len(np.where(val_abs_min != 0)[0]) * self.intensity)
-                self.model.logger.debug(f'BS: fixed {n} neurons.')
+                self.logger.debug(f'BS: fixed {n} neurons.')
                 #n = 2
                 n += safe_ge_zero + safe_le_zero - 1
                 # print(n)
@@ -87,7 +88,7 @@ class BiasShaping(Heuristic):
                 # calculate the new pre-activation values due to changes to this layer
                 self.model.eval()
                 with torch.no_grad():
-                    self.model(data)
+                    self.model(kwargs['data'])
 
             # reset model to train mode
             self.model.train()

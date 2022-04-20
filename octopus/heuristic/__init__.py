@@ -4,7 +4,7 @@ from abc import ABC
 
 
 class Heuristic(ABC):
-    def __init__(self):
-        ...
+    def __init__(self, logger):
+        self.logger = logger
 
-    def run(self, type: torch.tensor) -> type: bool: ...
+    def run(self, **kwargs) -> type: bool: ...

@@ -13,7 +13,7 @@ from torch.optim.lr_scheduler import StepLR
 from octopus.artifact.artifacts import *
 
 from ..plot.train_progress import ProgressPlot
-from ..architecture.VeriNet import VeriNet
+from ..architecture.ReLUNet import ReLUNet
 
 
 class Problem:
@@ -50,7 +50,7 @@ class Problem:
                                                    test_batch_size=cfg['test_batch_size'],
                                                    use_cuda=self.device)
         self.train_loader, self.test_loader = self.artifact.get_data_loader()
-        self.model = VeriNet(self.artifact, self.cfg_train['net_layers'],
+        self.model = ReLUNet(self.artifact, self.cfg_train['net_layers'],
                              self.logger, self.device, self.amp).to(self.device)
         self.logger.info(f"Network:\n{self.model}")
 
@@ -141,7 +141,7 @@ class Problem:
                                                                  self.cfg_heuristic['rs_loss']['start'],
                                                                  self.cfg_heuristic['rs_loss']['end']):
 
-                    rs_loss = self.model.run_heuristics('rs_loss', data)
+                    rs_loss = self.model.run_heuristics('rs_loss', data=data)
                     loss += rs_loss * self.cfg_heuristic['rs_loss']['weight']
 
                 if loss.isnan():
@@ -162,7 +162,7 @@ class Problem:
                                                                  self.cfg_heuristic['bias_shaping']['start'], self.cfg_heuristic['bias_shaping']['end']):
 
                 # print('before', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
-                if self.model.run_heuristics('bias_shaping', data):
+                if self.model.run_heuristics('bias_shaping', data=data):
                     BS_point = len(self.train_loader) * (epoch-1) + batch_idx
                     self.train_BS_points += [BS_point]
                 # print('after', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
@@ -183,7 +183,7 @@ class Problem:
         if 'prune' in self.cfg_heuristic\
                 and self.Utility.heuristic_enabled_epochwise(epoch, self.cfg_heuristic['prune']['start'],
                                                              self.cfg_heuristic['prune']['end']):
-            self.model.run_heuristics('prune', data)
+            self.model.run_heuristics('prune')
 
     def _test_epoch(self, epoch):
         self.model.eval()
@@ -308,9 +308,8 @@ class Problem:
         # analyze train
         # analyze verification
         assert self._trained()
-        assert self._verified(self.cfg_verify['property'],
-                              self.cfg_verify['epsilon'],
-                              self.cfg_verify['verifier'])
+        self._setup_verification()
+        assert self._verified()
         self.logger.debug(f'Analyzing log: {self.veri_log_path}')
         veri_ans, veri_time = self.Utility.analyze_veri_log(self.veri_log_path)
         if veri_ans and veri_time:

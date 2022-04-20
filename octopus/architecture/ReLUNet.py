@@ -5,9 +5,9 @@ import torch.nn as nn
 from . import BasicNet
 
 
-class VeriNet(BasicNet):
+class ReLUNet(BasicNet):
     def __init__(self, artifact, layers, logger, device, amp):
-        super(VeriNet, self).__init__(logger, device, amp)
+        super(ReLUNet, self).__init__(logger, device, amp)
         self.artifact = artifact
         self.set_layers(layers)
 
@@ -22,10 +22,11 @@ class VeriNet(BasicNet):
                 if weights:
                     layer.weight.data = weights[i]
                 if bias:
-                    layer.weight.data = bias[i]
+                    layer.bias.data = bias[i]
                 self.layers[layer_name] = layer
                 self.__setattr__(layer_name, layer)
 
+                # add ReLU after network
                 layer_name = f'ReLU{i+1}'
                 layer = nn.ReLU()
                 self.layers[layer_name] = layer
@@ -49,7 +50,7 @@ class VeriNet(BasicNet):
             if weights:
                 layer.weight.data = weights[-1]
             if bias:
-                layer.weight.data = bias[-1]
+                layer.bias.data = bias[-1]
             self.layers[layer_name] = layer
             self.__setattr__(layer_name, layer)
         # TODO:check last hidden layer to be a conv layer

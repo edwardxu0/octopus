@@ -5,7 +5,7 @@ name = 'test'
 	net_name = 'NetS'
 	net_layers = [128, 128, 128]		# hidden layers
 
-	epochs = 2
+	epochs = 3
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4							# learning rate
@@ -23,7 +23,6 @@ name = 'test'
 	ReLU_estimation = 'TD'
 	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
 
-
 [heuristic]
 	[heuristic.bias_shaping]
 		ReLU_estimation = 'TD'
@@ -34,20 +33,20 @@ name = 'test'
 		start = [1,2] 			# inclusive
 		end = [1,2] 			# inclusive
 	
-	#[heuristic.rs_loss]
-	#	ReLU_estimation = 'IP'
-	#	mode = 'standard'
-	#	weight = 1e-4
-	#	epsilon = 1e-1
-	#	start = 1
-	#	end = 9
+	[heuristic.rs_loss]
+		ReLU_estimation = 'IP'
+		mode = 'standard'
+		weight = 1e-4
+		epsilon = 1e-1
+		start = 1
+		end = 9
 
-	#[heuristic.prune]
-	#	mode = 'structure'
-	#	re_arch = 'standard'
-	#	sparsity = 30
-	#	start = 2
-	#	end = 9
+	[heuristic.prune]
+		mode = 'structure'
+		re_arch = 'standard'
+		sparsity = 0.2
+		start = [1,3]
+		end = [1,3]
 
 
 [verify]

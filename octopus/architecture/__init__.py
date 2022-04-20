@@ -1,10 +1,10 @@
-from ..heuristic.prune import Prune
-from ..heuristic.RS_loss import RSLoss
-from ..heuristic.bias_shaping import BiasShaping
 from torch import nn
 import torch
 import numpy as np
-np.set_printoptions(suppress=True, precision=4)
+
+from ..heuristic.prune import Prune
+from ..heuristic.RS_loss import RSLoss
+from ..heuristic.bias_shaping import BiasShaping
 
 
 class BasicNet(nn.Module):
@@ -43,8 +43,8 @@ class BasicNet(nn.Module):
                 else:
                     raise NotImplementedError
 
-    def run_heuristics(self, name, data):
-        return self.heuristics[name].run(data)
+    def run_heuristics(self, name, **kwargs):
+        return self.heuristics[name].run(**kwargs)
 
     def register_activation_hocks(self):
         activation = {}
