@@ -159,10 +159,11 @@ class Problem:
             if 'bias_shaping' in self.cfg_heuristic\
                     and batch_idx != 0\
                     and self.Utility.heuristic_enabled_epochwise(epoch,
-                                                                 self.cfg_heuristic['bias_shaping']['start'], self.cfg_heuristic['bias_shaping']['end']):
+                                                                 self.cfg_heuristic['bias_shaping']['start'],
+                                                                 self.cfg_heuristic['bias_shaping']['end']):
 
                 # print('before', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
-                if self.model.run_heuristics('bias_shaping', data=data):
+                if self.model.run_heuristics('bias_shaping', data=data, epoch=epoch):
                     BS_point = len(self.train_loader) * (epoch-1) + batch_idx
                     self.train_BS_points += [BS_point]
                 # print('after', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
@@ -181,7 +182,8 @@ class Problem:
         # prune after entire epoch trained
         # using pre-activation values of last mini-batch
         if 'prune' in self.cfg_heuristic\
-                and self.Utility.heuristic_enabled_epochwise(epoch, self.cfg_heuristic['prune']['start'],
+                and self.Utility.heuristic_enabled_epochwise(epoch,
+                                                             self.cfg_heuristic['prune']['start'],
                                                              self.cfg_heuristic['prune']['end']):
             self.model.run_heuristics('prune')
 
@@ -338,7 +340,9 @@ class Problem:
                         m = 'S'
                     else:
                         raise NotImplementedError
-                    name += f"_BS={m}:{x['intensity']}:{x['occurrence']}:{parse_start_end(x)}"
+                    d = '' if not 'decay' in x else f":{x['decay']}"
+
+                    name += f"_BS={m}:{x['intensity']}:{x['occurrence']}{d}:{parse_start_end(x)}"
 
                 elif h == 'rs_loss':
                     if x['mode'] == 'standard':

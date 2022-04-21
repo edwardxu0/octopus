@@ -5,7 +5,7 @@ name = 'test'
 	net_name = 'NetS'
 	net_layers = [128, 128, 128]		# hidden layers
 
-	epochs = 3
+	epochs = 20
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4							# learning rate
@@ -13,7 +13,7 @@ name = 'test'
 	save_model = true
 	save_intermediate = true
 	save_log = true
-	log_interval = 500					# Stable ReLU estimation/print interval
+	log_interval = 10					# Stable ReLU estimation/print interval
 	gpu = true
 	amp = true							# enabled only when gpu == true
 
@@ -29,24 +29,24 @@ name = 'test'
 		mode = 'standard'
 		intensity = 5e-2
 		occurrence = 5e-3
-		# decay = 0.98
-		start = [1,2] 			# inclusive
-		end = [1,2] 			# inclusive
+		decay = 0.99
+		start = 1 			# inclusive
+		end = 20 			# inclusive
 	
-	[heuristic.rs_loss]
-		ReLU_estimation = 'IP'
-		mode = 'standard'
-		weight = 1e-4
-		epsilon = 1e-1
-		start = 1
-		end = 9
+	#[heuristic.rs_loss]
+	#	ReLU_estimation = 'IP'
+	#	mode = 'standard'
+	#	weight = 1e-4
+	#	epsilon = 1e-1
+	#	start = 1
+	#	end = 9
 
-	[heuristic.prune]
-		mode = 'structure'
-		re_arch = 'standard'
-		sparsity = 0.2
-		start = [1,3]
-		end = [1,3]
+	#[heuristic.prune]
+	#	mode = 'structure'
+	#	re_arch = 'standard'
+	#	sparsity = 0.2
+	#	start = [1,3]
+	#	end = [1,3]
 
 
 [verify]
