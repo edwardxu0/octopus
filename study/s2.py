@@ -34,7 +34,6 @@ heuristics = {'bias_shaping': {
 
 props = [*range(3)]
 
-epsilons = np.linspace(2,20,10)/100
+epsilons = np.linspace(2, 20, 10)/100
 
 verifiers = ['neurify', 'eran_deepzono', 'nnenum']
-

@@ -23,5 +23,5 @@ name = 's2'
 	epsilon = 0.02
 	save_log = true
 	
-	target_model = 'top 1 test accuracy'
+	target_model = 'top 5 test accuracy'
 	verifier = 'neurify'

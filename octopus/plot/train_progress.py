@@ -8,7 +8,7 @@ class ProgressPlot:
     def draw_train(self, X1, Y1, X2, Y2, ylim):
         self.ax1 = self.fig.add_subplot()
         self.ax1.plot(X1, Y1, color='blue', alpha=0.5, label='Safe ReLU')
-        self.ax1.scatter(X2, Y2, marker='x', color='red', label='Hammer Points')
+        self.ax1.scatter(X2, Y2, marker='x', color='red', label='BS Points')
         self.ax1.legend(loc='upper left')
 
         self.ax1.set_ylim(ylim)

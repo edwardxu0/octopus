@@ -391,10 +391,10 @@ class Problem:
 
         @ staticmethod
         def get_target_epoch(target_model, train_log_path):
+            lines = [x.strip() for x in open(train_log_path, 'r').readlines() if '[Test] ' in x]
             if not target_model or target_model == 'last':
-                target_epoch = None
+                target_epoch = len(lines)
             elif target_model.startswith('best') or target_model.startswith('top'):
-                lines = [x.strip() for x in open(train_log_path, 'r').readlines() if '[Test] ' in x]
                 acc_test = np.array([float(x.split()[-3][:-1]) for x in lines])
                 acc_relu = np.array([float(x.split()[-1]) for x in lines])
 

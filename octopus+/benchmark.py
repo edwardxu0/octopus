@@ -64,7 +64,6 @@ class Benchmark:
             if not x.startswith('__'):
                 self.__setattr__(x, module.__dict__[x])
 
-
     def _define_problems(self):
         self.logger.info('Configuring problems ...')
         self.problems_T = []
@@ -122,7 +121,7 @@ class Benchmark:
             target_epoch = sts['train']['epochs'] if not target_epoch else target_epoch
             veri_name_postfix = Problem.Utility.get_verification_postfix(sts['verify'])
             veri_name = f"{model_name}_e={target_epoch}_{veri_name_postfix}"
-            log_path = os.path.join(self.sub_dirs['veri_log_dir'],f'{veri_name}.txt')
+            log_path = os.path.join(self.sub_dirs['veri_log_dir'], f'{veri_name}.txt')
             config_path = os.path.join(self.sub_dirs['veri_config_dir'], f"{veri_name}.toml")
             slurm_script_path = None if not self.slurm else os.path.join(
                 self.sub_dirs['veri_slurm_dir'], f"{model_name}_P={p}_E={e}_V={v}.slurm")
@@ -233,27 +232,21 @@ class Benchmark:
 
         if self.go:
             self._analyze_training(df)
-            # self._analyze_verification(df)
+            self._analyze_verification(df)
 
     def _parse_logs(self):
         df = pd.DataFrame({x: [] for x in self.labels})
         self.logger.info('Failed tasks:')
         self.logger.info('--------------------')
         for i, (a, n, h, s, p, e, v) in enumerate(self.problems_V):
-            _, _, _, train_log_path = self._get_problem_paths('T', a=a, n=n, h=h, s=s)
-            '''
-            lines = open(train_log_path, 'r').readlines()
-            assert '[Test]' in lines[-4]
-            test_accuracy = float(lines[-4].strip().split()[-3][:-1])
-            stable_relu = int(lines[-4].strip().split()[-1])
-            '''
+            sts, _, _, train_log_path = self._get_problem_paths('T', a=a, n=n, h=h, s=s)
 
             lines = [x for x in open(train_log_path, 'r').readlines() if '[Test]' in x]
-            assert len(lines) == 100
             # select the best accuracy instead of last epoch's accuracy
-            best_epoch = np.argmax([float(x.strip().split()[-3][:-1]) for x in lines])
-            test_accuracy = [float(x.strip().split()[-3][:-1]) for x in lines][best_epoch]
-            stable_relu = [float(x.strip().split()[-1]) for x in lines][best_epoch]
+            target_model = sts['verify']['target_model']
+            target_epoch = Problem.Utility.get_target_epoch(target_model, train_log_path)
+            test_accuracy = [float(x.strip().split()[-3][:-1]) for x in lines][target_epoch-1]
+            stable_relu = [float(x.strip().split()[-1]) for x in lines][target_epoch-1]
             relu_accuracy = stable_relu / np.sum(self.networks[n])*100
 
             _, _, _, veri_log_path = self._get_problem_paths('V', a=a, n=n, h=h, s=s, p=p, e=e, v=v)
@@ -269,7 +262,8 @@ class Benchmark:
 
     def _analyze_training(self, df):
         self._train_boxplot(df)
-        # self._train_catplot(df)
+        self._train_catplot(df, "test accuracy")
+        self._train_catplot(df, "relu accuracy")
 
     def _train_boxplot(self, df):
         self.logger.info('Plotting training ...')
@@ -308,27 +302,41 @@ class Benchmark:
         bp2 = colored_box_plot(ax2, c_relu_acc.T, 'blue', 'cyan')
         # bp2 = colored_box_plot(ax2, collection_stable_relu.T, 'blue', 'cyan')
 
-        plt.legend([bp1["boxes"][0], bp2["boxes"][0]], ['Test Acc.', 'ReLU Acc.'], loc='center left')
+        plt.legend([bp1["boxes"][0], bp2["boxes"][0]], ['Test Accuracy', '# Stable ReLUs'], loc='center left')
 
-        xticks = np.arange(1, len(c_test_acc)+1, 1)
-        ax1.set_xticks(xticks)
-        ax1.set_xticklabels(x_labels, rotation=90)
-
+        # make grid & set correct xlabels
         ax1.xaxis.set_major_locator(MultipleLocator(len(self.heuristics)))
         ax1.xaxis.set_minor_locator(MultipleLocator(1))
-
-        ax1.grid(which='major', axis='x', color='grey', linestyle='--', linewidth=1)
+        ax1.xaxis.set_major_formatter(lambda x, pos: x_labels[int(x-1) % len(x_labels)])
+        ax1.xaxis.set_minor_formatter(lambda x, pos: x_labels[int(x-1) % len(x_labels)])
+        ax1.grid(which='major', axis='x', color='grey', linestyle=':', linewidth=0.25)
         ax1.grid(which='minor', axis='x', color='grey', linestyle=':', linewidth=0.25)
 
+        vt_lines = list(np.arange(0, len(x_labels), len(self.heuristics))+0.5)[1:]
+        for x in vt_lines:
+            if int(x-0.5) % (len(self.artifacts)*len(self.heuristics)) == 0:
+                ax1.axvline(x=x, color='grey', linestyle='--', linewidth=1)
+            else:
+                ax1.axvline(x=x, color='grey', linestyle='-.', linewidth=0.5)
+
+        rotation = 90
+        for tick in ax1.get_xmajorticklabels():
+            tick.set_rotation(rotation)
+        for x in ax1.get_xminorticklabels():
+            x.set_rotation(rotation)
+
+        ax1.plot()
+
         ax1.set_ylabel('Test Accuracy(%)')
-        ax2.set_ylabel('ReLU Accuracy(%)')
+        ax2.set_ylabel('# Stable ReLUs(%)')
         ax1.set_xlabel('Artifact:Network:Heuristics')
-        plt.title('Test/ReLU Accuracy vs. Artifact, Network, and Heuristics Triples')
+        plt.title('Test Accuracy and # Stable ReLUs vs. Artifact, Network, and Heuristics')
         plt.savefig(os.path.join(self.result_dir, 'Training_overview.pdf'), format="pdf", bbox_inches="tight")
+        plt.xlabel(x_labels)
         fig.clear()
         plt.close(fig)
 
-    def _train_catplot(self, df):
+    def _train_catplot(self, df, kind):
         dft = df
         dft = dft[dft['artifact'] == "MNIST"]
         dft = dft[dft['property'] == self.props[0]]
@@ -336,8 +344,6 @@ class Benchmark:
         dft = dft[dft['verifier'] == self.verifiers[0]]
 
         fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
-        ax2 = ax1.twinx()
-
         # bp1 = colored_box_plot(ax1, collection_accuracy.T, 'red', 'tan')
         # bp2 = colored_box_plot(ax2, collection_stable_relu.T, 'blue', 'cyan')
         # bp2 = colored_box_plot(ax2, collection_accuracy_relu.T, 'blue', 'cyan')
@@ -345,9 +351,10 @@ class Benchmark:
         # plt.legend([bp1["boxes"][0], bp2["boxes"][0]], ['Test Acc.', 'ReLU Acc.'], loc='center left')
 
         fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
-        sns.catplot(ax=ax1, x="network", y="test accuracy", hue='heuristic',
+        sns.catplot(x="network", y=kind, hue='heuristic',
                     col='artifact', kind='box', data=df, palette="Set3")
-        plt.savefig(os.path.join(self.result_dir, 'Training_overview_catplot1.pdf'), format="pdf", bbox_inches="tight")
+        plt.savefig(os.path.join(self.result_dir,
+                    f'Training_overview_catplot1_{kind}.pdf'), format="pdf", bbox_inches="tight")
         fig.clear()
         plt.close(fig)
 
@@ -359,7 +366,7 @@ class Benchmark:
                     # plot verification time(Y) vs. Epsilon Values(X) for each heuristic
                     fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
                     ax2 = ax1.twinx()
-                    title_prefix = f'[{n}:{v}]'
+                    title_prefix = f'[{a}:{n}:{v}]'
                     collection_verification_time = {}
                     collection_problem_solved = {}
                     for h in self.heuristics.keys():
@@ -378,16 +385,19 @@ class Benchmark:
                         collection_verification_time[h] = avg_v_time
                         collection_problem_solved[h] = nb_solved
 
-                        ax1.plot(avg_v_time, label=h)
-                        ax2.plot(nb_solved, linestyle='dashed')
+                        plot1 = ax1.plot(avg_v_time, label=h)
+                        plot2 = ax2.plot(nb_solved, linestyle='dashed', label=h)
 
                     ax1.legend(loc='center left')
+                    ax2.legend(loc='center right')
+
                     ax1.set_xlabel('Epsilon')
                     ax1.set_ylabel('Verification Time(s)')
                     ax2.set_ylabel('Solved Problems')
                     ax1.set_ylim(-self.base_settings['verify']['time']*0.05, self.base_settings['verify']['time']*1.05)
                     ax2.set_ylim(-1, 26)
                     ax1.set_xticks(range(len(self.epsilons)))
+
                     ax1.set_xticklabels(self.epsilons)
                     plt.title(title_prefix + ' Avg. Verification Time/Problems Solved vs. Epsilons')
                     plt.savefig(os.path.join(self.result_dir,
