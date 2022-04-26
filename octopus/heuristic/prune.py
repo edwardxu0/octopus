@@ -36,10 +36,10 @@ class Prune(Heuristic):
             if 'conv' in name:
                 mname = 'model.'+upname+'.out_channels'
                 j = module.out_channels
-                mask[name] = torch.ones(j)
+                mask[name] = torch.ones(j).to(self.model.device)
             elif 'FC' in name:
                 j = module.out_features
-                mask[name] = torch.ones(j)
+                mask[name] = torch.ones(j).to(self.model.device)
         return mask
 
     def _update_mask(self, mask, pr_ratio):
@@ -70,7 +70,6 @@ class Prune(Heuristic):
         return umask
 
     def _apply_mask(self, mask):
-
         with torch.no_grad():
             for name, module in self.model.filtered_named_modules:
                 strg = f"self.model.{name}.weight"
@@ -89,12 +88,14 @@ class Prune(Heuristic):
     def _restructure(self, mask):
         # compute new weights/bias
         weight, bias = self._make_param_matrix(mask)
+        self.logger.debug(f'Remaining # neurons: {sum([b.shape[0] for b in bias])}')
         layers = [x.shape[0] for x in bias][:-1]
         # clear model
         self.model.clear()
         # construct new model
         self.model.set_layers(layers, weight, bias)
         self.logger.info(f'Restructured model: \n{self.model}')
+        self.model.to(self.model.device)
 
     def _make_param_matrix(self, mask):
         '''

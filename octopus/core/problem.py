@@ -470,13 +470,13 @@ class Problem:
                 elif '  time: ' in l:
                     veri_time = float(l.strip().split()[-1])
 
-                elif ' Timeout' in l:
+                elif 'Timeout' in l:
                     veri_ans = 'timeout'
                     veri_time = float(l.strip().split()[-3])
                     break
-                elif ' of memory' in l:
+                elif 'Out of Memory' in l:
                     veri_ans = 'memout'
-                    veri_time = float(l.strip().split()[-3])
+                    veri_time = None #float(l.strip().split()[-3])
                     break
 
             return veri_ans, veri_time

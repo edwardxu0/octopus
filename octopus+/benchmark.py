@@ -81,7 +81,7 @@ class Benchmark:
 
     def _exec(self, cmd, slurm_cmd):
         if not self.go:
-            self.logger.info(f'Dry run: {cmd}')
+            self.logger.info(f'Dry: {cmd}')
             exit(0)
         else:
             self.logger.info(f'Fly: {cmd}')
@@ -145,7 +145,9 @@ class Benchmark:
                 nb_todo += 1
 
             toml.dump(sts, open(config_path, 'w'))
-            cmd = f"python -m octopus {config_path} T --seed {s}"
+            cmd = f"python -m octopus {config_path} T --seed {s} --debug"
+            if self.override:
+                cmd+= ' --override'
 
             slurm_cmd = None
             if self.slurm:
@@ -189,6 +191,8 @@ class Benchmark:
             toml.dump(sts, open(config_path, 'w'))
 
             cmd = f'python -m octopus {config_path} V --seed {s} --debug'
+            if self.override:
+                cmd+= ' --override'
 
             tmpdir = f'/tmp/{uuid.uuid1()}'
             slurm_cmd = None
@@ -251,7 +255,7 @@ class Benchmark:
 
             _, _, _, veri_log_path = self._get_problem_paths('V', a=a, n=n, h=h, s=s, p=p, e=e, v=v)
             answer, time = Problem.Utility.analyze_veri_log(veri_log_path)
-            if answer is None or time is None:
+            if answer is None:
                 print('rm', veri_log_path)
 
             if self.go:
