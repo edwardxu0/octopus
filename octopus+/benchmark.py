@@ -11,6 +11,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from pathlib import Path
+from tqdm import tqdm
 
 from octopus.core.problem import Problem
 
@@ -133,7 +134,7 @@ class Benchmark:
         self.logger.info('Training ...')
         nb_done = 0
         nb_todo = 0
-        for i, (a, n, h, s) in enumerate(self.problems_T):
+        for i, (a, n, h, s) in enumerate(tqdm(self.problems_T)):
 
             sts, config_path, slurm_script_path, log_path = self._get_problem_paths('T', a=a, n=n, h=h, s=s)
 
@@ -179,7 +180,7 @@ class Benchmark:
         self.logger.info('Verifying ...')
         nb_done = 0
         nb_todo = 0
-        for i, (a, n, h, s, p, e, v) in enumerate(self.problems_V):
+        for i, (a, n, h, s, p, e, v) in enumerate(tqdm(self.problems_V)):
             sts, config_path, slurm_script_path, log_path = self._get_problem_paths(
                 'V', a=a, n=n, h=h, s=s, p=p, e=e, v=v)
             # check if done
@@ -250,7 +251,7 @@ class Benchmark:
             target_model = sts['verify']['target_model']
             target_epoch = Problem.Utility.get_target_epoch(target_model, train_log_path)
             test_accuracy = [float(x.strip().split()[-3][:-1]) for x in lines][target_epoch-1]
-            relu_accuracy = [float(x.strip().split()[-1][:-1]) for x in lines][target_epoch-1]
+            relu_accuracy = [float(x.strip().split()[-1][:-1])/100 for x in lines][target_epoch-1]
 
             _, _, _, veri_log_path = self._get_problem_paths('V', a=a, n=n, h=h, s=s, p=p, e=e, v=v)
             answer, time = Problem.Utility.analyze_veri_log(veri_log_path)

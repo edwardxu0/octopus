@@ -173,7 +173,7 @@ class Problem:
                 batch_stable_ReLU = self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation'], self.test_loader)
                 relu_accuracy = batch_stable_ReLU/self.model.nb_ReLUs
                 self.logger.info(
-                    f'[Train] epoch: {epoch} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f} SR: {relu_accuracy*100:.2f}%')
+                    f'[Train] epoch: {epoch:3} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f} SR: {relu_accuracy*100:.2f}%')
             else:
                 relu_accuracy = self.train_stable_ReLUs[-1]
 
@@ -209,7 +209,7 @@ class Problem:
         batch_stable_ReLU = self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation'], self.test_loader)
         relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
         self.logger.info(
-            f'[Test] epoch: {epoch} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}% SR: {relu_accuracy*100:.2f}%\n')
+            f'[Test] epoch: {epoch:3} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}% SR: {relu_accuracy*100:.2f}%\n')
 
     def _plot_train(self):
         # draw training progress plot
@@ -398,8 +398,8 @@ class Problem:
             if not target_model or target_model == 'last':
                 target_epoch = len(lines)
             elif target_model.startswith('best') or target_model.startswith('top'):
-                acc_test = np.array([float(x.split()[-3][:-1]) for x in lines])
-                acc_relu = np.array([float(x.split()[-1][:-1]) for x in lines])
+                acc_test = np.array([float(x.strip().split()[-3][:-1]) for x in lines])
+                acc_relu = np.array([float(x.strip().split()[-1][:-1])/100 for x in lines])
 
                 if target_model.startswith('best'):
                     if target_model == "best test accuracy":

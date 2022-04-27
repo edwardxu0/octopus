@@ -1,10 +1,11 @@
 import numpy as np
 
-sleep_time = 5
+sleep_time = 6
 train_nodes = None
-train_nodes_ex = 'affogato12,affogato13,affogato14,affogato15,cheetah01,lynx08,lynx09,lynx10,lynx11,lynx12,ai01,ai02,ai04,lotus'
+# train_nodes_ex = 'affogato11,affogato12,affogato13,affogato14,affogato15,cheetah01,lynx08,lynx09,lynx10,lynx11,lynx12,ai01,ai02,ai04,lotus,adriatic06'
+train_nodes_ex = 'affogato11,affogato12,affogato13,affogato14,affogato15,cheetah01,lynx08,lynx09,lynx10,lynx11,lynx12,ai01,ai02,ai04,ai06,lotus,adriatic06,ristretto01,ristretto02,ristretto03,ristretto04,ai05'
 
-veri_nodes = ['doppio'+x for x in ['01', '02', '03', '04', '05']]  # ,'06','07','08','09','10']]
+veri_nodes = ['doppio'+x for x in [ '02', '03', '04', '05']]  # ,'06','07','08','09','10']]
 veri_nodes_ex = None
 
 artifacts = ['MNIST', 'FashionMNIST', 'CIFAR10']
@@ -35,8 +36,8 @@ heuristics = {
         'mode': 'structure',
         're_arch': 'standard',
         'sparsity': 0.05,
-        'start': [*range(10, 91, 20)],
-        'end': [*range(10, 91, 20)]
+        'start': [*range(5, 96, 5)],
+        'end': [*range(5, 96, 5)]
     },
     'base': None
 }
