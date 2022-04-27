@@ -18,7 +18,7 @@ name = 's2'
 
 [verify]
 	time = 600
-	memory = '8G'
+	memory = '16G'
 	property = 0
 	epsilon = 0.02
 	save_log = true

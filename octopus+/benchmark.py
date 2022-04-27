@@ -39,7 +39,7 @@ class Benchmark:
                                  'error': 5}
 
         self.labels = ['artifact', 'network', 'heuristic', 'seed', 'property',
-                       'epsilon', 'verifier', 'test accuracy', 'stable relu', 'relu accuracy', 'veri ans', 'veri time']
+                       'epsilon', 'verifier', 'test accuracy', 'relu accuracy', 'veri ans', 'veri time']
 
         self.sub_dirs = {}
         sub_dirs = ['train_config', 'train_log', 'model', 'veri_config', 'veri_log', 'property', 'figure', ]
@@ -147,7 +147,7 @@ class Benchmark:
             toml.dump(sts, open(config_path, 'w'))
             cmd = f"python -m octopus {config_path} T --seed {s} --debug"
             if self.override:
-                cmd+= ' --override'
+                cmd += ' --override'
 
             slurm_cmd = None
             if self.slurm:
@@ -192,7 +192,7 @@ class Benchmark:
 
             cmd = f'python -m octopus {config_path} V --seed {s} --debug'
             if self.override:
-                cmd+= ' --override'
+                cmd += ' --override'
 
             tmpdir = f'/tmp/{uuid.uuid1()}'
             slurm_cmd = None
@@ -250,8 +250,7 @@ class Benchmark:
             target_model = sts['verify']['target_model']
             target_epoch = Problem.Utility.get_target_epoch(target_model, train_log_path)
             test_accuracy = [float(x.strip().split()[-3][:-1]) for x in lines][target_epoch-1]
-            stable_relu = [float(x.strip().split()[-1]) for x in lines][target_epoch-1]
-            relu_accuracy = stable_relu / np.sum(self.networks[n])*100
+            relu_accuracy = [float(x.strip().split()[-1][:-1]) for x in lines][target_epoch-1]
 
             _, _, _, veri_log_path = self._get_problem_paths('V', a=a, n=n, h=h, s=s, p=p, e=e, v=v)
             answer, time = Problem.Utility.analyze_veri_log(veri_log_path)
@@ -260,7 +259,7 @@ class Benchmark:
 
             if self.go:
                 df.loc[len(df.index)] = [a, n, h, s, p, e, v, test_accuracy,
-                                         stable_relu, relu_accuracy, self.code_veri_answer[answer], time]
+                                         relu_accuracy, self.code_veri_answer[answer], time]
         self.logger.info('--------------------')
         return df
 

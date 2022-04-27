@@ -12,6 +12,7 @@ class ReLUNet(BasicNet):
         self.set_layers(layers)
 
     def set_layers(self, layers, weights=None, bias=None):
+        self.nb_ReLUs = 0
         layers = [np.prod(self.artifact.input_shape)] + layers + [np.prod(self.artifact.output_shape)]
         self.layers = {}
         for i, l in enumerate(layers[1:-1]):
@@ -29,6 +30,7 @@ class ReLUNet(BasicNet):
                 # add ReLU after network
                 layer_name = f'ReLU{i+1}'
                 layer = nn.ReLU()
+                self.nb_ReLUs += l
                 self.layers[layer_name] = layer
                 self.__setattr__(layer_name, layer)
             # TODO: add conv layers

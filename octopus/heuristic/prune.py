@@ -95,6 +95,7 @@ class Prune(Heuristic):
         # construct new model
         self.model.set_layers(layers, weight, bias)
         self.logger.info(f'Restructured model: \n{self.model}')
+        self.logger.info(f"# ReLUs: {self.model.nb_ReLUs}")
         self.model.to(self.model.device)
 
     def _make_param_matrix(self, mask):

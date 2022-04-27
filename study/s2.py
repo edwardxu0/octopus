@@ -9,34 +9,35 @@ veri_nodes_ex = None
 
 artifacts = ['MNIST', 'FashionMNIST', 'CIFAR10']
 
-networks = {'NetS': [128]*3,
-            'NetM': [1024]*3,
-            'NetL': [1024]*6}
+networks = {
+    'NetS': [128]*3,
+    'NetM': [1024]*3,
+    'NetL': [1024]*6}
 
 seeds = [*range(5)]
 
 heuristics = {
     'bias_shaping': {
-    'mode': 'standard',
-    'intensity': 5e-2,
-    'occurrence': 5e-3,
-    'start': 1,
-    'end': 100
-},
-'rs_loss': {
-    'mode': 'standard',
-    'weight': 1e-4,
-    'epsilon': 1e-1,
-    'start': 1,
-    'end': 100
-},
+        'mode': 'standard',
+        'intensity': 5e-2,
+        'occurrence': 5e-3,
+        'start': 1,
+        'end': 100
+    },
+    'rs_loss': {
+        'mode': 'standard',
+        'weight': 1e-4,
+        'epsilon': 1e-1,
+        'start': 1,
+        'end': 100
+    },
     'prune': {
-    'mode': 'structure',
-    're_arch': 'standard',
-    'sparsity': 0.1,
-    'start': [*range(10,91,10)],
-    'end': [*range(10,91,10)]
-},
+        'mode': 'structure',
+        're_arch': 'standard',
+        'sparsity': 0.05,
+        'start': [*range(10, 91, 20)],
+        'end': [*range(10, 91, 20)]
+    },
     'base': None
 }
 

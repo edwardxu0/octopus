@@ -53,6 +53,7 @@ class Problem:
         self.model = ReLUNet(self.artifact, self.cfg_train['net_layers'],
                              self.logger, self.device, self.amp).to(self.device)
         self.logger.info(f"Network:\n{self.model}")
+        self.logger.info(f"# ReLUs: {self.model.nb_ReLUs}")
 
     # Training ...
     def _setup_train(self):
@@ -170,12 +171,13 @@ class Problem:
 
             if batch_idx % self.cfg_train['log_interval'] == 0:
                 batch_stable_ReLU = self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation'], self.test_loader)
+                relu_accuracy = batch_stable_ReLU/self.model.nb_ReLUs
                 self.logger.info(
-                    f'[Train] epoch: {epoch} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f} SR: {batch_stable_ReLU:5}')
+                    f'[Train] epoch: {epoch} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f} SR: {relu_accuracy*100:.2f}%')
             else:
-                batch_stable_ReLU = self.train_stable_ReLUs[-1]
+                relu_accuracy = self.train_stable_ReLUs[-1]
 
-            self.train_stable_ReLUs += [batch_stable_ReLU]
+            self.train_stable_ReLUs += [relu_accuracy]
             self.train_loss += [loss.item()]
 
         # [H] pruning
@@ -205,8 +207,9 @@ class Problem:
         test_accuracy = correct / len(self.test_loader.dataset)
         self.test_accuracy += [test_accuracy]
         batch_stable_ReLU = self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation'], self.test_loader)
+        relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
         self.logger.info(
-            f'[Test] epoch: {epoch} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}% SR: {batch_stable_ReLU:5}\n')
+            f'[Test] epoch: {epoch} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}% SR: {relu_accuracy*100:.2f}%\n')
 
     def _plot_train(self):
         # draw training progress plot
@@ -219,11 +222,11 @@ class Problem:
         X4 = range(len(self.train_loss))
         Y4 = self.train_loss
 
-        max_safe_relu = sum([self.model.activation[layer].view(
-            self.model.activation[layer].size(0), -1).shape[-1] for layer in self.model.activation])
+        # max_safe_relu = sum([self.model.activation[layer].view(
+        #    self.model.activation[layer].size(0), -1).shape[-1] for layer in self.model.activation])
 
         p_plot = ProgressPlot()
-        p_plot.draw_train(X1, Y1, X2, Y2, (0, max_safe_relu))
+        p_plot.draw_train(X1, Y1, X2, Y2, (0, 1))  # max_safe_relu))
         p_plot.draw_accuracy(X3, Y3, X4, Y4, (0, 1))
 
         title = f'# {self.model_name}'
@@ -241,10 +244,10 @@ class Problem:
                 '\'save_intermediate = true\' is required for verification model selection strategy other than \'last\' epoch.')
 
         target_epoch = self.Utility.get_target_epoch(target_model, self.train_log_path)
-        target_epoch = self.cfg_train['epochs'] if not target_epoch else target_epoch
 
         self.veri_log_path = os.path.join(self.sub_dirs['veri_log_dir'],
                                           f"{self.model_name}_e={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt")
+
         return target_epoch
 
     def _verified(self):
@@ -396,13 +399,13 @@ class Problem:
                 target_epoch = len(lines)
             elif target_model.startswith('best') or target_model.startswith('top'):
                 acc_test = np.array([float(x.split()[-3][:-1]) for x in lines])
-                acc_relu = np.array([float(x.split()[-1]) for x in lines])
+                acc_relu = np.array([float(x.split()[-1][:-1]) for x in lines])
 
                 if target_model.startswith('best'):
                     if target_model == "best test accuracy":
-                        target_epoch = np.argmax(acc_test) + 1
+                        target_epoch = np.argmax(acc_test)+1
                     elif target_model == "best relu accuracy":
-                        target_epoch = np.argmax(acc_relu) + 1
+                        target_epoch = np.argmax(acc_relu)+1
                     else:
                         assert False
                 else:
@@ -410,7 +413,7 @@ class Problem:
 
                     if target_model.endswith('test accuracy'):
                         max_test = np.max(acc_test)
-                        # print(acc_test, threshold, max_test)
+                        #print(acc_test, threshold, max_test)
                         candidates = np.where(acc_test >= max_test-threshold)
                         # print(candidates)
                         max_relu = np.max(acc_relu[candidates])
@@ -426,8 +429,7 @@ class Problem:
                         # print(set_test)
                         final_candidates = set_relu.intersection(set_test)
                         assert len(final_candidates) == 1
-                        target_epoch = final_candidates.pop()
-                        # print(target_epoch)
+                        target_epoch = final_candidates.pop() + 1
 
                     elif target_model.endswith('relu accuracy'):
                         max_relu = np.max(acc_relu)
@@ -446,12 +448,13 @@ class Problem:
                         # print(set_test)
                         final_candidates = set_test.intersection(set_relu)
                         assert len(final_candidates) == 1
-                        target_epoch = final_candidates.pop()
+                        target_epoch = final_candidates.pop() + 1
                         # print(target_epoch)
                     else:
                         assert False
             else:
                 assert False, f'Unknown target_model: {target_model}'
+            # print(target_epoch)
             return target_epoch
 
         @ staticmethod
@@ -476,7 +479,7 @@ class Problem:
                     break
                 elif 'Out of Memory' in l:
                     veri_ans = 'memout'
-                    veri_time = None #float(l.strip().split()[-3])
+                    veri_time = None  # float(l.strip().split()[-3])
                     break
 
             return veri_ans, veri_time
