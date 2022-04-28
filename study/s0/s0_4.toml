@@ -1,11 +1,11 @@
-name = 'test'
+name = 's0'
 
 [train]
 	artifact = 'MNIST'
 	net_name = 'NetS'
 	net_layers = [128, 128, 128]		# hidden layers
 
-	epochs = 20
+	epochs = 100
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4							# learning rate
@@ -29,10 +29,10 @@ name = 'test'
 		mode = 'standard'
 		intensity = 5e-2
 		#occurrence = 5e-3
-		every = 50
-		decay = 0.99
+		every = 400
+		#decay = 0.99
 		start = 1 			# inclusive
-		end = 20 			# inclusive
+		end = 100 			# inclusive
 	
 	#[heuristic.rs_loss]
 	#	ReLU_estimation = 'IP'

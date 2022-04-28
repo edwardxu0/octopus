@@ -11,20 +11,24 @@ class BiasShaping(Heuristic):
         # self.cfg = cfg
         self.mode = cfg['mode']
         self.intensity = cfg['intensity']
-        self.occurrence = cfg['occurrence']
+        self.occurrence = cfg['occurrence'] if 'occurrence' in cfg else None
+        self.every = cfg['every'] if 'every' in cfg else None
         self.decay = 1 if not 'decay' in cfg else cfg['decay']
         self.device = model.device
+
+        assert not (self.occurrence and self.every)
 
     def run(self, **kwargs):
         epoch = kwargs['epoch']
         BS_switch = False
 
         # probability check
-        if np.random.rand() < self.occurrence * self.decay**epoch:
-            if self.mode == 'standard':
-                BS_switch = True
-            else:
-                assert False
+        if self.occurrence:
+            BS_switch = np.random.rand() < self.occurrence * self.decay**epoch
+        elif self.every:
+            BS_switch = kwargs['batch'] % self.every == 0
+        else:
+            assert False
 
         if BS_switch:
             for layer in self.model.activation:

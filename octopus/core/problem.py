@@ -164,7 +164,7 @@ class Problem:
                                                                  self.cfg_heuristic['bias_shaping']['end']):
 
                 # print('before', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
-                if self.model.run_heuristics('bias_shaping', data=data, epoch=epoch):
+                if self.model.run_heuristics('bias_shaping', data=data, epoch=epoch, batch=batch_idx):
                     BS_point = len(self.train_loader) * (epoch-1) + batch_idx
                     self.train_BS_points += [BS_point]
                 # print('after', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
@@ -226,11 +226,13 @@ class Problem:
         #    self.model.activation[layer].size(0), -1).shape[-1] for layer in self.model.activation])
 
         p_plot = ProgressPlot()
-        p_plot.draw_train(X1, Y1, X2, Y2, (0, 1))  # max_safe_relu))
+        # max_safe_relu))
+        p_plot.draw_train(X1, Y1, X2, Y2, (0, self.cfg_train['epochs']*len(self.train_loader)), (0, 1))
         p_plot.draw_accuracy(X3, Y3, X4, Y4, (0, 1))
+        p_plot.draw_grid(x_stride=self.cfg_train['epochs']*len(self.train_loader)/5, y_stride=0.2)
 
         title = f'# {self.model_name}'
-        path = os.path.join(self.sub_dirs['figure_dir'], self.model_name+'.png')
+        path = os.path.join(self.sub_dirs['figure_dir'], self.model_name+'.pdf')
         p_plot.save(title, path)
         p_plot.clear()
 
@@ -343,9 +345,12 @@ class Problem:
                         m = 'S'
                     else:
                         raise NotImplementedError
-                    d = '' if not 'decay' in x else f":{x['decay']}"
+                    i = f":{x['intensity']}" if 'intensity' in x else ''
+                    o = f":{x['occurrence']}" if 'occurrence' in x else ''
+                    e = f":{x['every']}" if 'every' in x else ''
+                    d = f":{x['decay']}" if 'decay' in x else ''
 
-                    name += f"_BS={m}:{x['intensity']}:{x['occurrence']}{d}:{parse_start_end(x)}"
+                    name += f"_BS={m}{i}{o}{e}{d}:{parse_start_end(x)}"
 
                 elif h == 'rs_loss':
                     if x['mode'] == 'standard':
