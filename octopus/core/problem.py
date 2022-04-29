@@ -343,6 +343,8 @@ class Problem:
                 if h == 'bias_shaping':
                     if x['mode'] == 'standard':
                         m = 'S'
+                    elif x['mode'] == 'distribution':
+                        m = 'D'
                     else:
                         raise NotImplementedError
                     i = f":{x['intensity']}" if 'intensity' in x else ''
@@ -433,7 +435,7 @@ class Problem:
                         # print(set_relu)
                         # print(set_test)
                         final_candidates = set_relu.intersection(set_test)
-                        assert len(final_candidates) == 1
+                        # assert len(final_candidates) == 1
                         target_epoch = final_candidates.pop() + 1
 
                     elif target_model.endswith('relu accuracy'):
@@ -452,7 +454,7 @@ class Problem:
                         # print(set_relu)
                         # print(set_test)
                         final_candidates = set_test.intersection(set_relu)
-                        assert len(final_candidates) == 1
+                        # assert len(final_candidates) == 1
                         target_epoch = final_candidates.pop() + 1
                         # print(target_epoch)
                     else:

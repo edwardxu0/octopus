@@ -26,8 +26,8 @@ name = 'test'
 [heuristic]
 	[heuristic.bias_shaping]
 		ReLU_estimation = 'TD'
-		mode = 'standard'
-		intensity = 5e-2
+		mode = 'distribution'
+		intensity = 2e-2
 		#occurrence = 5e-3
 		every = 50
 		decay = 0.99
