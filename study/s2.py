@@ -1,11 +1,11 @@
 import numpy as np
 
-sleep_time = 6
+sleep_time = 4
 train_nodes = None
 # train_nodes_ex = 'affogato11,affogato12,affogato13,affogato14,affogato15,cheetah01,lynx08,lynx09,lynx10,lynx11,lynx12,ai01,ai02,ai04,lotus,adriatic06'
 train_nodes_ex = 'affogato11,affogato12,affogato13,affogato14,affogato15,cheetah01,lynx08,lynx09,lynx10,lynx11,lynx12,ai01,ai02,ai04,ai06,lotus,adriatic06,ristretto01,ristretto02,ristretto03,ristretto04,ai05'
 
-veri_nodes = ['doppio'+x for x in [ '02', '03', '04', '05']]  # ,'06','07','08','09','10']]
+veri_nodes = ['doppio'+x for x in ['01','02','03','04','05']]  # ,'06','07','08','09','10']]
 veri_nodes_ex = None
 
 artifacts = ['MNIST', 'FashionMNIST', 'CIFAR10']
@@ -42,7 +42,7 @@ heuristics = {
     'base': None
 }
 
-props = [*range(3)]
+props = [*range(5)]
 
 epsilons = np.linspace(2, 20, 10)/100
 
