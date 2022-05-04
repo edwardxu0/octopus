@@ -22,7 +22,7 @@ def parse_args():
                         help='Print debug log.')
     parser.add_argument('--dumb', action='store_true',
                         help='Silent mode.')
-
+    parser.add_argument('--version', action='version', version='%(prog)s 0.3.1')
     return parser.parse_args()
 
 

@@ -15,7 +15,7 @@ name = 'test'
 	save_log = true
 	log_interval = 10					# Stable ReLU estimation/print interval
 	gpu = true
-	amp = true							# enabled only when gpu == true
+	amp = false							# enabled only when gpu == true
 
 	# TD: train distribution
 	# VS: verification sampling
@@ -26,28 +26,27 @@ name = 'test'
 [heuristic]
 	[heuristic.bias_shaping]
 		ReLU_estimation = 'TD'
-		mode = 'distribution'
+		mode = 'standard'
 		intensity = 2e-2
-		#occurrence = 5e-3
-		every = 50
-		decay = 0.99
+		occurrence = 5e-3
+		#every = 50
+		#decay = 0.99
 		start = 1 			# inclusive
 		end = 20 			# inclusive
 	
-	#[heuristic.rs_loss]
-	#	ReLU_estimation = 'IP'
-	#	mode = 'standard'
-	#	weight = 1e-4
-	#	epsilon = 1e-1
-	#	start = 1
-	#	end = 9
+	[heuristic.rs_loss]
+		mode = 'standard'
+		weight = 1e-4
+		epsilon = 1e-1
+		start = 1
+		end = 9
 
-	#[heuristic.prune]
-	#	mode = 'structure'
-	#	re_arch = 'standard'
-	#	sparsity = 0.05
-	#	start = [1,2,3,4,5,6,7,8,9,10]
-	#	end = [1,2,3,4,5,6,7,8,9,10]
+	[heuristic.prune]
+		mode = 'structure'
+		re_arch = 'standard'
+		sparsity = 0.05
+		start = [1, 11]
+		end = [1, 11]
 
 
 [verify]
@@ -67,5 +66,5 @@ name = 'test'
 	# best relu accuracy: model with the most amount of stable relus
 	# top [x] test accuaracy: model with the most amount of stable relus with [x]% accuarcy difference of the model with the best tests accuracy
 	# top [x] relu accuaracy: model with the best test accuracy with [x]% stable relu difference of the model with the most amount of stable relus
-	target_model = 'top 1 test accuracy'
+	target_model = 'last'
 
