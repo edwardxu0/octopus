@@ -5,7 +5,7 @@ name = 'test'
 	net_name = 'NetS'
 	net_layers = [128, 128, 128]		# hidden layers
 
-	epochs = 20
+	epochs = 18
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4							# learning rate
@@ -17,36 +17,46 @@ name = 'test'
 	gpu = true
 	amp = false							# enabled only when gpu == true
 
+	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
+
 	# TD: train distribution
 	# VS: verification sampling
 	# IP: interval propagation
-	ReLU_estimation = 'TD'
-	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
+	[train.stable_estimator]
+		#[train.stable_estimator.ReLU_estimator]
+		#	mode = 'SDD'
+		
+		[train.stable_estimator.ReLU_estimator]
+			mode = 'SAD'
+			epsilon = 0.01
+			samples = 100
+
+
 
 [heuristic]
 	[heuristic.bias_shaping]
-		ReLU_estimation = 'TD'
+		ReLU_est = 'SDD'
 		mode = 'standard'
 		intensity = 2e-2
-		occurrence = 5e-3
-		#every = 50
-		#decay = 0.99
+		# occurrence = 5e-3
+		every = 50
+		decay = 0.99
 		start = 1 			# inclusive
 		end = 20 			# inclusive
 	
-	[heuristic.rs_loss]
-		mode = 'standard'
-		weight = 1e-4
-		epsilon = 1e-1
-		start = 1
-		end = 9
+	#[heuristic.rs_loss]
+	#	mode = 'standard'
+	#	weight = 1e-4
+	#	epsilon = 1e-1
+	#	start = 1
+	#	end = 9
 
-	[heuristic.prune]
-		mode = 'structure'
-		re_arch = 'standard'
-		sparsity = 0.05
-		start = [1, 11]
-		end = [1, 11]
+	#[heuristic.prune]
+	#	mode = 'structure'
+	#	re_arch = 'last'
+	#	sparsity = 0.05
+	#	start = [ 3, 6, 9, 12, 15, 18]
+	#	end = [ 3, 6, 9, 12, 15, 18]
 
 
 [verify]

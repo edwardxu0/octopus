@@ -26,8 +26,16 @@ class Prune(Heuristic):
 
         # restructure network
         if self.re_arch:
-            self.logger.info('Restructuring network ...')
-            self._restructure(mask)
+            if self.re_arch == 'standard':
+                on = True
+            elif self.re_arch == 'last' and kwargs['epoch'] == kwargs['total_epoch']:
+                on = True
+            else:
+                on = False
+
+            if on:
+                self.logger.info('Restructuring network ...')
+                self._restructure(mask)
 
     # initialize the mask
     def _init_mask(self):
