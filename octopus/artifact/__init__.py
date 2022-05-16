@@ -8,17 +8,17 @@ from torchvision.utils import save_image
 
 class Artifact:
     def __init__(self, **kwargs):
-        self.data_mode = kwargs['data_mode']
-        self.batch_size = kwargs['batch_size']
-        self.test_batch_size = kwargs['test_batch_size']
-        self.use_cuda = kwargs['use_cuda']
+        self.data_mode = kwargs["data_mode"]
+        self.batch_size = kwargs["batch_size"]
+        self.test_batch_size = kwargs["test_batch_size"]
+        self.use_cuda = kwargs["use_cuda"]
 
     def get_data_loader(self):
-        if self.data_mode == 'nature':
+        if self.data_mode == "nature":
             self._gen_natural_data_loader()
-        elif self.data_mode == 'pgd':
+        elif self.data_mode == "pgd":
             self._gen_pgd_data_loader()
-        elif self.data_mode == 'vae':
+        elif self.data_mode == "vae":
             self._gen_vae_data_loader()
         else:
             assert False
@@ -26,25 +26,24 @@ class Artifact:
         return self.train_loader, self.test_loader
 
     def _gen_natural_data_loader(self):
-        train_kwargs = {'batch_size': self.batch_size}
-        test_kwargs = {'batch_size': self.test_batch_size}
+        train_kwargs = {"batch_size": self.batch_size}
+        test_kwargs = {"batch_size": self.test_batch_size}
         if self.use_cuda:
-            cuda_kwargs = {'num_workers': 1,
-                           'pin_memory': True,
-                           'shuffle': True}
+            cuda_kwargs = {"num_workers": 1, "pin_memory": True, "shuffle": True}
             train_kwargs.update(cuda_kwargs)
             test_kwargs.update(cuda_kwargs)
 
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((self._mean,), (self._std,))
-        ])
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((self._mean,), (self._std,))]
+        )
 
         # turn on download flag if dataset not downloaded
-        dataset1 = eval(f'datasets.{self.name}')('data', train=True, download=False,
-                                                 transform=transform)
-        dataset2 = eval(f'datasets.{self.name}')('data', train=False,
-                                                 transform=transform)
+        dataset1 = eval(f"datasets.{self.name}")(
+            "data", train=True, download=False, transform=transform
+        )
+        dataset2 = eval(f"datasets.{self.name}")(
+            "data", train=False, transform=transform
+        )
 
         self.train_loader = torch.utils.data.DataLoader(dataset1, **train_kwargs)
         self.test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
@@ -71,18 +70,20 @@ class Artifact:
 
         property_path = os.path.join(prop_dir, f"{self.name}_{prop_id}_{epsilon}.py")
 
-        property_lines = ["from dnnv.properties import *\n",
-                          "import numpy as np\n\n",
-                          'N = Network("N")\n',
-                          f'x = Image("{npy_img_path}")\n',
-                          f"epsilon = {epsilon}\n",
-                          "Forall(\n",
-                          "    x_,\n",
-                          "    Implies(\n",
-                          "        ((x - epsilon) < x_ < (x + epsilon)),\n",
-                          "        np.argmax(N[:](x_)) == np.argmax(N[:](x)),\n",
-                          "    ),\n",
-                          ")\n"]
+        property_lines = [
+            "from dnnv.properties import *\n",
+            "import numpy as np\n\n",
+            'N = Network("N")\n',
+            f'x = Image("{npy_img_path}")\n',
+            f"epsilon = {epsilon}\n",
+            "Forall(\n",
+            "    x_,\n",
+            "    Implies(\n",
+            "        ((x - epsilon) < x_ < (x + epsilon)),\n",
+            "        np.argmax(N[:](x_)) == np.argmax(N[:](x)),\n",
+            "    ),\n",
+            ")\n",
+        ]
 
         with open(property_path, "w+") as property_file:
             property_file.writelines(property_lines)

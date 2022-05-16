@@ -5,7 +5,7 @@ name = 'test'
 	net_name = 'NetS'
 	net_layers = [128, 128, 128]		# hidden layers
 
-	epochs = 18
+	epochs = 20
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4							# learning rate
@@ -13,36 +13,44 @@ name = 'test'
 	save_model = true
 	save_intermediate = true
 	save_log = true
-	log_interval = 10					# Stable ReLU estimation/print interval
+	log_interval = 100					# Stable ReLU estimation/print interval
 	gpu = true
 	amp = false							# enabled only when gpu == true
 
 	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
 
-	# TD: train distribution
-	# VS: verification sampling
-	# IP: interval propagation
+
+	# SDD: sampled dataset distribution
+	# SAD: sampled adversarial distribution
+	# NIP: interval propagation
 	[train.stable_estimator]
 		#[train.stable_estimator.ReLU_estimator]
 		#	mode = 'SDD'
 		
+		#[train.stable_estimator.ReLU_estimator]
+		#	mode = 'SDD'
+		#	epsilon = 0.1
+		#	samples = 100
+
 		[train.stable_estimator.ReLU_estimator]
-			mode = 'SAD'
-			epsilon = 0.01
+			mode = 'NIP'
+			epsilon = 0.1
 			samples = 100
-
-
 
 [heuristic]
 	[heuristic.bias_shaping]
-		ReLU_est = 'SDD'
 		mode = 'standard'
 		intensity = 2e-2
 		# occurrence = 5e-3
-		every = 50
+		pace = 50
 		decay = 0.99
 		start = 1 			# inclusive
 		end = 20 			# inclusive
+		[heuristic.bias_shaping.stable_estimator]
+			[heuristic.bias_shaping.stable_estimator.ReLU_estimator]
+				mode = 'SDD'
+				epsilon = 0.1
+				samples = 100
 	
 	#[heuristic.rs_loss]
 	#	mode = 'standard'

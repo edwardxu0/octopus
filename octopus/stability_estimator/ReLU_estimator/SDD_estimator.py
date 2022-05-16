@@ -1,28 +1,32 @@
+import torch
 import numpy as np
 
 from . import ReLUEstimator
 
-# Training distribution estimator
+
+# Sampled Distribution Estimator
 class SDDEstimator(ReLUEstimator):
     def __init__(self, model, **kwargs):
         super().__init__(model)
 
-    def run(self):
-        safe_le_zero_all = []
-        safe_ge_zero_all = []
-        for layer in self.model.activation.keys():
-            val = (
-                self.model.activation[layer]
-                .view(self.model.activation[layer].size(0), -1)
-                .cpu()
-                .numpy()
-            )
-            val_min = np.min(val, axis=0)
-            val_max = np.max(val, axis=0)
-            safe_ge_zero = (np.asarray(val_min) >= 0).sum()
-            safe_le_zero = (np.asarray(val_max) <= 0).sum()
+    def run(self, **kwargs):
+        lb_ = []
+        ub_ = []
+        le_0_ = []
+        ge_0_ = []
 
-            safe_le_zero_all += [safe_le_zero]
-            safe_ge_zero_all += [safe_ge_zero]
-        total_safe = sum(safe_le_zero_all) + sum(safe_ge_zero_all)
-        return total_safe
+        for name, _ in self.model.filtered_named_modules:
+            X = self.model._batch_values[name]
+            lb = torch.min(X, axis=0).values
+            ub = torch.max(X, axis=0).values
+            lb_ += [lb]
+            ub_ += [ub]
+
+            le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(lb, ub)
+            le_0_ += [le_0.view(1)]
+            ge_0_ += [ge_0.view(1)]
+
+        le_0_ = torch.cat(le_0_, dim=0)
+        ge_0_ = torch.cat(ge_0_, dim=0)
+
+        return le_0_, ge_0_, lb_, ub_

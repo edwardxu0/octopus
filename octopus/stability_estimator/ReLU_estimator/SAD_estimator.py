@@ -1,10 +1,10 @@
-import numpy as np
 import torch
 
 from . import ReLUEstimator
 from .SDD_estimator import SDDEstimator
 
 
+# Sampled Adversarial Estimator
 class SADEstimator(ReLUEstimator):
     def __init__(self, model, **kwargs):
         super().__init__(model)
@@ -14,23 +14,21 @@ class SADEstimator(ReLUEstimator):
 
     def run(self, **kwargs):
         test_loader = kwargs["test_loader"]
-        device = kwargs["device"]
 
-        total_safe = []
+        data, _ = next(iter(test_loader))
+        data = data[: self.samples].to(self.model.device)
+        adv = (
+            torch.FloatTensor(data.shape)
+            .uniform_(-self.epsilon, +self.epsilon)
+            .to(self.model.device)
+        )
+        data = data + adv
+
         self.model.eval()
         with torch.no_grad():
-            data, _ = next(iter(test_loader))
-            data = data.to(device)
-            adv = (
-                torch.FloatTensor(data.shape)
-                .uniform_(-self.epsilon, +self.epsilon)
-                .to(device)
-            )
-            data = data + adv
             self.model(data)
-            total_safe += [self.SDDEstimator.run()]
-        # safe = np.mean(np.array(safe))
-        self.model.train()
-        total_safe = np.mean(np.array(total_safe))
 
-        return total_safe
+        le_0, ge_0, lb_, ub_ = self.SDDEstimator.run()
+        self.model.train()
+
+        return le_0, ge_0, lb_, ub_

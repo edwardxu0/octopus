@@ -209,16 +209,24 @@ class Problem:
 
                 # print('before', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
                 if self.model.run_heuristics(
-                    "bias_shaping", data=data, epoch=epoch, batch=batch_idx
+                    "bias_shaping",
+                    data=data,
+                    epoch=epoch,
+                    batch=batch_idx,
+                    test_loader=self.test_loader,
                 ):
                     BS_point = len(self.train_loader) * (epoch - 1) + batch_idx
                     self.train_BS_points += [BS_point]
                 # print('after', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
 
             if batch_idx % self.cfg_train["log_interval"] == 0:
+                # TODO: supports more than one estimators
                 assert len(self.stable_estimators) == 1
-                batch_stable_ReLU = self.stable_estimators[0].run(
-                    test_loader=self.test_loader, device=self.device
+                stable_le_0, stable_ge_0, _, _ = self.stable_estimators[0].run(
+                    data=data, test_loader=self.test_loader, device=self.device
+                )
+                batch_stable_ReLU = torch.sum(
+                    torch.cat((stable_le_0, stable_ge_0), dim=0)
                 )
                 relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
                 self.logger.info(
@@ -263,9 +271,13 @@ class Problem:
         test_loss /= len(self.test_loader.dataset)
         test_accuracy = correct / len(self.test_loader.dataset)
         self.test_accuracy += [test_accuracy]
-        batch_stable_ReLU = self.model.estimate_stable_ReLU(
-            self.cfg_train["ReLU_estimation"], self.test_loader
+        assert (
+            len(self.stable_estimators) == 1
+        )  # TODO: supports more than one estimators
+        stable_le_0, stable_ge_0, _, _ = self.stable_estimators[0].run(
+            data=data, test_loader=self.test_loader, device=self.device
         )
+        batch_stable_ReLU = torch.sum(torch.cat((stable_le_0, stable_ge_0), dim=0))
         relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
         self.logger.info(
             f"[Test] epoch: {epoch:3} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}% SR: {relu_accuracy*100:.2f}%\n"
