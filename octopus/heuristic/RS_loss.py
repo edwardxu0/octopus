@@ -2,6 +2,7 @@ import torch
 import numpy as np
 
 from . import Heuristic
+from ..stability_estimator import get_stability_estimators
 
 
 class RSLoss(Heuristic):
@@ -12,7 +13,12 @@ class RSLoss(Heuristic):
         assert cfg["mode"] == "standard"
         self.epsilon = cfg["epsilon"]
 
-    def run(self, **kwargs):
+        assert len(cfg["stable_estimator"]) == 1
+        self.stable_estimator = get_stability_estimators(
+            cfg["stable_estimator"], self.model
+        )[0]
+
+    def run2(self, **kwargs):
         data = kwargs["data"]
         loss = torch.zeros((len(data), 3), device=self.model.device)
         data = data.view((-1, np.prod(self.model.artifact.input_shape)))
@@ -28,11 +34,28 @@ class RSLoss(Heuristic):
         loss = torch.sum(torch.mean(loss, axis=1))
         return loss
 
-    """RS Loss Function"""
+    def run(self, **kwargs):
+        self.stable_estimator.propagate(**kwargs)
+        lb_, ub_ = self.stable_estimator.get_bounds()
+        loss = []
+        for lb, ub in zip(lb_, ub_):
+            assert len(lb.shape) == 2
+            rs_loss = self._l_relu_stable(lb, ub)
+            loss += [rs_loss.view(1)]
 
+        loss = torch.cat(loss)
+        loss = torch.sum(loss)
+        return loss
+
+    # RS Loss Function
     def _l_relu_stable(self, lb, ub, norm_constant=1.0):
-        loss = -torch.sum(
-            torch.tanh(torch.tensor(1.0, requires_grad=True) + norm_constant * lb * ub)
+        loss = torch.mean(
+            -torch.sum(
+                torch.tanh(
+                    torch.tensor(1.0, requires_grad=True) + norm_constant * lb * ub
+                ),
+                axis=-1,
+            )
         )
         return loss
 

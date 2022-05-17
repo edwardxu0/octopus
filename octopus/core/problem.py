@@ -174,7 +174,8 @@ class Problem:
 
                 # [H] RS loss
                 if (
-                    "rs_loss" in self.cfg_heuristic
+                    self.cfg_heuristic
+                    and "rs_loss" in self.cfg_heuristic
                     and self.Utility.heuristic_enabled_epochwise(
                         epoch,
                         self.cfg_heuristic["rs_loss"]["start"],
@@ -182,7 +183,9 @@ class Problem:
                     )
                 ):
 
-                    rs_loss = self.model.run_heuristics("rs_loss", data=data)
+                    rs_loss = self.model.run_heuristics(
+                        "rs_loss", data=data, test_loader=self.test_loader
+                    )
                     loss += rs_loss * self.cfg_heuristic["rs_loss"]["weight"]
 
                 if loss.isnan():
@@ -198,7 +201,8 @@ class Problem:
 
             # [H] bias shaping
             if (
-                "bias_shaping" in self.cfg_heuristic
+                self.cfg_heuristic
+                and "bias_shaping" in self.cfg_heuristic
                 and batch_idx != 0
                 and self.Utility.heuristic_enabled_epochwise(
                     epoch,
@@ -222,12 +226,17 @@ class Problem:
             if batch_idx % self.cfg_train["log_interval"] == 0:
                 # TODO: supports more than one estimators
                 assert len(self.stable_estimators) == 1
-                stable_le_0, stable_ge_0, _, _ = self.stable_estimators[0].run(
-                    data=data, test_loader=self.test_loader, device=self.device
+                self.stable_estimators[0].propagate(
+                    data=data, test_loader=self.test_loader
                 )
-                batch_stable_ReLU = torch.sum(
-                    torch.cat((stable_le_0, stable_ge_0), dim=0)
+                stable_le_0, stable_ge_0 = self.stable_estimators[0].get_stable_ReLUs()
+                stable_le_0 = torch.sum(
+                    torch.mean(stable_le_0.type(torch.float32), axis=-1)
                 )
+                stable_ge_0 = torch.sum(
+                    torch.mean(stable_ge_0.type(torch.float32), axis=-1)
+                )
+                batch_stable_ReLU = stable_le_0 + stable_ge_0
                 relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
                 self.logger.info(
                     f"[Train] epoch: {epoch:3} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f} SR: {relu_accuracy*100:.2f}%"
@@ -241,10 +250,14 @@ class Problem:
         # [H] pruning
         # prune after entire epoch trained
         # using pre-activation values of last mini-batch
-        if "prune" in self.cfg_heuristic and self.Utility.heuristic_enabled_epochwise(
-            epoch,
-            self.cfg_heuristic["prune"]["start"],
-            self.cfg_heuristic["prune"]["end"],
+        if (
+            self.cfg_heuristic
+            and "prune" in self.cfg_heuristic
+            and self.Utility.heuristic_enabled_epochwise(
+                epoch,
+                self.cfg_heuristic["prune"]["start"],
+                self.cfg_heuristic["prune"]["end"],
+            )
         ):
             self.model.run_heuristics(
                 "prune", epoch=epoch, total_epoch=self.cfg_train["epochs"]
@@ -271,13 +284,14 @@ class Problem:
         test_loss /= len(self.test_loader.dataset)
         test_accuracy = correct / len(self.test_loader.dataset)
         self.test_accuracy += [test_accuracy]
-        assert (
-            len(self.stable_estimators) == 1
-        )  # TODO: supports more than one estimators
-        stable_le_0, stable_ge_0, _, _ = self.stable_estimators[0].run(
-            data=data, test_loader=self.test_loader, device=self.device
-        )
-        batch_stable_ReLU = torch.sum(torch.cat((stable_le_0, stable_ge_0), dim=0))
+
+        # TODO: supports more than one estimators
+        assert len(self.stable_estimators) == 1
+        self.stable_estimators[0].propagate(data=data, test_loader=self.test_loader)
+        stable_le_0, stable_ge_0 = self.stable_estimators[0].get_stable_ReLUs()
+        stable_le_0 = torch.sum(torch.mean(stable_le_0.type(torch.float32), axis=-1))
+        stable_ge_0 = torch.sum(torch.mean(stable_ge_0.type(torch.float32), axis=-1))
+        batch_stable_ReLU = stable_le_0 + stable_ge_0
         relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
         self.logger.info(
             f"[Test] epoch: {epoch:3} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}% SR: {relu_accuracy*100:.2f}%\n"
@@ -438,49 +452,50 @@ class Problem:
                     + str(x["end"]).replace(" ", "")
                 )
 
-            for h in cfg_heuristic:
-                x = cfg_heuristic[h]
+            if cfg_heuristic:
+                for h in cfg_heuristic:
+                    x = cfg_heuristic[h]
 
-                if h == "bias_shaping":
-                    if x["mode"] == "standard":
-                        m = "S"
-                    elif x["mode"] == "distribution":
-                        m = "D"
+                    if h == "bias_shaping":
+                        if x["mode"] == "standard":
+                            m = "S"
+                        elif x["mode"] == "distribution":
+                            m = "D"
+                        else:
+                            raise NotImplementedError
+                        i = f":{x['intensity']}" if "intensity" in x else ""
+                        o = f":{x['occurrence']}" if "occurrence" in x else ""
+                        e = f":{x['every']}" if "every" in x else ""
+                        d = f":{x['decay']}" if "decay" in x else ""
+
+                        name += f"_BS={m}{i}{o}{e}{d}:{parse_start_end(x)}"
+
+                    elif h == "rs_loss":
+                        if x["mode"] == "standard":
+                            m = "S"
+                        else:
+                            raise NotImplementedError
+                        name += f"_RS={m}:{x['weight']}:{parse_start_end(x)}"
+
+                    elif h == "prune":
+                        if x["mode"] == "structure":
+                            m = "S"
+                        else:
+                            raise NotImplementedError
+
+                        if "re_arch" not in x:
+                            r = "-"
+                        elif x["re_arch"] == "standard":
+                            r = "S"
+                        elif x["re_arch"] == "last":
+                            r = "L"
+                        else:
+                            raise NotImplementedError
+
+                        name += f"_PR={m}:{r}:{x['sparsity']}:{parse_start_end(x)}"
+
                     else:
-                        raise NotImplementedError
-                    i = f":{x['intensity']}" if "intensity" in x else ""
-                    o = f":{x['occurrence']}" if "occurrence" in x else ""
-                    e = f":{x['every']}" if "every" in x else ""
-                    d = f":{x['decay']}" if "decay" in x else ""
-
-                    name += f"_BS={m}{i}{o}{e}{d}:{parse_start_end(x)}"
-
-                elif h == "rs_loss":
-                    if x["mode"] == "standard":
-                        m = "S"
-                    else:
-                        raise NotImplementedError
-                    name += f"_RS={m}:{x['weight']}:{parse_start_end(x)}"
-
-                elif h == "prune":
-                    if x["mode"] == "structure":
-                        m = "S"
-                    else:
-                        raise NotImplementedError
-
-                    if "re_arch" not in x:
-                        r = "-"
-                    elif x["re_arch"] == "standard":
-                        r = "S"
-                    elif x["re_arch"] == "last":
-                        r = "L"
-                    else:
-                        raise NotImplementedError
-
-                    name += f"_PR={m}:{r}:{x['sparsity']}:{parse_start_end(x)}"
-
-                else:
-                    assert False
+                        assert False
             name += f"_seed={seed}"
             return name
 

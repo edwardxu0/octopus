@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-
 from . import ReLUEstimator
 
 # Naive Interval Propagation estimator
@@ -10,7 +9,7 @@ class NIPEstimator(ReLUEstimator):
         super().__init__(model)
         self.epsilon = kwargs["epsilon"]
 
-    def run(self, **kwargs):
+    def propagate(self, **kwargs):
         data = kwargs["data"]
         data = data.view((-1, np.prod(self.model.artifact.input_shape)))
 
@@ -21,23 +20,19 @@ class NIPEstimator(ReLUEstimator):
         ub_ = []
         le_0_ = []
         ge_0_ = []
-
         for name in list(self.model.layers.keys())[:-1]:
             layer = self.model.layers[name]
             if isinstance(layer, torch.nn.Linear):
                 w = layer.weight
                 b = layer.bias
-                lb, ub = self._interval_arithmetic(lb, ub, w, b)
 
-                lb_batch = torch.min(lb, axis=0).values
-                ub_batch = torch.max(ub, axis=0).values
-                lb_ += [lb_batch]
-                ub_ += [ub_batch]
-                # print(lb_batch)
-                # print(ub_batch)
-                le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(lb_batch, ub_batch)
-                le_0_ += [le_0.view(1)]
-                ge_0_ += [ge_0.view(1)]
+                lb, ub = self._interval_arithmetic(lb, ub, w, b)
+                lb_ += [lb.view([1, *lb.shape])]
+                ub_ += [ub.view([1, *ub.shape])]
+
+                le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(lb, ub)
+                le_0_ += [le_0.view(1, *le_0.shape)]
+                ge_0_ += [ge_0.view(1, *ge_0.shape)]
 
             elif isinstance(layer, torch.nn.ReLU):
                 lb = torch.relu(lb)
@@ -49,9 +44,10 @@ class NIPEstimator(ReLUEstimator):
             else:
                 raise NotImplementedError(layer)
 
-        le_0_ = torch.cat(le_0_, dim=0)
-        ge_0_ = torch.cat(ge_0_, dim=0)
-        return le_0_, ge_0_, lb_, ub_
+        self.stable_le_0_ = torch.cat(le_0_, dim=0)
+        self.stable_ge_0_ = torch.cat(ge_0_, dim=0)
+        self.lb_ = torch.cat(lb_, dim=0)
+        self.ub_ = torch.cat(ub_, dim=0)
 
     @staticmethod
     def _interval_arithmetic(lb, ub, W, b):

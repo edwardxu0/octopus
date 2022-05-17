@@ -7,4 +7,5 @@ class Heuristic(ABC):
     def __init__(self, logger):
         self.logger = logger
 
-    def run(self, **kwargs) -> type: bool: ...
+    def run(self, **kwargs) -> type:
+        bool: ...

@@ -38,26 +38,31 @@ name = 'test'
 			samples = 100
 
 [heuristic]
-	[heuristic.bias_shaping]
+	#[heuristic.bias_shaping]
+	#	mode = 'standard'
+	#	intensity = 2e-2
+	#	# occurrence = 5e-3
+	#	pace = 50
+	#	decay = 0.99
+	#	start = 1 			# inclusive
+	#	end = 20 			# inclusive
+	#	[heuristic.bias_shaping.stable_estimator]
+	#		[heuristic.bias_shaping.stable_estimator.ReLU_estimator]
+	#			mode = 'SDD'
+	#			epsilon = 0.1
+	#			samples = 100
+	
+	[heuristic.rs_loss]
 		mode = 'standard'
-		intensity = 2e-2
-		# occurrence = 5e-3
-		pace = 50
-		decay = 0.99
-		start = 1 			# inclusive
-		end = 20 			# inclusive
-		[heuristic.bias_shaping.stable_estimator]
-			[heuristic.bias_shaping.stable_estimator.ReLU_estimator]
-				mode = 'SDD'
+		weight = 1e-4
+		epsilon = 0.1
+		start = 1
+		end = 20
+		[heuristic.rs_loss.stable_estimator]
+			[heuristic.rs_loss.stable_estimator.ReLU_estimator]
+				mode = 'SAD'
 				epsilon = 0.1
 				samples = 100
-	
-	#[heuristic.rs_loss]
-	#	mode = 'standard'
-	#	weight = 1e-4
-	#	epsilon = 1e-1
-	#	start = 1
-	#	end = 9
 
 	#[heuristic.prune]
 	#	mode = 'structure'

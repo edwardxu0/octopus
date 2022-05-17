@@ -6,8 +6,8 @@ from .core import workout
 
 
 def main():
-    f = Figlet(font='slant')
-    print(f.renderText('OCTOPUS'), end='')
+    f = Figlet(font="slant")
+    print(f.renderText("OCTOPUS"), end="")
 
     args = cli.parse_args()
     settings = config.configure(args)
