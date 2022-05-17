@@ -2,6 +2,7 @@ import torch
 import copy
 
 from . import Heuristic
+from ..stability_estimator import get_stability_estimators
 
 
 class Prune(Heuristic):
@@ -9,33 +10,41 @@ class Prune(Heuristic):
         super().__init__(model.logger)
         self.model = model
         self.mode = cfg["mode"]
+        self.pace = cfg["pace"]
         self.sparsity = cfg["sparsity"]
         self.re_arch = None if "re_arch" not in cfg else cfg["re_arch"]
+        assert len(cfg["stable_estimator"]) == 1
+        self.stable_estimator = get_stability_estimators(
+            cfg["stable_estimator"], self.model
+        )[0]
 
     # pruning code ...
     def run(self, **kwargs):
-        self.logger.info("Prune starts here ...")
-        # prune weights
-        if self.mode == "structure":
-            self.logger.info("Using iterative structure pruning ...")
-            mask = self._init_mask()
-            mask = self._update_mask(mask, self.sparsity)
-            self._apply_mask(mask)
-        else:
-            raise NotImplementedError(f"Prune mode: {self.mode} is not supported.")
-
-        # restructure network
-        if self.re_arch:
-            if self.re_arch == "standard":
-                on = True
-            elif self.re_arch == "last" and kwargs["epoch"] == kwargs["total_epoch"]:
-                on = True
+        if kwargs["batch"] != 0 and kwargs["batch"] % self.pace == 0:
+            self.logger.info("Prune starts here ...")
+            # prune weights
+            if self.mode == "structure":
+                self.logger.info("Using iterative structure pruning ...")
+                mask = self._init_mask()
+                mask = self._update_mask(mask, self.sparsity)
+                self._apply_mask(mask)
             else:
-                on = False
+                raise NotImplementedError(f"Prune mode: {self.mode} is not supported.")
 
-            if on:
-                self.logger.info("Restructuring network ...")
-                self._restructure(mask)
+            # restructure network
+            if self.re_arch:
+                if self.re_arch == "standard":
+                    on = True
+                elif (
+                    self.re_arch == "last" and kwargs["epoch"] == kwargs["total_epoch"]
+                ):
+                    on = True
+                else:
+                    on = False
+
+                if on:
+                    self.logger.info("Restructuring network ...")
+                    self._restructure(mask)
 
     # initialize the mask
     def _init_mask(self):

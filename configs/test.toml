@@ -48,28 +48,34 @@ name = 'test'
 	#	end = 20 			# inclusive
 	#	[heuristic.bias_shaping.stable_estimator]
 	#		[heuristic.bias_shaping.stable_estimator.ReLU_estimator]
-	#			mode = 'SDD'
+	#			mode = 'SAD'
+	#			epsilon = 0.1
+	#			sample = 100
+	
+	#[heuristic.rs_loss]
+	#	mode = 'standard'
+	#	weight = 1e-4
+	#	epsilon = 0.1
+	#	start = 1
+	#	end = 20
+	#	[heuristic.rs_loss.stable_estimator]
+	#		[heuristic.rs_loss.stable_estimator.ReLU_estimator]
+	#			mode = 'NIP'
 	#			epsilon = 0.1
 	#			samples = 100
-	
-	[heuristic.rs_loss]
-		mode = 'standard'
-		weight = 1e-4
-		epsilon = 0.1
+
+	[heuristic.prune]
+		mode = 'structure'
+		re_arch = 'last'
+		pace = 100
+		sparsity = 0.05
 		start = 1
 		end = 20
-		[heuristic.rs_loss.stable_estimator]
+			[heuristic.rs_loss.stable_estimator]
 			[heuristic.rs_loss.stable_estimator.ReLU_estimator]
-				mode = 'SAD'
+				mode = 'NIP'
 				epsilon = 0.1
 				samples = 100
-
-	#[heuristic.prune]
-	#	mode = 'structure'
-	#	re_arch = 'last'
-	#	sparsity = 0.05
-	#	start = [ 3, 6, 9, 12, 15, 18]
-	#	end = [ 3, 6, 9, 12, 15, 18]
 
 
 [verify]

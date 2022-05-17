@@ -223,6 +223,26 @@ class Problem:
                     self.train_BS_points += [BS_point]
                 # print('after', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
 
+            # [H] pruning
+            # prune after entire epoch trained
+            # using pre-activation values of last mini-batch
+            if (
+                self.cfg_heuristic
+                and "prune" in self.cfg_heuristic
+                and self.Utility.heuristic_enabled_epochwise(
+                    epoch,
+                    self.cfg_heuristic["prune"]["start"],
+                    self.cfg_heuristic["prune"]["end"],
+                )
+            ):
+                self.model.run_heuristics(
+                    "prune",
+                    epoch=epoch,
+                    batch=batch_idx,
+                    test_loader=self.test_loader,
+                    total_epoch=self.cfg_train["epochs"],
+                )
+
             if batch_idx % self.cfg_train["log_interval"] == 0:
                 # TODO: supports more than one estimators
                 assert len(self.stable_estimators) == 1
@@ -246,22 +266,6 @@ class Problem:
 
             self.train_stable_ReLUs += [relu_accuracy]
             self.train_loss += [loss.item()]
-
-        # [H] pruning
-        # prune after entire epoch trained
-        # using pre-activation values of last mini-batch
-        if (
-            self.cfg_heuristic
-            and "prune" in self.cfg_heuristic
-            and self.Utility.heuristic_enabled_epochwise(
-                epoch,
-                self.cfg_heuristic["prune"]["start"],
-                self.cfg_heuristic["prune"]["end"],
-            )
-        ):
-            self.model.run_heuristics(
-                "prune", epoch=epoch, total_epoch=self.cfg_train["epochs"]
-            )
 
     def _test_epoch(self, epoch):
         self.model.eval()

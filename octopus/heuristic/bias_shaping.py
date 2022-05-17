@@ -4,6 +4,7 @@ import numpy as np
 from . import Heuristic
 
 from ..stability_estimator import get_stability_estimators
+from ..stability_estimator.ReLU_estimator.NIP_estimator import NIPEstimator
 
 
 class BiasShaping(Heuristic):
@@ -190,23 +191,23 @@ class BiasShaping(Heuristic):
         lt = 0
         if BS_switch:
             for i, (name, _) in enumerate(self.model.filtered_named_modules):
-                (
-                    safe_le_zero,
-                    safe_ge_zero,
-                    val_min,
-                    val_max,
-                ) = self.stable_estimator.run(test_loader=test_loader, data=data)
+                self.stable_estimator.propagate(test_loader=test_loader, data=data)
                 val = self.model._batch_values[name]
+                le_0_, ge_0_ = self.stable_estimator.get_stable_ReLUs()
+                lb_, ub_ = self.stable_estimator.get_bounds()
 
-                safe_le_zero = safe_le_zero[i]
-                safe_ge_zero = safe_ge_zero[i]
-                val_min = val_min[i]
-                val_max = val_max[i]
+                val_min = torch.min(lb_[i].T, axis=-1).values
+                val_max = torch.max(ub_[i].T, axis=-1).values
 
-                # val_min = torch.min(val, axis=0).values
-                # val_max = torch.max(val, axis=0).values
-                # safe_le_zero = torch.sum(val_max <= 0).int()
-                # safe_ge_zero = torch.sum(val_min >= 0).int()
+                # if interval bounds
+                if lb_[i].shape[0] != 1:
+                    (
+                        safe_le_zero,
+                        safe_ge_zero,
+                    ) = self.stable_estimator._calculate_stable_ReLUs(val_min, val_max)
+                else:
+                    safe_le_zero = torch.sum(le_0_[i], axis=-1)
+                    safe_ge_zero = torch.sum(ge_0_[i], axis=-1)
 
                 val_min_lt_zero = np.copy(val_min.detach().cpu().numpy())
                 val_max_gt_zero = np.copy(val_max.detach().cpu().numpy())
@@ -223,7 +224,6 @@ class BiasShaping(Heuristic):
                     val_abs_min = np.min(
                         np.array([val_min_lt_zero, val_max_gt_zero]), axis=0
                     )
-                    # print(val_abs_min)
                     assert (
                         len(np.where(val_abs_min == 0)[0])
                         == safe_ge_zero + safe_le_zero
