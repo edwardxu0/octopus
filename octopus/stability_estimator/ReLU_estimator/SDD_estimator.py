@@ -14,8 +14,10 @@ class SDDEstimator(ReLUEstimator):
         ub_ = []
         le_0_ = []
         ge_0_ = []
+        raw_ = []
         for name, _ in self.model.filtered_named_modules:
             X = self.model._batch_values[name]
+            raw_ += [X]
             lb = torch.min(X, axis=0).values
             ub = torch.max(X, axis=0).values
             lb = lb.view(1, *lb.shape)
@@ -31,3 +33,4 @@ class SDDEstimator(ReLUEstimator):
         self.stable_ge_0_ = torch.cat(ge_0_, dim=0)
         self.lb_ = torch.cat(lb_, dim=0)
         self.ub_ = torch.cat(ub_, dim=0)
+        self.raw_ = raw_

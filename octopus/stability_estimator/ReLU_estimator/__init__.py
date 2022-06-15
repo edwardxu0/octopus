@@ -17,6 +17,11 @@ class ReLUEstimator:
             raise ReferenceError(f'Did you run "{self}".propagate()?')
         return self.lb_, self.ub_
 
+    def get_raw(self):
+        if any(x not in self.__dict__ for x in ["raw_"]):
+            raise ReferenceError(f'Did you run "{self}".propagate()?')
+        return self.raw_
+
     @staticmethod
     def _calculate_stable_ReLUs(lb, ub):
         le_0 = torch.sum(ub <= 0, axis=-1).int()
