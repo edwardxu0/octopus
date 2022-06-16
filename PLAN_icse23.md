@@ -1,8 +1,4 @@
-## 1. Challenges
-1.
-2. 
-
-## 2. PLAN:
+ ## 2. PLAN:
 1. Week 1-4: Problem, story building, research question
 2. week 1-5: New ideas, Implementation, finalizing experimental setup
 3. week 1-5: Exploratory experiment and modification of implementation according to findings
