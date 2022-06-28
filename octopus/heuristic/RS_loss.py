@@ -7,16 +7,11 @@ from ..stability_estimator import get_stability_estimators
 
 class RSLoss(Heuristic):
     def __init__(self, model, cfg):
-        super().__init__(model.logger)
-        self.model = model
+        super().__init__(model, cfg["stable_estimator"])
+        self.__name__ = "RS Loss"
         self.mode = cfg["mode"]
         assert cfg["mode"] == "standard"
         self.epsilon = cfg["epsilon"]
-
-        assert len(cfg["stable_estimator"]) == 1
-        self.stable_estimator = get_stability_estimators(
-            cfg["stable_estimator"], self.model
-        )[0]
 
     def run2(self, **kwargs):
         data = kwargs["data"]

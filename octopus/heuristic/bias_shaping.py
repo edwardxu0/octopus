@@ -9,21 +9,15 @@ from ..stability_estimator.ReLU_estimator.NIP_estimator import NIPEstimator
 
 class BiasShaping(Heuristic):
     def __init__(self, model, cfg):
-        super().__init__(model.logger)
-        self.model = model
-        # self.cfg = cfg
+        super().__init__(model, cfg["stable_estimator"])
+        self.__name__ = 'Bias Shaping'
+        
         self.mode = cfg["mode"]
         self.intensity = cfg["intensity"]
         self.occurrence = cfg["occurrence"] if "occurrence" in cfg else None
         self.pace = cfg["pace"] if "pace" in cfg else None
         self.decay = 1 if not "decay" in cfg else cfg["decay"]
         self.device = model.device
-
-        assert len(cfg["stable_estimator"]) == 1
-        self.stable_estimator = get_stability_estimators(
-            cfg["stable_estimator"], self.model
-        )[0]
-
         assert not (self.occurrence and self.pace)
 
     def run2(self, **kwargs):

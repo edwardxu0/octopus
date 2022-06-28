@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 
@@ -8,8 +9,17 @@ class ProgressPlot:
         self.fig = plt.figure(figsize=figsize)
 
     def draw_train(self, X1, Y1, X2, Y2, xlim, ylim):
+        colors = sns.color_palette("rocket", len(Y1))
         self.ax1 = self.fig.add_subplot()
-        self.ax1.plot(X1, Y1, color="blue", alpha=0.5, label="Safe ReLU")
+        for i, se in enumerate(Y1):
+            self.ax1.plot(
+                X1,
+                Y1[se],
+                color=colors[i],
+                alpha=0.5,
+                label=f"Safe ReLU({se})",
+            )
+
         self.ax1.scatter(X2, Y2, marker="x", color="red", label="BS Points")
         self.ax1.legend(loc="upper left")
 

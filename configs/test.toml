@@ -5,7 +5,7 @@ name = 'test'
 	net_name = 'NetS'
 	net_layers = [128, 128, 128]		# hidden layers
 
-	epochs = 20
+	epochs = 2
 	batch_size = 64
 	test_batch_size = 1000
 	lr = 1e-4							# learning rate
@@ -24,33 +24,27 @@ name = 'test'
 	# SAD: sampled adversarial distribution
 	# NIP: interval propagation
 	[train.stable_estimator]
-		#[train.stable_estimator.ReLU_estimator]
-		#	mode = 'SDD'
+		[train.stable_estimator.SDD]
 		
-		#[train.stable_estimator.ReLU_estimator]
-		#	mode = 'SDD'
-		#	epsilon = 0.1
-		#	samples = 100
+		[train.stable_estimator.SAD]
+			epsilon = 0.1
+			samples = 100
 
-		[train.stable_estimator.ReLU_estimator]
-			mode = 'NIP'
+		[train.stable_estimator.NIP]
 			epsilon = 0.1
 			samples = 100
 
 [heuristic]
-	#[heuristic.bias_shaping]
-	#	mode = 'standard'
-	#	intensity = 2e-2
-	#	# occurrence = 5e-3
-	#	pace = 50
-	#	decay = 0.99
-	#	start = 1 			# inclusive
-	#	end = 20 			# inclusive
-	#	[heuristic.bias_shaping.stable_estimator]
-	#		[heuristic.bias_shaping.stable_estimator.ReLU_estimator]
-	#			mode = 'SAD'
-	#			epsilon = 0.1
-	#			sample = 100
+	[heuristic.bias_shaping]
+		mode = 'standard'
+		intensity = 2e-2
+		# occurrence = 5e-3
+		pace = 50
+		decay = 0.99
+		start = 1 			# inclusive
+		end = 2 			# inclusive
+		[heuristic.bias_shaping.stable_estimator]
+			[heuristic.bias_shaping.stable_estimator.SDD]
 	
 	#[heuristic.rs_loss]
 	#	mode = 'standard'
@@ -59,33 +53,30 @@ name = 'test'
 	#	start = 1
 	#	end = 20
 	#	[heuristic.rs_loss.stable_estimator]
-	#		[heuristic.rs_loss.stable_estimator.ReLU_estimator]
-	#			mode = 'NIP'
+	#		[heuristic.rs_loss.stable_estimator.SAD]
 	#			epsilon = 0.1
 	#			samples = 100
 
-	[heuristic.prune]
-		mode = 'structure'
-		re_arch = 'last'
-		pace = 100
-		sparsity = 0.05
-		start = 1
-		end = 20
-			[heuristic.rs_loss.stable_estimator]
-			[heuristic.rs_loss.stable_estimator.ReLU_estimator]
-				mode = 'NIP'
-				epsilon = 0.1
-				samples = 100
+#	[heuristic.prune]
+#		mode = 'structure'
+#		re_arch = 'last'
+#		pace = 100
+#		sparsity = 0.05
+#		start = 1
+#		end = 20
+#			[heuristic.prune.stable_estimator]
+#			[heuristic.prune.stable_estimator.NIP]
+#				epsilon = 0.1
 
 
 [verify]
 	time = 600
 	memory = '8G'
 	property = 0
-	epsilon = 0.02
-	debug = false
+	epsilon = 0.032
+	debug = true
 	save_log = true
-	verifier = 'neurify'
+	verifier = 'DNNVWB:neurify'
 	
 	# model selection strategy for verification
 	# last(default): last epoch model
@@ -96,4 +87,3 @@ name = 'test'
 	# top [x] test accuaracy: model with the most amount of stable relus with [x]% accuarcy difference of the model with the best tests accuracy
 	# top [x] relu accuaracy: model with the best test accuracy with [x]% stable relu difference of the model with the most amount of stable relus
 	target_model = 'last'
-

@@ -33,7 +33,7 @@ class BasicNet(nn.Module):
         if cfg_heuristics is None or len(cfg_heuristics) == 0:
             self.logger.info("No training heuristics.")
         else:
-            self.logger.info(f"Train heuristics: {[x for x in cfg_heuristics]}")
+
             for cfg_name in cfg_heuristics:
                 if cfg_name == "bias_shaping":
                     self.heuristics[cfg_name] = BiasShaping(
@@ -45,6 +45,9 @@ class BasicNet(nn.Module):
                     self.heuristics[cfg_name] = Prune(self, cfg_heuristics[cfg_name])
                 else:
                     raise NotImplementedError
+            self.logger.info(
+                f"Train heuristics: {[f'{self.heuristics[x].__name__}({self.heuristics[x].stable_estimator.__name__.split()[0]})' for x in self.heuristics]}"
+            )
 
     def run_heuristics(self, name, **kwargs):
         return self.heuristics[name].run(**kwargs)

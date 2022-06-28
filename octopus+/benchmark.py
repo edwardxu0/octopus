@@ -55,6 +55,7 @@ class Benchmark:
             "veri ans",
             "veri time",
             "training time",
+            "relu accuracy veri",
         ]
 
         self.sub_dirs = {}
@@ -97,21 +98,25 @@ class Benchmark:
     def _define_problems(self):
         self.logger.info("Configuring problems ...")
         self.problems_T = []
+        self.problems_T_hash = []
         self.problems_V = []
+        self.problems_V_hash = []
 
         for a in self.artifacts:
             for n in self.networks:
                 for h in self.heuristics:
                     for s in self.seeds:
-                        self.problems_T += [(a, n, h, s)]
-                        for p in self.props:
-                            for e in self.epsilons:
+                        for e in self.epsilons:
+                            self.problems_T += [(a, n, h, s, e)]
+                            for p in self.props:
                                 for v in self.verifiers:
-                                    self.problems_V += [(a, n, h, s, p, e, v)]
+                                    self.problems_V += [(a, n, h, s, e, p, v)]
 
     def _exec(self, cmd, slurm_cmd):
         if not self.go:
             self.logger.info(f"Dry: {cmd}")
+            if self.slurm:
+                self.logger.info(f"Dry: {slurm_cmd}")
             exit(0)
         else:
             self.logger.info(f"Fly: {cmd}")
@@ -124,16 +129,26 @@ class Benchmark:
     def _get_problem_paths(self, task, **kwargs):
         sts = copy.deepcopy(self.base_settings)
 
-        a, n, h, s = list(kwargs.values())[:4]
+        a, n, h, s, e = list(kwargs.values())[:5]
+
         sts["train"]["artifact"] = a
         sts["train"]["net_name"] = n
         sts["train"]["net_layers"] = self.networks[n]
-        sts["heuristic"] = {}
-        if h != "base":
-            sts["heuristic"][h] = self.heuristics[h]
+        sts["heuristic"] = copy.deepcopy(self.heuristics[h])
 
-        name = Problem.Utility.get_name(sts["train"], sts["heuristic"], s)
+        for x in sts["heuristic"]:
+            for est in sts["heuristic"][x]["stable_estimator"]:
+                if est in ["SAD", "NIP"]:
+                    sts["heuristic"][x]["stable_estimator"][est]["epsilon"] = float(e)
+
+        for est in sts["train"]["stable_estimator"]:
+            if est in ["SAD", "NIP"]:
+                sts["train"]["stable_estimator"][est]["epsilon"] = float(e)
+
+        name = Problem.Utility.get_hashed_name([sts["train"], sts["heuristic"], s])
+
         log_path = os.path.join(self.sub_dirs["train_log_dir"], f"{name}.txt")
+
         if task == "T":
             config_path = os.path.join(
                 self.sub_dirs["train_config_dir"], f"{name}.toml"
@@ -145,7 +160,7 @@ class Benchmark:
             )
 
         elif task == "V":
-            a, n, h, s, p, e, v = kwargs.values()
+            a, n, h, s, e, p, v = kwargs.values()
             sts["verify"]["property"] = p
             sts["verify"]["epsilon"] = e
             sts["verify"]["verifier"] = v
@@ -156,10 +171,14 @@ class Benchmark:
                 if "target_model" in sts["verify"]
                 else None
             )
+
             target_epoch = Problem.Utility.get_target_epoch(target_model, log_path)
             target_epoch = sts["train"]["epochs"] if not target_epoch else target_epoch
-            veri_name_postfix = Problem.Utility.get_verification_postfix(sts["verify"])
-            veri_name = f"{name}_e={target_epoch}_{veri_name_postfix}"
+            # veri_name_postfix = Problem.Utility.get_verification_postfix(sts["verify"])
+            # veri_name = f"{name}_e={target_epoch}_{veri_name_postfix}"
+            veri_name = Problem.Utility.get_hashed_name(
+                [sts["train"], sts["heuristic"], sts["verify"], target_epoch, s]
+            )
             log_path = os.path.join(self.sub_dirs["veri_log_dir"], f"{veri_name}.txt")
             config_path = os.path.join(
                 self.sub_dirs["veri_config_dir"], f"{veri_name}.toml"
@@ -167,23 +186,30 @@ class Benchmark:
             slurm_script_path = (
                 None
                 if not self.slurm
-                else os.path.join(
-                    self.sub_dirs["veri_slurm_dir"], f"{name}_P={p}_E={e}_V={v}.slurm"
-                )
+                else os.path.join(self.sub_dirs["veri_slurm_dir"], f"{veri_name}.slurm")
             )
 
         # dump octopus configurations
-        return sts, config_path, slurm_script_path, log_path
+        return sts, config_path, slurm_script_path, log_path, name
 
     def train(self):
         self.logger.info("Training ...")
         nb_done = 0
         nb_todo = 0
-        for i, (a, n, h, s) in enumerate(tqdm(self.problems_T)):
+        for i, (a, n, h, s, e) in enumerate(tqdm(self.problems_T)):
+            (
+                sts,
+                config_path,
+                slurm_script_path,
+                log_path,
+                name,
+            ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
 
-            sts, config_path, slurm_script_path, log_path = self._get_problem_paths(
-                "T", a=a, n=n, h=h, s=s
-            )
+            if name not in self.problems_T_hash:
+                self.problems_T_hash += [name]
+            else:
+                self.logger.info("Skipping training job with existing configs ...")
+                continue
 
             # check if done
             if os.path.exists(log_path) and not self.override:
@@ -236,9 +262,9 @@ class Benchmark:
         self.logger.info("Verifying ...")
         nb_done = 0
         nb_todo = 0
-        for i, (a, n, h, s, p, e, v) in enumerate(tqdm(self.problems_V)):
-            sts, config_path, slurm_script_path, log_path = self._get_problem_paths(
-                "V", a=a, n=n, h=h, s=s, p=p, e=e, v=v
+        for i, (a, n, h, s, e, p, v) in enumerate(tqdm(self.problems_V)):
+            sts, config_path, slurm_script_path, log_path, _ = self._get_problem_paths(
+                "V", a=a, n=n, h=h, s=s, e=e, p=p, v=v
             )
             # check if done
             if os.path.exists(log_path) and not self.override:
@@ -303,26 +329,39 @@ class Benchmark:
         if self.go:
             self._analyze_training(df)
             self._analyze_verification(df)
+            self._analyze_stable_ReLUs(df)
+            self._analyze_stable_ReLUs_two(df)
             self._analyze_time(df)
 
     def _parse_logs(self):
         df = pd.DataFrame({x: [] for x in self.labels})
         self.logger.info("Failed tasks:")
         self.logger.info("--------------------")
-        for i, (a, n, h, s, p, e, v) in enumerate(self.problems_V):
-            sts, _, _, train_log_path = self._get_problem_paths("T", a=a, n=n, h=h, s=s)
+        for i, (a, n, h, s, e, p, v) in enumerate(self.problems_V):
+            sts, _, _, train_log_path, name = self._get_problem_paths(
+                "T", a=a, n=n, h=h, s=s, e=e
+            )
+            self.logger.debug(f"Problem configs: {sts}")
+            self.logger.debug(f"Name: {name}")
             lines = open(train_log_path, "r").readlines()
-            test_lines = [x for x in lines if "[Test]" in x]
+            test_lines = [x for x in lines if "[Test] epoch:" in x]
+            relu_lines = [x for x in lines if "[Test] Stable ReLUs:" in x]
+
             # select the best accuracy instead of last epoch's accuracy
             target_model = sts["verify"]["target_model"]
             target_epoch = Problem.Utility.get_target_epoch(
                 target_model, train_log_path
             )
-            test_accuracy = [float(x.strip().split()[-3][:-1]) for x in test_lines][
+            test_accuracy = [float(x.strip().split()[-1][:-1]) for x in test_lines][
                 target_epoch - 1
             ]
+
+            # TODO:
+            # [-5] == SDD
+            # [-3] == SAD
+            # [-1] == NIP
             relu_accuracy = [
-                float(x.strip().split()[-1][:-1]) / 100 for x in test_lines
+                float(x.strip().split()[-1][:-1]) / 100 for x in relu_lines
             ][target_epoch - 1]
 
             # this is a hack to work around broken training logs
@@ -334,13 +373,26 @@ class Benchmark:
             # TODO: retract to this after fixing pruning
             # assert 'Spent' in lines[-1], train_log_path
             # training_time = float(lines[-1].strip().split()[-2])
-
-            _, _, _, veri_log_path = self._get_problem_paths(
-                "V", a=a, n=n, h=h, s=s, p=p, e=e, v=v
+            _, _, _, veri_log_path, _ = self._get_problem_paths(
+                "V", a=a, n=n, h=h, s=s, e=e, p=p, v=v
             )
-            answer, verification_time = Problem.Utility.analyze_veri_log(veri_log_path)
+            answer, verification_time = Problem.Utility.analyze_veri_log(
+                veri_log_path, timeout=600
+            )
             if answer is None:
                 print("rm", veri_log_path)
+
+            lines = open(veri_log_path, "r").readlines()
+            wb_lines = [x for x in lines if "WB" in x]
+            unstable_relu_lines = [x for x in wb_lines if "unstable" in x]
+
+            unstable_relus = []
+            for x in unstable_relu_lines:
+                unstable_relus += [int(x.strip().split()[-3])]
+            avg_unstable_relus = np.mean(np.array(unstable_relus))
+            relu_accuracy_veri = 1 - avg_unstable_relus / np.sum(
+                np.array(self.networks[n])
+            )
 
             if self.go:
                 df.loc[len(df.index)] = [
@@ -356,6 +408,7 @@ class Benchmark:
                     self.code_veri_answer[answer],
                     verification_time,
                     training_time,
+                    relu_accuracy_veri,
                 ]
         self.logger.info("--------------------")
         return df
@@ -394,7 +447,7 @@ class Benchmark:
                     dft = dft[dft["epsilon"] == self.epsilons[0]]
                     dft = dft[dft["verifier"] == self.verifiers[0]]
 
-                    x_labels += [f"{a[0]}:{n[-1]}:{h[:2]}"]
+                    x_labels += [f"{a[0]}:{n[-1]}:{h}"]
 
                     test_acc = dft["test accuracy"].values
                     relu_acc = dft["relu accuracy"].values
@@ -552,3 +605,128 @@ class Benchmark:
                     )
                     fig.clear()
                     plt.close(fig)
+
+    def _analyze_stable_ReLUs(self, df):
+        colors = ["blue", "red", "green"]
+        for a in self.artifacts:
+            for n in self.networks:
+                for v in self.verifiers:
+                    fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
+                    ax2 = ax1.twinx()
+                    title_prefix = f"[{a}:{n}:{v}]"
+                    sr_train = {}
+                    sr_veri = {}
+                    for i, h in enumerate(self.heuristics.keys()):
+                        sr_train_ = []
+                        sr_veri_ = []
+                        for e in self.epsilons:
+                            dft = df
+                            dft = dft[dft["artifact"] == a]
+                            dft = dft[dft["network"] == n]
+                            dft = dft[dft["verifier"] == v]
+                            dft = dft[dft["heuristic"] == h]
+                            dft = dft[dft["epsilon"] == e]
+
+                            sr_train_ += [np.mean(dft["relu accuracy"].to_numpy())]
+                            sr_veri_ += [np.mean(dft["relu accuracy veri"].to_numpy())]
+
+                        sr_train[h] = sr_train_
+                        sr_veri[h] = sr_veri_
+
+                        plot1 = ax1.plot(sr_train_, label=h, color=colors[i])
+                        plot2 = ax2.plot(
+                            sr_veri_, linestyle="dashed", label=h, color=colors[i]
+                        )
+
+                    ax1.axvline(x=4, color="grey", linestyle="--", linewidth=1)
+                    ax1.legend(loc="center left")
+                    ax2.legend(loc="center right")
+
+                    ax1.set_xlabel("Epsilon")
+                    ax1.set_ylabel("Stable ReLUs in Training")
+                    ax2.set_ylabel("Stable ReLUs in Verification")
+                    ax1.set_ylim(-0.05, 1.05)
+                    ax2.set_ylim(-0.05, 1.05)
+                    ax1.set_xticks(range(len(self.epsilons)))
+
+                    ax1.set_xticklabels(self.epsilons)
+                    plt.title(title_prefix + " Stable ReLUs in Training/Verification")
+                    plt.savefig(
+                        os.path.join(self.result_dir, f"SR_{title_prefix}.pdf"),
+                        format="pdf",
+                        bbox_inches="tight",
+                    )
+                    fig.clear()
+                    plt.close(fig)
+
+    def _analyze_stable_ReLUs_two(self, df):
+        colors = ["blue", "red", "green"]
+        for a in self.artifacts:
+            for n in self.networks:
+                for v in self.verifiers:
+                    for s in self.seeds:
+                        fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
+                        ax2 = ax1.twinx()
+                        title_prefix = f"[{a}:{n}:{v}:{s}]"
+                        sr_train = {}
+                        sr_veri = {}
+                        for i, h in enumerate(self.heuristics.keys()):
+                            sr_train_ = []
+                            sr_veri_ = []
+                            x1_ = []
+                            x2_ = []
+                            for e in self.epsilons:
+                                dft = df
+                                dft = dft[dft["seed"] == s]
+                                dft = dft[dft["artifact"] == a]
+                                dft = dft[dft["network"] == n]
+                                dft = dft[dft["verifier"] == v]
+                                dft = dft[dft["heuristic"] == h]
+                                dft = dft[dft["epsilon"] == e]
+
+                                tmp = dft["relu accuracy"].to_numpy()
+                                sr_train_ += [tmp]
+                                x1_ += [e * 50 - 1] * len(tmp)
+
+                                tmp = dft["relu accuracy veri"].to_numpy()
+                                sr_veri_ += [tmp]
+                                x2_ += [e * 50 - 1] * len(tmp)
+
+                            sr_train[h] = sr_train_
+                            sr_veri[h] = sr_veri_
+
+                            plot1 = ax1.scatter(
+                                x=x1_, y=sr_train_, label=h, marker="x", color=colors[i]
+                            )
+                            plot2 = ax2.scatter(
+                                x=x2_,
+                                y=sr_veri_,
+                                label=h,
+                                facecolors="none",
+                                edgecolors=colors[i],
+                            )
+
+                        ax1.axvline(x=4, color="grey", linestyle="--", linewidth=1)
+                        ax1.legend(loc="center left")
+                        ax2.legend(loc="center right")
+
+                        ax1.set_xlabel("Epsilon")
+                        ax1.set_ylabel("Stable ReLUs in Training")
+                        ax2.set_ylabel("Stable ReLUs in Verification")
+                        ax1.set_ylim(-0.05, 1.05)
+                        ax2.set_ylim(-0.05, 1.05)
+                        ax1.set_xticks(range(len(self.epsilons)))
+
+                        ax1.set_xticklabels(self.epsilons)
+                        plt.title(
+                            title_prefix + " Stable ReLUs in Training/Verification"
+                        )
+                        plt.savefig(
+                            os.path.join(
+                                self.result_dir, f"SR_exhaustive_{title_prefix}.pdf"
+                            ),
+                            format="pdf",
+                            bbox_inches="tight",
+                        )
+                        fig.clear()
+                        plt.close(fig)

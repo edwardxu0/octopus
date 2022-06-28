@@ -8,6 +8,7 @@ from . import ReLUEstimator
 class SDDEstimator(ReLUEstimator):
     def __init__(self, model, **kwargs):
         super().__init__(model)
+        self.__name__ = "SDD ReLU Estimator"
 
     def propagate(self, **kwargs):
         lb_ = []

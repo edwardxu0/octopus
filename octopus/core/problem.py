@@ -4,6 +4,7 @@ import numpy as np
 import subprocess
 import sys
 import logging
+import hashlib
 
 
 import torch.nn.functional as F
@@ -16,6 +17,9 @@ from ..stability_estimator import get_stability_estimators
 
 from ..plot.train_progress import ProgressPlot
 from ..architecture.ReLUNet import ReLUNet
+
+
+RES_MONITOR_PRETIME = 200
 
 
 class Problem:
@@ -34,10 +38,14 @@ class Problem:
         np.random.seed(settings.seed)
         torch.set_printoptions(threshold=100000)
 
-        self.name = self.Utility.get_name(self.cfg_train, self.cfg_heuristic, self.seed)
-        self.model_path = os.path.join(self.sub_dirs["model_dir"], f"{self.name}.onnx")
+        self.__name__ = self.Utility.get_hashed_name(
+            [self.cfg_train, self.cfg_heuristic, self.seed]
+        )
+        self.model_path = os.path.join(
+            self.sub_dirs["model_dir"], f"{self.__name__}.onnx"
+        )
         self.train_log_path = os.path.join(
-            self.sub_dirs["train_log_dir"], f"{self.name}.txt"
+            self.sub_dirs["train_log_dir"], f"{self.__name__}.txt"
         )
 
         cfg = self.cfg_train
@@ -73,7 +81,6 @@ class Problem:
             self.logger.addHandler(file_handler)
 
         # setup train data collectors
-        self.train_stable_ReLUs = []
         self.train_BS_points = []
         self.train_loss = []
         self.test_accuracy = []
@@ -81,6 +88,12 @@ class Problem:
         # configure heuristics
         self.stable_estimators = get_stability_estimators(
             self.cfg_train["stable_estimator"], self.model
+        )
+
+        self.train_stable_ReLUs = {x: [] for x in self.stable_estimators}
+
+        self.logger.info(
+            f"Train stability estimators: {list(self.stable_estimators.keys())}"
         )
         self.model._setup_heuristics(self.cfg_heuristic)
 
@@ -245,26 +258,33 @@ class Problem:
 
             if batch_idx % self.cfg_train["log_interval"] == 0:
                 # TODO: supports more than one estimators
-                assert len(self.stable_estimators) == 1
-                self.stable_estimators[0].propagate(
-                    data=data, test_loader=self.test_loader
-                )
-                stable_le_0, stable_ge_0 = self.stable_estimators[0].get_stable_ReLUs()
-                stable_le_0 = torch.sum(
-                    torch.mean(stable_le_0.type(torch.float32), axis=-1)
-                )
-                stable_ge_0 = torch.sum(
-                    torch.mean(stable_ge_0.type(torch.float32), axis=-1)
-                )
-                batch_stable_ReLU = stable_le_0 + stable_ge_0
-                relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
-                self.logger.info(
-                    f"[Train] epoch: {epoch:3} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f} SR: {relu_accuracy*100:.2f}%"
-                )
-            else:
-                relu_accuracy = self.train_stable_ReLUs[-1]
+                se_str = ""
+                for se in self.stable_estimators:
+                    self.stable_estimators[se].propagate(
+                        data=data, test_loader=self.test_loader
+                    )
+                    stable_le_0, stable_ge_0 = self.stable_estimators[
+                        se
+                    ].get_stable_ReLUs()
+                    stable_le_0 = torch.sum(
+                        torch.mean(stable_le_0.type(torch.float32), axis=-1)
+                    )
+                    stable_ge_0 = torch.sum(
+                        torch.mean(stable_ge_0.type(torch.float32), axis=-1)
+                    )
+                    batch_stable_ReLU = stable_le_0 + stable_ge_0
+                    relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
+                    se_str += f"{se}: {relu_accuracy*100:.2f}% "
 
-            self.train_stable_ReLUs += [relu_accuracy]
+                    self.train_stable_ReLUs[se] += [relu_accuracy.cpu()]
+
+                self.logger.info(
+                    f"[Train] epoch: {epoch:3} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f}"
+                )
+                self.logger.info(f"[Train] Stable ReLUs: {se_str}")
+            else:
+                for x in self.train_stable_ReLUs:
+                    self.train_stable_ReLUs[x] += [self.train_stable_ReLUs[x][-1]]
             self.train_loss += [loss.item()]
 
     def _test_epoch(self, epoch):
@@ -289,24 +309,34 @@ class Problem:
         test_accuracy = correct / len(self.test_loader.dataset)
         self.test_accuracy += [test_accuracy]
 
-        # TODO: supports more than one estimators
-        assert len(self.stable_estimators) == 1
-        self.stable_estimators[0].propagate(data=data, test_loader=self.test_loader)
-        stable_le_0, stable_ge_0 = self.stable_estimators[0].get_stable_ReLUs()
-        stable_le_0 = torch.sum(torch.mean(stable_le_0.type(torch.float32), axis=-1))
-        stable_ge_0 = torch.sum(torch.mean(stable_ge_0.type(torch.float32), axis=-1))
-        batch_stable_ReLU = stable_le_0 + stable_ge_0
-        relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
+        se_str = ""
+        for se in self.stable_estimators:
+            self.stable_estimators[se].propagate(
+                data=data, test_loader=self.test_loader
+            )
+            stable_le_0, stable_ge_0 = self.stable_estimators[se].get_stable_ReLUs()
+            stable_le_0 = torch.sum(
+                torch.mean(stable_le_0.type(torch.float32), axis=-1)
+            )
+            stable_ge_0 = torch.sum(
+                torch.mean(stable_ge_0.type(torch.float32), axis=-1)
+            )
+            batch_stable_ReLU = stable_le_0 + stable_ge_0
+            relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
+            se_str += f"{se}: {relu_accuracy*100:.2f}% "
+
         self.logger.info(
-            f"[Test] epoch: {epoch:3} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}% SR: {relu_accuracy*100:.2f}%\n"
+            f"[Test] epoch: {epoch:3} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}%\n"
         )
+        self.logger.info(f"[Test] Stable ReLUs: {se_str}")
 
     def _plot_train(self):
         # draw training progress plot
-        X1 = range(len(self.train_stable_ReLUs))
+        X1 = range(len(list(self.train_stable_ReLUs.values())[0]))
         Y1 = self.train_stable_ReLUs
         X2 = self.train_BS_points
-        Y2 = np.array(Y1)[self.train_BS_points]
+        # Y2 = np.array(list(Y1.values())[0])[self.train_BS_points]
+        Y2 = np.zeros(len(X1))[self.train_BS_points]
         X3 = (np.array(range(len(self.test_accuracy))) + 1) * len(self.train_loader)
         Y3 = self.test_accuracy
         X4 = range(len(self.train_loss))
@@ -330,8 +360,8 @@ class Problem:
             x_stride=self.cfg_train["epochs"] * len(self.train_loader) / 5, y_stride=0.2
         )
 
-        title = f"# {self.name}"
-        path = os.path.join(self.sub_dirs["figure_dir"], self.name + ".pdf")
+        title = f"# {self.__name__}"
+        path = os.path.join(self.sub_dirs["figure_dir"], self.__name__ + ".pdf")
         p_plot.save(title, path)
         p_plot.clear()
 
@@ -356,7 +386,7 @@ class Problem:
 
         self.veri_log_path = os.path.join(
             self.sub_dirs["veri_log_dir"],
-            f"{self.name}_e={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt",
+            f"{self.__name__}_e={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt",
         )
 
         return target_epoch
@@ -371,7 +401,8 @@ class Problem:
         cfg = self.cfg_verify
         prop = cfg["property"]
         eps = cfg["epsilon"]
-        verifier = cfg["verifier"]
+        veri_framework = cfg["verifier"].split(":")[0]
+        verifier = cfg["verifier"].split(":")[1]
         debug = cfg["debug"] if "debug" in cfg else None
         save_log = cfg["save_log"] if "save_log" in cfg else None
 
@@ -401,8 +432,14 @@ class Problem:
             res_monitor_path = os.path.join(
                 os.environ["DNNV"], "tools", "resmonitor.py"
             )
-            cmd = f"python3 {res_monitor_path} -T {cfg['time']} -M {cfg['memory']}"
-            cmd += f" ./tools/run_DNNV.sh {prop_path} -N N {model_path}"
+            cmd = f"python3 {res_monitor_path} -T {cfg['time']+RES_MONITOR_PRETIME} -M {cfg['memory']}"
+
+            if veri_framework in ["DNNV", "DNNVWB"]:
+                cmd += f" ./tools/run_{veri_framework}.sh"
+            else:
+                raise NotImplementedError()
+
+            cmd += f" {prop_path} -N N {model_path}"
 
             if "eran" in verifier:
                 cmd += f" --eran --eran.domain {verifier.split('_')[1]}"
@@ -413,13 +450,33 @@ class Problem:
                 cmd += " --debug"
 
             if save_log:
-                veri_log_file = open(self.veri_log_path, "w")
+                veri_log_file = open(self.veri_log_path, "a")
             else:
                 veri_log_file = sys.stdout
 
             self.logger.info("Executing DNNV ...")
             self.logger.debug(cmd)
+            self.logger.debug(f"Verification output path: {veri_log_file}")
 
+            # Run verification twice to account for performance issues
+            # TODO: fix later
+            self.logger.info("Dry run ...")
+            if save_log:
+                open(self.veri_log_path, "w").write("********Dry_Run********\n")
+            else:
+                print("********Dry_Run********\n")
+            sp = subprocess.Popen(
+                cmd, shell=True, stdout=veri_log_file, stderr=veri_log_file
+            )
+            rc = sp.wait()
+            assert rc == 0
+
+            self.logger.info("Wet run ...")
+            if save_log:
+                open(self.veri_log_path, "a").write("********Wet_Run********\n")
+            else:
+                print("********Wet_Run********\n")
+            # 2. Wet run
             sp = subprocess.Popen(
                 cmd, shell=True, stdout=veri_log_file, stderr=veri_log_file
             )
@@ -433,7 +490,9 @@ class Problem:
         self._setup_verification()
         assert self._verified()
         self.logger.debug(f"Analyzing log: {self.veri_log_path}")
-        veri_ans, veri_time = self.Utility.analyze_veri_log(self.veri_log_path)
+        veri_ans, veri_time = self.Utility.analyze_veri_log(
+            self.veri_log_path, timeout=self.cfg_verify["time"]
+        )
         if veri_ans and veri_time:
             self.logger.info(f"Result: {veri_ans}, {veri_time}s.")
         else:
@@ -444,7 +503,16 @@ class Problem:
 
     class Utility:
         @staticmethod
+        def get_hashed_name(identifiers):
+            identifiers_ = []
+            for x in identifiers:
+                if isinstance(x, dict):
+                    x = {i: x[i] for i in sorted(x.keys())}
+                identifiers_ += [str(x)]
+            return str(hash("".join(identifiers_)) + sys.maxsize + 1)
+
         def get_name(cfg_train, cfg_heuristic, seed):
+            print("Deprecated.")
             name = f"A={cfg_train['artifact']}"
             name += f"_N={cfg_train['net_name']}"
             # name += f"_RE={cfg_train['ReLU_est']}"
@@ -500,11 +568,16 @@ class Problem:
 
                     else:
                         assert False
+                    # only works with 1 ReLU estimator
+                    # TODO: fix me, don't use descriptive naming, use HASH instead.
+                    se = x["stable_estimator"]["ReLU_estimator"]["mode"]
+                name += f":{se}"
             name += f"_seed={seed}"
             return name
 
         @staticmethod
         def get_verification_postfix(cfg_verify):
+            print("Deprecated.")
             p = cfg_verify["property"]
             e = cfg_verify["epsilon"]
             v = cfg_verify["verifier"]
@@ -526,7 +599,7 @@ class Problem:
             lines = [
                 x.strip()
                 for x in open(train_log_path, "r").readlines()
-                if "[Test] " in x
+                if "[Test] Stable ReLUs:" in x
             ]
             if not target_model or target_model == "last":
                 target_epoch = len(lines)
@@ -593,9 +666,11 @@ class Problem:
             return target_epoch
 
         @staticmethod
-        def analyze_veri_log(log_path):
+        def analyze_veri_log(log_path, timeout=None):
             lines = open(log_path, "r").readlines()
             lines.reverse()
+            # wet_run_idx = lines.index("********Wet_Run********\n")
+            # lines = lines[: wet_run_idx + 1]
             veri_ans = None
             veri_time = None
             for l in lines:
@@ -604,9 +679,15 @@ class Problem:
                         veri_ans = "error"
                     else:
                         veri_ans = l.strip().split()[-1]
+                    break
 
                 elif "  time: " in l:
                     veri_time = float(l.strip().split()[-1])
+                    if timeout:
+                        if veri_time > timeout:
+                            veri_ans = "timeout"
+                            veri_time = timeout
+                            break
 
                 elif "Timeout" in l:
                     veri_ans = "timeout"

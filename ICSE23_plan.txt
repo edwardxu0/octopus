@@ -22,3 +22,12 @@ root cause of verifier performance.
 identifying the factors.
 
 ??? GDVB problems, apply bias-shaping to these.
+
+---------------
+problem statement
+approach
+research questtions
+
+experimental deisgn
+artifact
+metric
