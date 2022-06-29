@@ -24,6 +24,7 @@ class ReLUEstimator:
 
     @staticmethod
     def _calculate_stable_ReLUs(lb, ub):
-        le_0 = torch.sum(ub <= 0, axis=-1).int()
+        le_0 = torch.sum(ub < 0, axis=-1).int()
         ge_0 = torch.sum(lb >= 0, axis=-1).int()
+        # eq_0 = torch.sum(lb == 0 and ub==0, axis=-1).int()
         return le_0, ge_0
