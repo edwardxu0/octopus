@@ -109,7 +109,7 @@ class Problem:
                         [
                             x
                             for x in open(self.train_log_path, "r").readlines()
-                            if "[Test] " in x
+                            if "[Test] epoch: " in x
                         ]
                     )
                     == self.cfg_train["epochs"]
