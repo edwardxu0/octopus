@@ -243,7 +243,6 @@ class Problem:
                 self.cfg_heuristic
                 and "prune" in self.cfg_heuristic
                 and self.Utility.heuristic_enabled_epochwise(
-                    data = data,
                     epoch,
                     self.cfg_heuristic["prune"]["start"],
                     self.cfg_heuristic["prune"]["end"],
@@ -251,6 +250,7 @@ class Problem:
             ):
                 self.model.run_heuristics(
                     "prune",
+                    data=data,
                     epoch=epoch,
                     batch=batch_idx,
                     test_loader=self.test_loader,
