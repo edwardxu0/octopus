@@ -390,6 +390,19 @@ class Problem:
             f"{self.__name__}_e={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt",
         )
 
+        veri_log_name = Problem.Utility.get_hashed_name(
+            [
+                self.cfg_train,
+                self.cfg_heuristic,
+                self.cfg_verify,
+                target_epoch,
+                self.seed,
+            ]
+        )
+        self.veri_log_path = os.path.join(
+            self.sub_dirs["veri_log_dir"], f"{veri_log_name}.txt"
+        )
+
         return target_epoch
 
     def _verified(self):
