@@ -7,7 +7,7 @@ from . import ReLUEstimator
 class NIPEstimator(ReLUEstimator):
     def __init__(self, model, **kwargs):
         super().__init__(model)
-        self.__name__ = 'NIP ReLU Estimator'
+        self.__name__ = "NIP ReLU Estimator"
         self.epsilon = kwargs["epsilon"]
 
     def propagate(self, **kwargs):
@@ -28,12 +28,16 @@ class NIPEstimator(ReLUEstimator):
                 b = layer.bias
 
                 lb, ub = self._interval_arithmetic(lb, ub, w, b)
-                lb_ += [lb.view([1, *lb.shape])]
-                ub_ += [ub.view([1, *ub.shape])]
+                # lb_ += [lb.view([1, *lb.shape])]
+                # ub_ += [ub.view([1, *ub.shape])]
+                lb_ += [lb]
+                ub_ += [ub]
 
                 le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(lb, ub)
-                le_0_ += [le_0.view(1, *le_0.shape)]
-                ge_0_ += [ge_0.view(1, *ge_0.shape)]
+                # le_0_ += [le_0.view(1, *le_0.shape)]
+                # ge_0_ += [ge_0.view(1, *ge_0.shape)]
+                le_0_ += [le_0]
+                ge_0_ += [ge_0]
 
             elif isinstance(layer, torch.nn.ReLU):
                 lb = torch.relu(lb)
@@ -45,10 +49,14 @@ class NIPEstimator(ReLUEstimator):
             else:
                 raise NotImplementedError(layer)
 
-        self.stable_le_0_ = torch.cat(le_0_, dim=0)
-        self.stable_ge_0_ = torch.cat(ge_0_, dim=0)
-        self.lb_ = torch.cat(lb_, dim=0)
-        self.ub_ = torch.cat(ub_, dim=0)
+        # self.stable_le_0_ = torch.cat(le_0_, dim=0)
+        # self.stable_ge_0_ = torch.cat(ge_0_, dim=0)
+        self.stable_le_0_ = le_0_
+        self.stable_ge_0_ = ge_0_
+        # self.lb_ = torch.cat(lb_, dim=0)
+        # self.ub_ = torch.cat(ub_, dim=0)
+        self.lb_ = lb_
+        self.ub_ = ub_
 
     @staticmethod
     def _interval_arithmetic(lb, ub, W, b):

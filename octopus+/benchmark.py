@@ -123,6 +123,7 @@ class Benchmark:
             if not self.slurm:
                 os.system(cmd)
             else:
+                self.logger.info(f"Fly: {slurm_cmd}")
                 os.system(slurm_cmd)
                 time.sleep(self.sleep_time)
 
@@ -136,13 +137,16 @@ class Benchmark:
         sts["train"]["net_layers"] = self.networks[n]
         sts["heuristic"] = copy.deepcopy(self.heuristics[h])
 
-        for x in sts["heuristic"]:
-            for est in sts["heuristic"][x]["stable_estimator"]:
-                if est in ["SAD", "NIP"]:
-                    sts["heuristic"][x]["stable_estimator"][est]["epsilon"] = float(e)
+        if sts["heuristic"]:
+            for x in sts["heuristic"]:
+                for est in sts["heuristic"][x]["stable_estimator"]:
+                    if est in ["SAD", "NIP", "SIP"]:
+                        sts["heuristic"][x]["stable_estimator"][est]["epsilon"] = float(
+                            e
+                        )
 
         for est in sts["train"]["stable_estimator"]:
-            if est in ["SAD", "NIP"]:
+            if est in ["SAD", "NIP", "SIP"]:
                 sts["train"]["stable_estimator"][est]["epsilon"] = float(e)
 
         name = Problem.Utility.get_hashed_name([sts["train"], sts["heuristic"], s])
@@ -213,6 +217,18 @@ class Benchmark:
 
             # check if done
             if os.path.exists(log_path) and not self.override:
+                trained = (
+                    len(
+                        [
+                            x
+                            for x in open(log_path, "r").readlines()
+                            if "[Test] epoch: " in x
+                        ]
+                    )
+                    == self.base_settings["train"]["epochs"]
+                )
+                if not trained:
+                    print("rm", log_path)
                 nb_done += 1
                 continue
             else:
@@ -312,7 +328,6 @@ class Benchmark:
     # Analyze logs
     def analyze(self):
         self.logger.info("Analyzing ...")
-        # self.analyze_training()
         df_cache_path = os.path.join(self.result_dir, "result.feather")
         if os.path.exists(df_cache_path) and not self.override:
             self.logger.info("Using cached results.")
@@ -329,8 +344,9 @@ class Benchmark:
         if self.go:
             self._analyze_training(df)
             self._analyze_verification(df)
-            self._analyze_stable_ReLUs(df)
-            self._analyze_stable_ReLUs_two(df)
+            self._analyze_verification_sus(df)
+            # self._analyze_stable_ReLUs(df)
+            # self._analyze_stable_ReLUs_two(df)
             self._analyze_time(df)
 
     def _parse_logs(self):
@@ -343,6 +359,7 @@ class Benchmark:
             )
             self.logger.debug(f"Problem configs: {sts}")
             self.logger.debug(f"Name: {name}")
+            self.logger.debug(f"Train log path: {train_log_path}")
             lines = open(train_log_path, "r").readlines()
             test_lines = [x for x in lines if "[Test] epoch:" in x]
             relu_lines = [x for x in lines if "[Test] Stable ReLUs:" in x]
@@ -352,9 +369,9 @@ class Benchmark:
             target_epoch = Problem.Utility.get_target_epoch(
                 target_model, train_log_path
             )
-            test_accuracy = [float(x.strip().split()[-1][:-1]) for x in test_lines][
-                target_epoch - 1
-            ]
+            test_accuracy = [
+                float(x.strip().split()[-1][:-1]) / 100 for x in test_lines
+            ][target_epoch - 1]
 
             # TODO:
             # [-5] == SDD
@@ -376,6 +393,7 @@ class Benchmark:
             _, _, _, veri_log_path, _ = self._get_problem_paths(
                 "V", a=a, n=n, h=h, s=s, e=e, p=p, v=v
             )
+            self.logger.debug(f"Veri log path: {veri_log_path}")
             answer, verification_time = Problem.Utility.analyze_veri_log(
                 veri_log_path, timeout=600
             )
@@ -426,8 +444,8 @@ class Benchmark:
 
     def _analyze_training(self, df):
         self._train_boxplot(df)
-        self._train_catplot(df, "test accuracy")
-        self._train_catplot(df, "relu accuracy")
+        # self._train_catplot(df, "test accuracy")
+        # self._train_catplot(df, "relu accuracy")
 
     def _train_boxplot(self, df):
         self.logger.info("Plotting training ...")
@@ -451,25 +469,26 @@ class Benchmark:
 
                     test_acc = dft["test accuracy"].values
                     relu_acc = dft["relu accuracy"].values
+
                     # stable_relu = dft['stable relu'].values
                     c_test_acc += [test_acc]
                     c_relu_acc += [relu_acc]
                     # c_stable_relu += [stable_relu]
 
-        c_test_acc = np.array(c_test_acc, dtype=object)
-        c_relu_acc = np.array(c_relu_acc, dtype=object)
+        c_test_acc = np.array(c_test_acc, dtype=object) * 100
+        c_relu_acc = np.array(c_relu_acc, dtype=object) * 100
         # c_ = np.array(c_stable_relu, dtype=object)
 
         fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
-        ax2 = ax1.twinx()
+        # ax2 = ax1.twinx()
         bp1 = colored_box_plot(ax1, c_test_acc.T, "red", "tan")
-        bp2 = colored_box_plot(ax2, c_relu_acc.T, "blue", "cyan")
+        bp2 = colored_box_plot(ax1, c_relu_acc.T, "blue", "cyan")
         # bp2 = colored_box_plot(ax2, collection_stable_relu.T, 'blue', 'cyan')
 
         plt.legend(
             [bp1["boxes"][0], bp2["boxes"][0]],
             ["Test Accuracy", "# Stable ReLUs"],
-            loc="center left",
+            loc="lower left",
         )
 
         # make grid & set correct xlabels
@@ -491,7 +510,7 @@ class Benchmark:
             else:
                 ax1.axvline(x=x, color="grey", linestyle="-.", linewidth=0.5)
 
-        rotation = 90
+        rotation = 45
         for tick in ax1.get_xmajorticklabels():
             tick.set_rotation(rotation)
         for x in ax1.get_xminorticklabels():
@@ -499,8 +518,9 @@ class Benchmark:
 
         ax1.plot()
 
-        ax1.set_ylabel("Test Accuracy(%)")
-        ax2.set_ylabel("# Stable ReLUs(%)")
+        ax1.set_ylim(0, 100)
+        ax1.set_ylabel("Test Accuracy(%,Red)/Stable ReLUs(%,Blue)")
+        # ax2.set_ylabel("# Stable ReLUs(%)")
         ax1.set_xlabel("Artifact:Network:Heuristics")
         plt.title(
             "Test Accuracy and # Stable ReLUs vs. Artifact, Network, and Heuristics"
@@ -567,6 +587,7 @@ class Benchmark:
                             dft = dft[dft["verifier"] == v]
                             dft = dft[dft["heuristic"] == h]
                             dft = dft[dft["epsilon"] == e]
+                            nb_problems = len(dft["veri ans"])
                             avg_v_time += [np.mean(dft["veri time"].to_numpy())]
                             nb_solved += [
                                 np.where(dft["veri ans"].to_numpy() < 3)[0].shape[0]
@@ -588,7 +609,7 @@ class Benchmark:
                         -self.base_settings["verify"]["time"] * 0.05,
                         self.base_settings["verify"]["time"] * 1.05,
                     )
-                    ax2.set_ylim(-1, 26)
+                    ax2.set_ylim(-1, nb_problems + 1)
                     ax1.set_xticks(range(len(self.epsilons)))
 
                     ax1.set_xticklabels(self.epsilons)
@@ -606,8 +627,62 @@ class Benchmark:
                     fig.clear()
                     plt.close(fig)
 
+    def _analyze_verification_sus(self, df):
+        self.logger.info("Plotting verification sat/unsat...")
+        for a in self.artifacts:
+            for n in self.networks:
+                for v in self.verifiers:
+                    # plot verification time(Y) vs. Epsilon Values(X) for each heuristic
+                    fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
+                    ax2 = ax1.twinx()
+                    title_prefix = f"[{a}:{n}:{v}]"
+                    for h in self.heuristics.keys():
+                        nb_unsat = []
+                        nb_sat = []
+                        for e in self.epsilons:
+                            dft = df
+                            dft = dft[dft["artifact"] == a]
+                            dft = dft[dft["network"] == n]
+                            dft = dft[dft["verifier"] == v]
+                            dft = dft[dft["heuristic"] == h]
+                            dft = dft[dft["epsilon"] == e]
+                            nb_problems = len(dft["veri ans"])
+                            nb_unsat += [
+                                np.where(dft["veri ans"].to_numpy() == 1)[0].shape[0]
+                            ]
+                            nb_sat += [
+                                np.where(dft["veri ans"].to_numpy() == 2)[0].shape[0]
+                            ]
+
+                        plot1 = ax1.plot(nb_unsat, label=h)
+                        plot2 = ax2.plot(nb_sat, linestyle="dashed", label=h)
+
+                    ax1.legend(loc="center left")
+                    ax2.legend(loc="center right")
+
+                    ax1.set_xlabel("Epsilon")
+                    ax1.set_ylabel("Solved Problems(Unsat)")
+                    ax2.set_ylabel("Solved Problems(Sat)")
+                    ax1.set_ylim(-1, nb_problems + 1)
+                    ax2.set_ylim(-1, nb_problems + 1)
+                    ax1.set_xticks(range(len(self.epsilons)))
+
+                    ax1.set_xticklabels(self.epsilons)
+                    plt.title(
+                        title_prefix + " Avg. Verification Problems Solved vs. Epsilons"
+                    )
+                    plt.savefig(
+                        os.path.join(
+                            self.result_dir, f"Verification_{title_prefix}_sus.pdf"
+                        ),
+                        format="pdf",
+                        bbox_inches="tight",
+                    )
+                    fig.clear()
+                    plt.close(fig)
+
     def _analyze_stable_ReLUs(self, df):
-        colors = ["blue", "red", "green"]
+        self.logger.info("Plotting stable ReLUs ...")
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
@@ -617,6 +692,7 @@ class Benchmark:
                     sr_train = {}
                     sr_veri = {}
                     for i, h in enumerate(self.heuristics.keys()):
+                        colors = sns.color_palette("hls", len(self.heuristics))
                         sr_train_ = []
                         sr_veri_ = []
                         for e in self.epsilons:
@@ -633,12 +709,22 @@ class Benchmark:
                         sr_train[h] = sr_train_
                         sr_veri[h] = sr_veri_
 
-                        plot1 = ax1.plot(sr_train_, label=h, color=colors[i])
+                        plot1 = ax1.plot(
+                            sr_train_,
+                            linewidth=1,
+                            linestyle="-",
+                            label=h,
+                            color=(*colors[i], 0.8),
+                        )
                         plot2 = ax2.plot(
-                            sr_veri_, linestyle="dashed", label=h, color=colors[i]
+                            sr_veri_,
+                            linewidth=1,
+                            linestyle=":",
+                            label=h,
+                            color=(*colors[i], 0.8),
                         )
 
-                    ax1.axvline(x=4, color="grey", linestyle="--", linewidth=1)
+                    # ax1.axvline(x=4, color="grey", linestyle="..", linewidth=1)
                     ax1.legend(loc="center left")
                     ax2.legend(loc="center right")
 
@@ -660,7 +746,6 @@ class Benchmark:
                     plt.close(fig)
 
     def _analyze_stable_ReLUs_two(self, df):
-        colors = ["blue", "red", "green"]
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
@@ -671,6 +756,7 @@ class Benchmark:
                         sr_train = {}
                         sr_veri = {}
                         for i, h in enumerate(self.heuristics.keys()):
+                            colors = sns.color_palette("hls", len(self.heuristics))
                             sr_train_ = []
                             sr_veri_ = []
                             x1_ = []
@@ -696,14 +782,18 @@ class Benchmark:
                             sr_veri[h] = sr_veri_
 
                             plot1 = ax1.scatter(
-                                x=x1_, y=sr_train_, label=h, marker="x", color=colors[i]
+                                x=x1_,
+                                y=sr_train_,
+                                label=h,
+                                marker="x",
+                                color=(*colors[i], 0.8),
                             )
                             plot2 = ax2.scatter(
                                 x=x2_,
                                 y=sr_veri_,
                                 label=h,
                                 facecolors="none",
-                                edgecolors=colors[i],
+                                edgecolors=(*colors[i], 0.8),
                             )
 
                         ax1.axvline(x=4, color="grey", linestyle="--", linewidth=1)

@@ -22,9 +22,13 @@ class ReLUEstimator:
             raise ReferenceError(f'Did you run "{self}".propagate()?')
         return self.raw_
 
+    def clean(self):
+        pass
+
     @staticmethod
     def _calculate_stable_ReLUs(lb, ub):
         le_0 = torch.sum(ub < 0, axis=-1).int()
         ge_0 = torch.sum(lb >= 0, axis=-1).int()
+        # TODO: do we need eq 0 as a stand-alone case?
         # eq_0 = torch.sum(lb == 0 and ub==0, axis=-1).int()
         return le_0, ge_0

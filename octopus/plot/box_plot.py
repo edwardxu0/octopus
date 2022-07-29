@@ -8,6 +8,6 @@ def colored_box_plot(ax, data, edge_color, fill_color):
         plt.setp(bp[element], color=edge_color)
 
     for patch in bp["boxes"]:
-        patch.set(facecolor=fill_color)
+        patch.set(facecolor=(0.5, 0.5, 0.5, 0.5))
 
     return bp

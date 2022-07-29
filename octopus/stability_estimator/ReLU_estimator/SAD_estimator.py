@@ -8,7 +8,7 @@ from .SDD_estimator import SDDEstimator
 class SADEstimator(ReLUEstimator):
     def __init__(self, model, **kwargs):
         super().__init__(model)
-        self.__name__ = 'SAD ReLU Estimator'
+        self.__name__ = "SAD ReLU Estimator"
         self.epsilon = kwargs["epsilon"]
         self.samples = kwargs["samples"]
         self.SDDEstimator = SDDEstimator(model)

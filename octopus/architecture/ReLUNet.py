@@ -12,6 +12,10 @@ class ReLUNet(BasicNet):
         self.set_layers(layers)
 
     def set_layers(self, layers, weights=None, bias=None):
+        if weights:
+            assert len(weights) == len(bias)
+            assert len(layers)+1 == len(weights)
+
         self.nb_ReLUs = 0
         layers = (
             [np.prod(self.artifact.input_shape)]
@@ -63,6 +67,7 @@ class ReLUNet(BasicNet):
         else:
             assert False
         super().__setup__()
+        self.to(self.device)
 
     def forward(self, x):
         self._batch_values = {}

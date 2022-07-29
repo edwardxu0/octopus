@@ -17,7 +17,7 @@ class BasicNet(nn.Module):
 
     def __setup__(self):
         self._compute_filtered_named_modules()
-        self.activation = self.register_activation_hocks()
+        # self.activation = self.register_activation_hocks()
 
     def _compute_filtered_named_modules(self):
         filtered_named_modules = []

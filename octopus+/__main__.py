@@ -73,6 +73,7 @@ def main():
 
     elif args.task == "A":
         study.analyze()
+
     else:
         assert False
 

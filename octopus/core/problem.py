@@ -4,7 +4,7 @@ import numpy as np
 import subprocess
 import sys
 import logging
-import hashlib
+import gc
 
 
 import torch.nn.functional as F
@@ -99,24 +99,19 @@ class Problem:
 
     def _trained(self):
         # TODO: account for log file and # epochs
-        trained = True
-        if "save_log" in self.cfg_train and self.cfg_train["save_log"]:
-            if not os.path.exists(self.train_log_path):
-                trained = False
-            else:
-                trained = (
-                    len(
-                        [
-                            x
-                            for x in open(self.train_log_path, "r").readlines()
-                            if "[Test] epoch: " in x
-                        ]
-                    )
-                    == self.cfg_train["epochs"]
+        if not os.path.exists(self.train_log_path):
+            trained = False  # os.path.exists(self.model_path)
+        else:
+            trained = (
+                len(
+                    [
+                        x
+                        for x in open(self.train_log_path, "r").readlines()
+                        if "[Test] epoch: " in x
+                    ]
                 )
-        if not os.path.exists(self.model_path):
-            trained = False
-
+                == self.cfg_train["epochs"]
+            )
         return trained
 
     def train(self):
@@ -248,14 +243,17 @@ class Problem:
                     self.cfg_heuristic["prune"]["end"],
                 )
             ):
-                self.model.run_heuristics(
+                re_arched = self.model.run_heuristics(
                     "prune",
                     data=data,
                     epoch=epoch,
-                    batch=batch_idx,
+                    batch_idx=batch_idx,
+                    total_batches=len(self.train_loader),
                     test_loader=self.test_loader,
                     total_epoch=self.cfg_train["epochs"],
                 )
+                if re_arched and "SIP" in self.stable_estimators:
+                    self.stable_estimators["SIP"].init_inet()
 
             if batch_idx % self.cfg_train["log_interval"] == 0:
                 # TODO: supports more than one estimators
@@ -267,13 +265,21 @@ class Problem:
                     stable_le_0, stable_ge_0 = self.stable_estimators[
                         se
                     ].get_stable_ReLUs()
-                    stable_le_0 = torch.sum(
-                        torch.mean(stable_le_0.type(torch.float32), axis=-1)
+
+                    stable_le_0 = sum(
+                        [
+                            torch.mean(x.type(torch.float32), axis=-1)
+                            for x in stable_le_0
+                        ]
                     )
-                    stable_ge_0 = torch.sum(
-                        torch.mean(stable_ge_0.type(torch.float32), axis=-1)
+                    stable_ge_0 = sum(
+                        [
+                            torch.mean(x.type(torch.float32), axis=-1)
+                            for x in stable_ge_0
+                        ]
                     )
                     batch_stable_ReLU = stable_le_0 + stable_ge_0
+
                     relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
                     se_str += f"{se}: {relu_accuracy*100:.2f}% "
 
@@ -283,10 +289,14 @@ class Problem:
                     f"[Train] epoch: {epoch:3} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f}"
                 )
                 self.logger.info(f"[Train] Stable ReLUs: {se_str}")
+                # print(f"{torch.cuda.memory_allocated() / 1024 / 1024 / 1024:.2f} Gb")
             else:
                 for x in self.train_stable_ReLUs:
                     self.train_stable_ReLUs[x] += [self.train_stable_ReLUs[x][-1]]
             self.train_loss += [loss.item()]
+
+            gc.collect()
+            torch.cuda.empty_cache()
 
     def _test_epoch(self, epoch):
         self.model.eval()
@@ -316,20 +326,21 @@ class Problem:
                 data=data, test_loader=self.test_loader
             )
             stable_le_0, stable_ge_0 = self.stable_estimators[se].get_stable_ReLUs()
-            stable_le_0 = torch.sum(
-                torch.mean(stable_le_0.type(torch.float32), axis=-1)
+            stable_le_0 = sum(
+                [torch.mean(x.type(torch.float32), axis=-1) for x in stable_le_0]
             )
-            stable_ge_0 = torch.sum(
-                torch.mean(stable_ge_0.type(torch.float32), axis=-1)
+            stable_ge_0 = sum(
+                [torch.mean(x.type(torch.float32), axis=-1) for x in stable_ge_0]
             )
             batch_stable_ReLU = stable_le_0 + stable_ge_0
             relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
             se_str += f"{se}: {relu_accuracy*100:.2f}% "
 
         self.logger.info(
-            f"[Test] epoch: {epoch:3} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}%\n"
+            f"[Test] epoch: {epoch:3} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}%"
         )
-        self.logger.info(f"[Test] Stable ReLUs: {se_str}")
+        self.logger.info(f"[Test] Stable ReLUs: {se_str}\n")
+        # print(f"{torch.cuda.memory_allocated() / 1024 / 1024 / 1024:.2f} Gb")
 
     def _plot_train(self):
         # draw training progress plot
@@ -697,19 +708,22 @@ class Problem:
 
                 elif "  time: " in l:
                     veri_time = float(l.strip().split()[-1])
-                    if timeout:
-                        if veri_time > timeout:
-                            veri_ans = "timeout"
-                            veri_time = timeout
-                            break
 
                 elif "Timeout" in l:
                     veri_ans = "timeout"
                     veri_time = float(l.strip().split()[-3])
                     break
+
                 elif "Out of Memory" in l:
                     veri_ans = "memout"
                     veri_time = None  # float(l.strip().split()[-3])
-                    break
+                    break 
+
+            assert veri_ans
+            assert veri_time
+            if timeout:
+                if veri_time > timeout:
+                    veri_ans = "timeout"
+                    veri_time = timeout
 
             return veri_ans, veri_time

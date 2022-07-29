@@ -21,7 +21,7 @@ class ProgressPlot:
             )
 
         self.ax1.scatter(X2, Y2, marker="x", color="red", label="BS Points")
-        self.ax1.legend(loc="upper left")
+        self.ax1.legend(loc="center left")
 
         self.ax1.set_xlim(xlim)
         self.ax1.set_ylim(ylim)
@@ -30,14 +30,14 @@ class ProgressPlot:
 
     def draw_safe_relu_pp(self, X1, Y1):
         self.ax1.scatter(X1, Y1, marker="v", color="deeppink", label="Safe ReLU PP")
-        self.ax1.legend(loc="upper left")
+        self.ax1.legend(loc="center left")
 
     def draw_accuracy(self, X1, Y1, X2, Y2, ylim):
         self.ax2 = self.ax1.twinx()
         self.ax2.set_ylim(ylim)
         self.ax2.scatter(X1, Y1, marker="o", color="Green", label="Test Accuracy")
         self.ax2.plot(X2, Y2, color="orange", alpha=0.25, label="Loss")
-        self.ax2.legend(loc="lower right")
+        self.ax2.legend(loc="center right")
 
         for i, txt in enumerate(Y1):
             self.ax2.annotate(

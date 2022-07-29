@@ -85,5 +85,4 @@ props = [*range(5)]
 
 epsilons = np.linspace(1, 10, 10) / 100
 
-#verifiers = ["DNNVWB:neurify"]
 verifiers = ["DNNVWB:neurify", "DNNV:eran_deepzono", "DNNV:nnenum"]

@@ -6,7 +6,9 @@ source .venv/bin/activate
 # add library to paths
 export DNNV=./lib/DNNV
 export DNNVWB=./lib/DNNVWB
+export SIP=./lib/SIP
 
+export PYTHONPATH=$PYTHONPATH:$SIP
 
 # Remove tensorflow warnings
 export TF_CPP_MIN_LOG_LEVEL=2
