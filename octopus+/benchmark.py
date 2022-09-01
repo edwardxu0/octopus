@@ -15,6 +15,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from octopus.core.problem import Problem
+from octopus.plot.train_progress import ProgressPlot
 
 from octopus.plot.box_plot import colored_box_plot
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
@@ -51,7 +52,10 @@ class Benchmark:
             "epsilon",
             "verifier",
             "test accuracy",
-            "relu accuracy",
+            "ra(sdd)",
+            "ra(sad)",
+            "ra(nip)",
+            "ra(sip)",
             "veri ans",
             "veri time",
             "training time",
@@ -216,6 +220,7 @@ class Benchmark:
                 continue
 
             # check if done
+            self.logger.debug(f"Train log: {log_path}")
             if os.path.exists(log_path) and not self.override:
                 trained = (
                     len(
@@ -261,14 +266,51 @@ class Benchmark:
 
                 lines = [x + "\n" for x in lines]
                 open(slurm_script_path, "w").writelines(lines)
+                param_node_nb = (
+                    f"-c {self.nb_train_nodes}"
+                    if "nb_train_nodes" in self.__dict__
+                    else ""
+                )
+
                 param_node = (
                     f"-w {self.train_nodes[i%len(self.train_nodes)]}"
                     if self.train_nodes
                     else ""
                 )
-                slurm_cmd = f"sbatch {param_node} {slurm_script_path}"
+                slurm_cmd = f"sbatch {param_node_nb} {param_node} {slurm_script_path}"
 
             self._exec(cmd, slurm_cmd)
+
+        self.logger.info(
+            f"Tasks: done: {nb_done}, todo: {nb_todo}, total: {len(self.problems_T)}."
+        )
+
+    def test(self):
+        self.logger.info("Testing ...")
+        nb_done = 0
+        nb_todo = 0
+        for i, (a, n, h, s, e) in enumerate(tqdm(self.problems_T)):
+            (
+                sts,
+                config_path,
+                slurm_script_path,
+                log_path,
+                name,
+            ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
+            toml.dump(sts, open(config_path, "w"))
+            if name not in self.problems_T_hash:
+                self.problems_T_hash += [name]
+            else:
+                self.logger.info("Skipping training job with existing configs ...")
+                continue
+
+            # check if done
+            print(log_path)
+            assert os.path.exists(log_path) and not self.slurm
+
+            cmd = f"python -m octopus {config_path} Test --seed {s} --debug"
+
+            self._exec(cmd, None)
 
         self.logger.info(
             f"Tasks: done: {nb_done}, todo: {nb_todo}, total: {len(self.problems_T)}."
@@ -279,6 +321,22 @@ class Benchmark:
         nb_done = 0
         nb_todo = 0
         for i, (a, n, h, s, e, p, v) in enumerate(tqdm(self.problems_V)):
+
+            ###########################
+            # SKIP untrained networks for faster verification on partial benchmarks
+            (
+                sts,
+                config_path,
+                _,
+                _,
+                name,
+            ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
+
+            model_path = f'{config_path.replace("train_config", "model")[:-5]}.{sts["train"]["epochs"]}.onnx'
+            if not os.path.exists(model_path):
+                continue
+            ###########################
+
             sts, config_path, slurm_script_path, log_path, _ = self._get_problem_paths(
                 "V", a=a, n=n, h=h, s=s, e=e, p=p, v=v
             )
@@ -313,7 +371,7 @@ class Benchmark:
 
                 open(slurm_script_path, "w").writelines(lines)
                 param_node = (
-                    f"-w {self.veri_nodes[i%len(self.veri_nodes)]}"
+                    f"-w {self.veri_nodes[nb_todo%len(self.veri_nodes)]}"
                     if self.veri_nodes
                     else ""
                 )
@@ -328,6 +386,7 @@ class Benchmark:
     # Analyze logs
     def analyze(self):
         self.logger.info("Analyzing ...")
+        # self._train_progress_plot()
         df_cache_path = os.path.join(self.result_dir, "result.feather")
         if os.path.exists(df_cache_path) and not self.override:
             self.logger.info("Using cached results.")
@@ -342,12 +401,27 @@ class Benchmark:
         self.logger.debug(f"Data frame: \n{df}")
 
         if self.go:
-            self._analyze_training(df)
-            self._analyze_verification(df)
-            self._analyze_verification_sus(df)
+            self._train_progress_plot()
+            # self._analyze_training(df)
+            # self._analyze_verification(df)
+            # self._analyze_verification_sus(df)
             # self._analyze_stable_ReLUs(df)
             # self._analyze_stable_ReLUs_two(df)
             self._analyze_time(df)
+            # self._analyze_table(df)
+
+            #######################
+            #######################
+            #######################
+            #######################
+            #######################
+            #######################
+            #######################
+            #######################
+            #######################
+            #######################
+            #######################
+            #######################
 
     def _parse_logs(self):
         df = pd.DataFrame({x: [] for x in self.labels})
@@ -373,13 +447,37 @@ class Benchmark:
                 float(x.strip().split()[-1][:-1]) / 100 for x in test_lines
             ][target_epoch - 1]
 
-            # TODO:
-            # [-5] == SDD
-            # [-3] == SAD
-            # [-1] == NIP
+            stable_ReLUs = {}
+            for l in relu_lines:
+                tokens = l[63:].split()
+                assert len(tokens) % 2 == 0
+                for i in range(int(len(tokens) / 2)):
+                    se = tokens[i * 2][:-1]
+                    acc = float(tokens[i * 2 + 1][:-1]) / 100
+                    if se not in stable_ReLUs:
+                        stable_ReLUs[se] = [acc]
+                    else:
+                        stable_ReLUs[se] += [acc]
+
+            stable_estimator = sts["train"]["stable_estimator"]
             relu_accuracy = [
-                float(x.strip().split()[-1][:-1]) / 100 for x in relu_lines
-            ][target_epoch - 1]
+                stable_ReLUs[x][target_epoch - 1] for x in stable_estimator
+            ]
+
+            # if h == "Baseline":
+            #    stable_estimator = sts["train"]["stable_estimator"]
+            #    relu_accuracy = [
+            #        stable_ReLUs[x][target_epoch - 1] for x in stable_estimator
+            #    ]
+
+            # else:
+            #    assert (
+            #        len(list(self.heuristics[h].values())[0]["stable_estimator"]) == 1
+            #    )
+            #    stable_estimator = list(
+            #        list(self.heuristics[h].values())[0]["stable_estimator"]
+            #    )[0]
+            #    relu_accuracy = [stable_ReLUs[stable_estimator][target_epoch - 1]]
 
             # this is a hack to work around broken training logs
             info_lines = [x for x in lines if "(INFO)" in x]
@@ -397,20 +495,36 @@ class Benchmark:
             answer, verification_time = Problem.Utility.analyze_veri_log(
                 veri_log_path, timeout=600
             )
-            if answer is None:
+
+            if answer is None or verification_time is None:
                 print("rm", veri_log_path)
 
-            lines = open(veri_log_path, "r").readlines()
-            wb_lines = [x for x in lines if "WB" in x]
-            unstable_relu_lines = [x for x in wb_lines if "unstable" in x]
+                ### TEMP solution
+                # TODO REMOVE
+                answer = 5
+                verification_time = 600
 
-            unstable_relus = []
-            for x in unstable_relu_lines:
-                unstable_relus += [int(x.strip().split()[-3])]
-            avg_unstable_relus = np.mean(np.array(unstable_relus))
-            relu_accuracy_veri = 1 - avg_unstable_relus / np.sum(
-                np.array(self.networks[n])
-            )
+            # compute unstable ReLUs for DNNVWB
+            # supported verifiers:
+            # DNNVWB:neurify
+
+            if v in ["DNNVWB:neurify"]:
+                lines = open(veri_log_path, "r").readlines()
+                wb_lines = [x for x in lines if "WB" in x]
+                unstable_relu_lines = [x for x in wb_lines if "unstable" in x]
+
+                unstable_relus = []
+                for x in unstable_relu_lines:
+                    unstable_relus += [int(x.strip().split()[-3])]
+                avg_unstable_relus = np.mean(np.array(unstable_relus))
+
+                relu_accuracy_veri = 1 - avg_unstable_relus / np.sum(
+                    np.array(self.networks[n])
+                )
+            else:
+                relu_accuracy_veri = 0
+
+            assert len(relu_accuracy) == 4
 
             if self.go:
                 df.loc[len(df.index)] = [
@@ -422,7 +536,7 @@ class Benchmark:
                     e,
                     v,
                     test_accuracy,
-                    relu_accuracy,
+                    *relu_accuracy,
                     self.code_veri_answer[answer],
                     verification_time,
                     training_time,
@@ -430,6 +544,89 @@ class Benchmark:
                 ]
         self.logger.info("--------------------")
         return df
+
+    def _train_progress_plot(self):
+        for i, (a, n, h, s, e) in enumerate(tqdm(self.problems_T)):
+            (
+                sts,
+                config_path,
+                _,
+                log_path,
+                name,
+            ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
+
+            lines = open(log_path, "r").readlines()
+            assert any([x for x in lines if "Mission Complete" in x])
+            lines_train = [x for x in lines if "[Train]" in x]
+            lines_test = [x for x in lines if "[Test]" in x]
+
+            train_stable_ReLUs = {}
+            for l in [x for x in lines_train if "Stable ReLUs" in x]:
+                tokens = l[63:].split()
+                assert len(tokens) % 2 == 0
+                for i in range(int(len(tokens) / 2)):
+                    se = tokens[i * 2][:-1]
+                    acc = float(tokens[i * 2 + 1][:-1]) / 100
+                    if se not in train_stable_ReLUs:
+                        train_stable_ReLUs[se] = [acc]
+                    else:
+                        train_stable_ReLUs[se] += [acc]
+
+            test_accuracy = [
+                float(x.strip().split()[-1][:-1]) / 100
+                for x in lines_test
+                if "epoch" in x
+            ]
+
+            train_loss = [
+                float(x.strip().split()[-1]) for x in lines_train if "epoch" in x
+            ]
+
+            nb_steps = len(train_loss)
+            nb_epochs = sts["train"]["epochs"]
+
+            # train stable ReLUs
+            Y1 = train_stable_ReLUs
+            X1 = range(len(list(Y1.values())[0]))
+
+            # bias shaping points
+            X2 = []
+            Y2 = []
+
+            # test accuracy
+            X3 = np.linspace(0, nb_steps, nb_epochs) + 1
+            Y3 = test_accuracy
+
+            # train loss
+            X4 = range(len(train_loss))
+            Y4 = train_loss
+
+            # max_safe_relu = sum([self.model.activation[layer].view(
+            #    self.model.activation[layer].size(0), -1).shape[-1] for layer in self.model.activation])
+
+            p_plot = ProgressPlot()
+            # max_safe_relu))
+            p_plot.draw_train(
+                X1,
+                Y1,
+                X2,
+                Y2,
+                (0, nb_steps),
+                (0, 1),
+            )
+
+            p_plot.draw_accuracy(X3, Y3, X4, Y4, (0, 1))
+            p_plot.draw_grid(
+                x_stride=nb_steps / 5,
+                y_stride=0.2,
+            )
+
+            title = Problem.Utility.get_name(sts["train"], sts["heuristic"], s)
+            fig_dir = os.path.join(self.result_dir, "train_figures")
+            Path(fig_dir).mkdir(parents=True, exist_ok=True)
+            path = os.path.join(fig_dir, title + ".pdf")
+            p_plot.save(title, path)
+            p_plot.clear()
 
     def _analyze_time(self, df):
         verification_times = df["veri time"].values
@@ -446,6 +643,9 @@ class Benchmark:
         self._train_boxplot(df)
         # self._train_catplot(df, "test accuracy")
         # self._train_catplot(df, "relu accuracy")
+
+    def _train_table(self, df):
+        self.logger.info("Plotting training tables ...")
 
     def _train_boxplot(self, df):
         self.logger.info("Plotting training ...")
@@ -485,10 +685,14 @@ class Benchmark:
         bp2 = colored_box_plot(ax1, c_relu_acc.T, "blue", "cyan")
         # bp2 = colored_box_plot(ax2, collection_stable_relu.T, 'blue', 'cyan')
 
-        plt.legend(
+        ax1.legend(
             [bp1["boxes"][0], bp2["boxes"][0]],
             ["Test Accuracy", "# Stable ReLUs"],
-            loc="lower left",
+            loc="lower center",
+            bbox_to_anchor=(0.5, -0.34),
+            fancybox=True,
+            shadow=True,
+            ncol=2,
         )
 
         # make grid & set correct xlabels
@@ -510,7 +714,7 @@ class Benchmark:
             else:
                 ax1.axvline(x=x, color="grey", linestyle="-.", linewidth=0.5)
 
-        rotation = 45
+        rotation = 90
         for tick in ax1.get_xmajorticklabels():
             tick.set_rotation(rotation)
         for x in ax1.get_xminorticklabels():
@@ -526,7 +730,7 @@ class Benchmark:
             "Test Accuracy and # Stable ReLUs vs. Artifact, Network, and Heuristics"
         )
         plt.savefig(
-            os.path.join(self.result_dir, "Training_overview.pdf"),
+            os.path.join(self.result_dir, "T.pdf"),
             format="pdf",
             bbox_inches="tight",
         )
@@ -559,7 +763,7 @@ class Benchmark:
             palette="Set3",
         )
         plt.savefig(
-            os.path.join(self.result_dir, f"Training_overview_catplot1_{kind}.pdf"),
+            os.path.join(self.result_dir, f"Tc_{kind}.pdf"),
             format="pdf",
             bbox_inches="tight",
         )
@@ -568,6 +772,7 @@ class Benchmark:
 
     def _analyze_verification(self, df):
         self.logger.info("Plotting verification ...")
+        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.heuristics) - 1)
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
@@ -577,7 +782,7 @@ class Benchmark:
                     title_prefix = f"[{a}:{n}:{v}]"
                     collection_verification_time = {}
                     collection_problem_solved = {}
-                    for h in self.heuristics.keys():
+                    for i, h in enumerate(self.heuristics.keys()):
                         avg_v_time = []
                         nb_solved = []
                         for e in self.epsilons:
@@ -596,11 +801,29 @@ class Benchmark:
                         collection_verification_time[h] = avg_v_time
                         collection_problem_solved[h] = nb_solved
 
-                        plot1 = ax1.plot(avg_v_time, label=h)
-                        plot2 = ax2.plot(nb_solved, linestyle="dashed", label=h)
+                        plot1 = ax1.plot(
+                            avg_v_time,
+                            linestyle="-",
+                            label=h,
+                            color=(*colors[i], 2 / 3),
+                        )
+                        plot2 = ax2.plot(
+                            nb_solved,
+                            linestyle=":",
+                            label=h,
+                            color=(*colors[i], 2 / 3),
+                        )
 
-                    ax1.legend(loc="center left")
-                    ax2.legend(loc="center right")
+                    ax1.legend(
+                        loc="upper left",
+                        bbox_to_anchor=(-0.22, 0.8),
+                        fancybox=True,
+                    )
+                    ax2.legend(
+                        loc="upper right",
+                        bbox_to_anchor=(1.22, 0.8),
+                        fancybox=True,
+                    )
 
                     ax1.set_xlabel("Epsilon")
                     ax1.set_ylabel("Verification Time(s)")
@@ -611,16 +834,14 @@ class Benchmark:
                     )
                     ax2.set_ylim(-1, nb_problems + 1)
                     ax1.set_xticks(range(len(self.epsilons)))
-
                     ax1.set_xticklabels(self.epsilons)
+
                     plt.title(
                         title_prefix
                         + " Avg. Verification Time/Problems Solved vs. Epsilons"
                     )
                     plt.savefig(
-                        os.path.join(
-                            self.result_dir, f"Verification_{title_prefix}.pdf"
-                        ),
+                        os.path.join(self.result_dir, f"V_{title_prefix}.pdf"),
                         format="pdf",
                         bbox_inches="tight",
                     )
@@ -629,6 +850,7 @@ class Benchmark:
 
     def _analyze_verification_sus(self, df):
         self.logger.info("Plotting verification sat/unsat...")
+        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.heuristics) - 1)
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
@@ -636,7 +858,7 @@ class Benchmark:
                     fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
                     ax2 = ax1.twinx()
                     title_prefix = f"[{a}:{n}:{v}]"
-                    for h in self.heuristics.keys():
+                    for i, h in enumerate(self.heuristics.keys()):
                         nb_unsat = []
                         nb_sat = []
                         for e in self.epsilons:
@@ -654,11 +876,29 @@ class Benchmark:
                                 np.where(dft["veri ans"].to_numpy() == 2)[0].shape[0]
                             ]
 
-                        plot1 = ax1.plot(nb_unsat, label=h)
-                        plot2 = ax2.plot(nb_sat, linestyle="dashed", label=h)
+                        plot1 = ax1.plot(
+                            nb_unsat,
+                            linestyle="-",
+                            label=h,
+                            color=(*colors[i], 2 / 3),
+                        )
+                        plot2 = ax2.plot(
+                            nb_sat,
+                            linestyle=":",
+                            label=h,
+                            color=(*colors[i], 2 / 3),
+                        )
 
-                    ax1.legend(loc="center left")
-                    ax2.legend(loc="center right")
+                    ax1.legend(
+                        loc="upper left",
+                        bbox_to_anchor=(-0.22, 0.8),
+                        fancybox=True,
+                    )
+                    ax2.legend(
+                        loc="upper right",
+                        bbox_to_anchor=(1.22, 0.8),
+                        fancybox=True,
+                    )
 
                     ax1.set_xlabel("Epsilon")
                     ax1.set_ylabel("Solved Problems(Unsat)")
@@ -666,15 +906,13 @@ class Benchmark:
                     ax1.set_ylim(-1, nb_problems + 1)
                     ax2.set_ylim(-1, nb_problems + 1)
                     ax1.set_xticks(range(len(self.epsilons)))
-
                     ax1.set_xticklabels(self.epsilons)
+
                     plt.title(
                         title_prefix + " Avg. Verification Problems Solved vs. Epsilons"
                     )
                     plt.savefig(
-                        os.path.join(
-                            self.result_dir, f"Verification_{title_prefix}_sus.pdf"
-                        ),
+                        os.path.join(self.result_dir, f"Vsus_{title_prefix}.pdf"),
                         format="pdf",
                         bbox_inches="tight",
                     )
@@ -683,6 +921,7 @@ class Benchmark:
 
     def _analyze_stable_ReLUs(self, df):
         self.logger.info("Plotting stable ReLUs ...")
+        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.heuristics) - 1)
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
@@ -692,7 +931,6 @@ class Benchmark:
                     sr_train = {}
                     sr_veri = {}
                     for i, h in enumerate(self.heuristics.keys()):
-                        colors = sns.color_palette("hls", len(self.heuristics))
                         sr_train_ = []
                         sr_veri_ = []
                         for e in self.epsilons:
@@ -714,19 +952,27 @@ class Benchmark:
                             linewidth=1,
                             linestyle="-",
                             label=h,
-                            color=(*colors[i], 0.8),
+                            color=(*colors[i], 2 / 3),
                         )
                         plot2 = ax2.plot(
                             sr_veri_,
                             linewidth=1,
                             linestyle=":",
                             label=h,
-                            color=(*colors[i], 0.8),
+                            color=(*colors[i], 2 / 3),
                         )
 
                     # ax1.axvline(x=4, color="grey", linestyle="..", linewidth=1)
-                    ax1.legend(loc="center left")
-                    ax2.legend(loc="center right")
+                    ax1.legend(
+                        loc="upper left",
+                        bbox_to_anchor=(-0.22, 0.8),
+                        fancybox=True,
+                    )
+                    ax2.legend(
+                        loc="upper right",
+                        bbox_to_anchor=(1.22, 0.8),
+                        fancybox=True,
+                    )
 
                     ax1.set_xlabel("Epsilon")
                     ax1.set_ylabel("Stable ReLUs in Training")
@@ -734,8 +980,8 @@ class Benchmark:
                     ax1.set_ylim(-0.05, 1.05)
                     ax2.set_ylim(-0.05, 1.05)
                     ax1.set_xticks(range(len(self.epsilons)))
-
                     ax1.set_xticklabels(self.epsilons)
+
                     plt.title(title_prefix + " Stable ReLUs in Training/Verification")
                     plt.savefig(
                         os.path.join(self.result_dir, f"SR_{title_prefix}.pdf"),
@@ -746,6 +992,7 @@ class Benchmark:
                     plt.close(fig)
 
     def _analyze_stable_ReLUs_two(self, df):
+        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.heuristics) - 1)
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
@@ -756,7 +1003,6 @@ class Benchmark:
                         sr_train = {}
                         sr_veri = {}
                         for i, h in enumerate(self.heuristics.keys()):
-                            colors = sns.color_palette("hls", len(self.heuristics))
                             sr_train_ = []
                             sr_veri_ = []
                             x1_ = []
@@ -772,11 +1018,11 @@ class Benchmark:
 
                                 tmp = dft["relu accuracy"].to_numpy()
                                 sr_train_ += [tmp]
-                                x1_ += [e * 50 - 1] * len(tmp)
+                                x1_ += [e * 100 - 1] * len(tmp)
 
                                 tmp = dft["relu accuracy veri"].to_numpy()
                                 sr_veri_ += [tmp]
-                                x2_ += [e * 50 - 1] * len(tmp)
+                                x2_ += [e * 100 - 1] * len(tmp)
 
                             sr_train[h] = sr_train_
                             sr_veri[h] = sr_veri_
@@ -786,19 +1032,28 @@ class Benchmark:
                                 y=sr_train_,
                                 label=h,
                                 marker="x",
-                                color=(*colors[i], 0.8),
+                                color=(*colors[i], 2 / 3),
                             )
                             plot2 = ax2.scatter(
                                 x=x2_,
                                 y=sr_veri_,
                                 label=h,
                                 facecolors="none",
-                                edgecolors=(*colors[i], 0.8),
+                                edgecolors=(*colors[i], 2 / 3),
                             )
 
-                        ax1.axvline(x=4, color="grey", linestyle="--", linewidth=1)
-                        ax1.legend(loc="center left")
-                        ax2.legend(loc="center right")
+                        # ax1.axvline(x=4, color="grey", linestyle="--", linewidth=1)
+
+                        ax1.legend(
+                            loc="upper left",
+                            bbox_to_anchor=(-0.22, 0.8),
+                            fancybox=True,
+                        )
+                        ax2.legend(
+                            loc="upper right",
+                            bbox_to_anchor=(1.22, 0.8),
+                            fancybox=True,
+                        )
 
                         ax1.set_xlabel("Epsilon")
                         ax1.set_ylabel("Stable ReLUs in Training")
@@ -806,17 +1061,64 @@ class Benchmark:
                         ax1.set_ylim(-0.05, 1.05)
                         ax2.set_ylim(-0.05, 1.05)
                         ax1.set_xticks(range(len(self.epsilons)))
-
                         ax1.set_xticklabels(self.epsilons)
+
                         plt.title(
                             title_prefix + " Stable ReLUs in Training/Verification"
                         )
                         plt.savefig(
-                            os.path.join(
-                                self.result_dir, f"SR_exhaustive_{title_prefix}.pdf"
-                            ),
+                            os.path.join(self.result_dir, f"SRe_{title_prefix}.pdf"),
                             format="pdf",
                             bbox_inches="tight",
                         )
                         fig.clear()
                         plt.close(fig)
+
+    def _analyze_table(self, df):
+        solved_ = {}
+        time_ = {}
+        par2_ = {}
+        for a in self.artifacts:
+            for v in self.verifiers:
+                for n in self.networks:
+                    for h in self.heuristics.keys():
+                        name = f"{a}:{v}:{n}:{h}"
+                        solved = 0
+                        time = 0
+                        par2 = 0
+                        for s in self.seeds:
+                            for e in self.epsilons:
+                                for p in self.props:
+                                    dft = df
+                                    dft = dft[dft["seed"] == s]
+                                    dft = dft[dft["artifact"] == a]
+                                    dft = dft[dft["network"] == n]
+                                    dft = dft[dft["verifier"] == v]
+                                    dft = dft[dft["heuristic"] == h]
+                                    dft = dft[dft["epsilon"] == e]
+                                    dft = dft[dft["property"] == p]
+
+                                    veri_ans = dft["veri ans"].to_numpy()
+                                    veri_time = dft["veri time"].to_numpy()
+
+                                    assert len(veri_ans) == 1 and len(veri_time) == 1
+                                    if veri_ans[0] in [1, 2]:
+                                        par2 += veri_time[0]
+                                        solved += 1
+                                    else:
+                                        par2 += 600 * 2
+                                    time += veri_time[0]
+                        solved_[name] = solved
+                        time_[name] = time
+                        par2_[name] = par2
+
+        print(self.verifiers)
+        for a in self.artifacts:
+            for i, x in enumerate([solved_, time_, par2_]):
+                print(a, i)
+                for h in self.heuristics:
+                    print(h, end=",")
+                    for v in self.verifiers:
+                        for n in self.networks:
+                            print(x[f"{a}:{v}:{n}:{h}"], end=",")
+                    print()

@@ -59,6 +59,8 @@ class Artifact:
     def gen_property(self, prop_id, epsilon, prop_dir):
         # select image from test_loader
         data, _ = next(iter(self.test_loader))
+        while len(data) < prop_id + 1:
+            data = torch.cat((data, next(iter(self.test_loader))[0]))
         img = data[prop_id]
 
         # save image to disk

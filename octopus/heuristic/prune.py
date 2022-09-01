@@ -49,7 +49,7 @@ class Prune(Heuristic):
 
                 if re_arch_on:
                     self.logger.info("Restructuring network ...")
-                    self._restructure(self.mask)
+                    self._restructure()
         return re_arch_on
 
     # initialize the mask
@@ -93,7 +93,7 @@ class Prune(Heuristic):
                 assert False
 
     # restructure architecture to remove empty neurons
-    def _restructure(self, mask):
+    def _restructure(self):
         # compute new weights/bias
         weight_, bias_ = self._filter_parameters()
         # self.logger.debug(f"Remaining # neurons: {sum([b.shape[0] for b in bias])}")

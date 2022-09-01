@@ -17,7 +17,13 @@ class SADEstimator(ReLUEstimator):
         test_loader = kwargs["test_loader"]
 
         data, _ = next(iter(test_loader))
-        data = data[: self.samples].to(self.model.device)
+
+        # TODO: fix this samples issue afterwards
+        # while len(data) < self.samples:
+        #    data = torch.cat((data, next(iter(test_loader))[0]))
+
+        data = data[: self.samples]
+        data = data.to(self.model.device)
         adv = (
             torch.FloatTensor(data.shape)
             .uniform_(-self.epsilon, +self.epsilon)

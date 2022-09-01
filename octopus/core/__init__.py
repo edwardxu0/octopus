@@ -9,6 +9,10 @@ def workout(settings):
     if settings.task == "T":
         settings.logger.info("Training ...")
         problem.train()
+        
+    elif settings.task == "Test":
+        settings.logger.info("Testing ...")
+        problem.test()
 
     elif settings.task == "V":
         settings.logger.info("Verifying ...")

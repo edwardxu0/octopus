@@ -8,13 +8,14 @@ from . import BasicNet
 class ReLUNet(BasicNet):
     def __init__(self, artifact, layers, logger, device, amp):
         super(ReLUNet, self).__init__(logger, device, amp)
+        self.__name__ = "ReLUNet"
         self.artifact = artifact
         self.set_layers(layers)
 
     def set_layers(self, layers, weights=None, bias=None):
         if weights:
             assert len(weights) == len(bias)
-            assert len(layers)+1 == len(weights)
+            assert len(layers) + 1 == len(weights)
 
         self.nb_ReLUs = 0
         layers = (

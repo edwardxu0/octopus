@@ -22,7 +22,7 @@ def _parse_args():
     parser.add_argument(
         "task",
         type=str,
-        choices=["T", "V", "A"],
+        choices=["T", "Test", "V", "A"],
         help="Tasks to perform on the benchmark, including [T]rain, [V]erify, and [A]nalyze.",
     )
     parser.add_argument(
@@ -67,6 +67,9 @@ def main():
 
     if args.task == "T":
         study.train()
+
+    elif args.task == "Test":
+        study.test()
 
     elif args.task == "V":
         study.verify()

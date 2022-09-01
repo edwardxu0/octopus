@@ -5,6 +5,7 @@ import subprocess
 import sys
 import logging
 import gc
+import re
 
 
 import torch.nn.functional as F
@@ -17,6 +18,7 @@ from ..stability_estimator import get_stability_estimators
 
 from ..plot.train_progress import ProgressPlot
 from ..architecture.ReLUNet import ReLUNet
+from ..architecture.LeNet import LeNet
 
 
 RES_MONITOR_PRETIME = 200
@@ -50,6 +52,8 @@ class Problem:
 
         cfg = self.cfg_train
         use_gpu = False if "gpu" not in cfg else cfg["gpu"]
+        if use_gpu and settings.task == "T":
+            assert torch.cuda.is_available()
         use_cuda = use_gpu and torch.cuda.is_available()
         amp = False if "amp" not in cfg else cfg["amp"]
         self.amp = use_cuda and amp
@@ -63,13 +67,27 @@ class Problem:
             use_cuda=self.device,
         )
         self.train_loader, self.test_loader = self.artifact.get_data_loader()
-        self.model = ReLUNet(
-            self.artifact,
-            self.cfg_train["net_layers"],
-            self.logger,
-            self.device,
-            self.amp,
-        ).to(self.device)
+
+        if self.cfg_train["net_name"] in ["NetS", "NetM", "NetL"]:
+            self.model = ReLUNet(
+                self.artifact,
+                self.cfg_train["net_layers"],
+                self.logger,
+                self.device,
+                self.amp,
+            ).to(self.device)
+        elif self.cfg_train["net_name"] == "LeNet":
+            self.model = LeNet(
+                self.artifact,
+                self.logger,
+                self.device,
+                self.amp,
+            ).to(self.device)
+        else:
+            raise NotImplementedError(
+                f"Unsupported architecture: {self.cfg_train['net_name']}"
+            )
+
         self.logger.info(f"Network:\n{self.model}")
         self.logger.info(f"# ReLUs: {self.model.nb_ReLUs}")
 
@@ -99,6 +117,7 @@ class Problem:
 
     def _trained(self):
         # TODO: account for log file and # epochs
+        # print(self.train_log_path)
         if not os.path.exists(self.train_log_path):
             trained = False  # os.path.exists(self.model_path)
         else:
@@ -342,6 +361,15 @@ class Problem:
         self.logger.info(f"[Test] Stable ReLUs: {se_str}\n")
         # print(f"{torch.cuda.memory_allocated() / 1024 / 1024 / 1024:.2f} Gb")
 
+    def test(self):
+        assert self._trained()
+        self._setup_train()
+        self.logger.info(f"Loading model from {self.model_path[:-5]}.pt")
+        self.model.load_state_dict(
+            torch.load(f"{self.model_path[:-5]}.pt", map_location=self.device)
+        )
+        self._test_epoch(0)
+
     def _plot_train(self):
         # draw training progress plot
         X1 = range(len(list(self.train_stable_ReLUs.values())[0]))
@@ -537,10 +565,14 @@ class Problem:
             return str(hash("".join(identifiers_)) + sys.maxsize + 1)
 
         def get_name(cfg_train, cfg_heuristic, seed):
-            print("Deprecated.")
             name = f"A={cfg_train['artifact']}"
             name += f"_N={cfg_train['net_name']}"
-            # name += f"_RE={cfg_train['ReLU_est']}"
+            epsilon = ""
+            for x in cfg_train["stable_estimator"]:
+                if x in ["SAD", "NIP", "SIP"]:
+                    epsilon = f":_eps={cfg_train['stable_estimator'][x]['epsilon']}"
+                    break
+            name += epsilon
 
             def parse_start_end(x):
                 return (
@@ -560,12 +592,12 @@ class Problem:
                             m = "D"
                         else:
                             raise NotImplementedError
-                        i = f":{x['intensity']}" if "intensity" in x else ""
-                        o = f":{x['occurrence']}" if "occurrence" in x else ""
-                        e = f":{x['every']}" if "every" in x else ""
-                        d = f":{x['decay']}" if "decay" in x else ""
+                        i = f":i{x['intensity']}" if "intensity" in x else ""
+                        o = f":o{x['occurrence']}" if "occurrence" in x else ""
+                        p = f":p{x['pace']}" if "pace" in x else ""
+                        d = f":d{x['decay']}" if "decay" in x else ""
 
-                        name += f"_BS={m}{i}{o}{e}{d}:{parse_start_end(x)}"
+                        name += f"_BS={m}{i}{o}{p}{d}:{parse_start_end(x)}"
 
                     elif h == "rs_loss":
                         if x["mode"] == "standard":
@@ -595,7 +627,12 @@ class Problem:
                         assert False
                     # only works with 1 ReLU estimator
                     # TODO: fix me, don't use descriptive naming, use HASH instead.
-                    se = x["stable_estimator"]["ReLU_estimator"]["mode"]
+                    se = f'{list(x["stable_estimator"].keys())[0]}'
+                    se += (
+                        f':({x["stable_estimator"]["epsilon"]})'
+                        if "epsilon" in x["stable_estimator"]
+                        else ""
+                    )
                 name += f":{se}"
             name += f"_seed={seed}"
             return name
@@ -624,11 +661,28 @@ class Problem:
             lines = [
                 x.strip()
                 for x in open(train_log_path, "r").readlines()
-                if "[Test] Stable ReLUs:" in x
+                if "[Test]" in x
             ]
+            test_lines = [x for x in lines if "[Test] epoch" in x]
+            relu_lines = [x for x in lines if "[Test] Stable ReLUs" in x]
+            assert len(test_lines) == len(relu_lines)
+            test_accs = np.array(
+                [float(x.strip().split()[-3][:-1]) for x in test_lines]
+            )
+
             if not target_model or target_model == "last":
-                target_epoch = len(lines)
+                target_epoch = len(test_lines)
+            elif re.search("^best test accuracy of last .* epochs", target_model):
+                x = int(target_model.split()[-2])
+                max_idx = np.where(test_accs == np.max(test_accs[-x:]))
+                #assert len(max_idx[0]) == 1
+                target_epoch = max_idx[0][0] + 1
+
+            elif re.search("^is .*", target_model):
+                target_epoch = int(target_model.split()[-1])
+
             elif target_model.startswith("best") or target_model.startswith("top"):
+                assert False, "Need to fix. Which estimator to use?"
                 acc_test = np.array([float(x.strip().split()[-3][:-1]) for x in lines])
                 acc_relu = np.array(
                     [float(x.strip().split()[-1][:-1]) / 100 for x in lines]
@@ -687,7 +741,7 @@ class Problem:
                         assert False
             else:
                 assert False, f"Unknown target_model: {target_model}"
-            # print(target_epoch)
+
             return target_epoch
 
         @staticmethod
@@ -700,7 +754,11 @@ class Problem:
             veri_time = None
             for l in lines:
                 if "  result: " in l:
-                    if "Error" in l:
+                    if "result: NeurifyError(Return code: -11)" in l:
+                        veri_ans = "error"
+                    elif "Invalid counter example" in l:
+                        veri_ans = "error"
+                    elif "Error(Return code: 1)" in l:
                         veri_ans = "error"
                     else:
                         veri_ans = l.strip().split()[-1]
@@ -717,11 +775,14 @@ class Problem:
                 elif "Out of Memory" in l:
                     veri_ans = "memout"
                     veri_time = None  # float(l.strip().split()[-3])
-                    break 
+                    break
 
-            assert veri_ans
-            assert veri_time
-            if timeout:
+                elif "CANCELLED" in l:
+                    break
+
+            # assert veri_ans
+            # assert veri_time
+            if timeout and veri_time:
                 if veri_time > timeout:
                     veri_ans = "timeout"
                     veri_time = timeout

@@ -5,9 +5,9 @@ name = 'test'
 	net_name = 'NetM'
 	net_layers = [1024, 1024, 1024]		# hidden layers
 
-	epochs = 10
-	batch_size = 64
-	test_batch_size = 64
+	epochs = 1000
+	batch_size = 32
+	test_batch_size = 32
 	lr = 1e-4							# learning rate
 	gamma = 0.95 							# Learning rate decay
 	save_model = true
@@ -46,7 +46,7 @@ name = 'test'
 
 		# interval scheduling
 		intensity = 2e-2
-		pace = 50
+		pace = 1600
 		decay = 0.99
 
 		start = 1 			# inclusive

@@ -10,7 +10,7 @@ def parse_args():
     parser.add_argument(
         "task",
         type=str,
-        choices=["T", "V", "A", "AA"],
+        choices=["T", "Test", "V", "A", "AA"],
         help="Select tasks to perform, including [T]rain, [V]erify, [A]nalyze, [AA]ll 'bove.",
     )
     parser.add_argument("--seed", type=int, default=0, help="Random seed.")
