@@ -10,22 +10,20 @@ class Prune(Heuristic):
         self.__name__ = "Prune"
         self.model = model
         self.mode = cfg["mode"]
-        # self.pace = cfg["pace"]
+        self.pace = cfg["pace"]
         self.sparsity = cfg["sparsity"]
         self.re_arch = None if "re_arch" not in cfg else cfg["re_arch"]
 
         self._init_mask()
 
-    # pruning code ...
     def run(self, **kwargs):
         re_arch_on = False
-        # if kwargs["batch"] != 0 and kwargs["batch"] % self.pace == 0:
-        if kwargs["batch_idx"] + 1 == kwargs["total_batches"]:
+        if (kwargs["batch_idx"] + 1) % self.pace == 0:
             # if True:
             self.logger.info("Prune starts here ...")
             # prune weights
 
-            if self.mode == "structure":
+            if self.mode in ["dropnet", "stablenet"]:
                 self.logger.info("Using iterative structure pruning ...")
                 self._update_mask(self.sparsity, **kwargs)
                 self._apply_mask()
@@ -63,24 +61,44 @@ class Prune(Heuristic):
 
     def _update_mask(self, pr_ratio, **kwargs):
         self.stable_estimator.propagate(**kwargs)
-        lb_, ub_ = self.stable_estimator.get_bounds()
 
-        mean = []
-        for lb, ub in zip(lb_, ub_):
-            assert len(lb.shape) == 2
-            m = torch.mean((abs(lb) + abs(ub)) / 2, axis=0)
-            mean += [m]
+        if self.mode == "dropnet":
+            lb_, ub_ = self.stable_estimator.get_bounds()
+            mean = []
+            for lb, ub in zip(lb_, ub_):
+                assert len(lb.shape) == 2
+                m = torch.mean((abs(lb) + abs(ub)) / 2, axis=0)
+                mean += [m]
 
-        weight_sorted = torch.sort(torch.cat(mean).reshape(-1))[0]
-        weight_sorted_nonzero = weight_sorted[weight_sorted.nonzero().squeeze()]
+            weight_sorted = torch.sort(torch.cat(mean).reshape(-1))[0]
+            weight_sorted_nonzero = weight_sorted[weight_sorted.nonzero().squeeze()]
 
-        nb_neurons = sum([sum(x) for x in self.mask])
-        threshold = weight_sorted_nonzero[int(pr_ratio * nb_neurons)]
+            nb_neurons = sum([sum(x) for x in self.mask])
+            threshold = weight_sorted_nonzero[int(pr_ratio * nb_neurons)]
+
+        elif self.mode == "stablenet":
+            lb_, ub_ = self.stable_estimator.get_bounds()
+            mean = []
+            for lb, ub in zip(lb_, ub_):
+                assert len(lb.shape) == 2
+                m = torch.mean(ub, axis=0)
+                mean += [m]
+
+            values = torch.sort(torch.cat(mean).reshape(-1))[0]
+
+            nb_neurons = len(values)
+            nb_unstable = len(values[values > 0])
+            nb_stable = nb_neurons - nb_unstable
+
+            threshold = values[nb_stable - 1 + int(pr_ratio * nb_unstable)]
+
+        else:
+            assert False
 
         for i, m in enumerate(mean):
             self.mask[i][m < threshold] = 0
-            if torch.where(self.mask[i] == 1)[0].nelement() == 0:
-                raise ValueError("Pruning an entire layer is bad idea.")
+            # if torch.where(self.mask[i] == 1)[0].nelement() == 0:
+            #    raise ValueError("Pruning an entire layer is bad idea.")
 
     def _apply_mask(self):
         for i, (_, layer) in enumerate(self.model.filtered_named_modules):

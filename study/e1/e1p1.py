@@ -1,9 +1,9 @@
 import numpy as np
 
-sleep_time = 3
+sleep_time = 0
 
 train_nodes = None
-train_nodes_ex = "ai01,ai07,ai08,lynx08,lynx09,lynx10,sds01,sds02,lotus,titanx01,titanx02,titanx03,lynx11,lynx12,adriatic01,adriatic02,adriatic03,adriatic04,adriatic05,adriatic06,affogato12"
+train_nodes_ex = "ai01,ai07,ai08,lynx08,lynx09,lynx10,sds01,sds02,lotus,titanx01,titanx02,titanx03,titanx04,titanx05,titanx06,lynx11,lynx12,affogato12,adriatic01,adriatic02,adriatic03,adriatic04,adriatic05,adriatic06,ristretto01,ristretto03,cheetah01"
 
 veri_nodes = [
     "doppio" + x for x in ["01", "02", "03", "04", "05"]
@@ -103,10 +103,9 @@ heuristics = {
     # Pruning
     "PR_SDD": {
         "prune": {
-            "mode": "structure",
-            "re_arch": "last",
-            "save_re_arch": "every",
-            "sparsity": 0.05,
+            "mode": "stablenet",
+            "pace": 200,
+            "sparsity": 5e-2,
             "start": 1,
             "end": 20,
             "stable_estimator": {"SDD": {}},
@@ -114,9 +113,9 @@ heuristics = {
     },
     "PR_SAD": {
         "prune": {
-            "mode": "structure",
-            "re_arch": "last",
-            "sparsity": 0.05,
+            "mode": "stablenet",
+            "pace": 200,
+            "sparsity": 5e-2,
             "start": 1,
             "end": 20,
             "stable_estimator": {
@@ -126,9 +125,9 @@ heuristics = {
     },
     "PR_NIP": {
         "prune": {
-            "mode": "structure",
-            "re_arch": "last",
-            "sparsity": 0.05,
+            "mode": "stablenet",
+            "pace": 200,
+            "sparsity": 5e-2,
             "start": 1,
             "end": 20,
             "stable_estimator": {"NIP": {"mode": "standard", "epsilon": 0.1}},
@@ -136,9 +135,9 @@ heuristics = {
     },
     "PR_SIP": {
         "prune": {
-            "mode": "structure",
-            "re_arch": "last",
-            "sparsity": 0.05,
+            "mode": "stablenet",
+            "pace": 200,
+            "sparsity": 5e-2,
             "start": 1,
             "end": 20,
             "stable_estimator": {"SIP": {"mode": "standard", "epsilon": 0.1}},

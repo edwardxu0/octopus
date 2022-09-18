@@ -1,0 +1,103 @@
+name = 'test'
+
+[train]
+	artifact = 'MNIST'
+	net_name = 'NetM'
+	#net_layers = [1024, 1024, 1024]		# hidden layers
+	net_layers = [1024,1024,1024]
+
+	epochs = 10
+	batch_size = 64
+	test_batch_size = 64
+	lr = 1e-4							# learning rate
+	gamma = 0.95 							# Learning rate decay
+	save_model = true
+	save_intermediate = true
+	save_log = true
+	log_interval = 100					# Stable ReLU estimation/print interval
+	gpu = true
+	amp = false							# enabled only when gpu == true
+
+	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
+
+
+	# SDD: sampled dataset distribution
+	# SAD: sampled adversarial distribution
+	# NIP: interval propagation
+	[train.stable_estimator]
+		[train.stable_estimator.SDD]
+		
+		[train.stable_estimator.SAD]
+			epsilon = 0.04
+			samples = 100
+
+		[train.stable_estimator.NIP]
+			epsilon = 0.04
+			
+		[train.stable_estimator.SIP]
+			epsilon = 0.04
+
+[heuristic]
+	#[heuristic.bias_shaping]
+	#	mode = 'standard'
+		
+	#	# random scheduling
+	#	# intensity =  5e-2
+    #    # occurrence = 5e-3
+
+	#	# interval scheduling
+	#	intensity = 2e-2
+	#	pace = 50
+	#	decay = 0.99
+		
+	#	start = 1 			# inclusive
+	#	end = 10 			# inclusive
+	#	[heuristic.bias_shaping.stable_estimator]
+	#		[heuristic.bias_shaping.stable_estimator.SIP]
+	#			epsilon = 0.1
+	
+	#[heuristic.rs_loss]
+	#	mode = 'standard'
+	#	weight = 1e-4
+	#	epsilon = 0.1
+	#	start = 1
+	#	end = 20
+	#	[heuristic.rs_loss.stable_estimator]
+	#		[heuristic.rs_loss.stable_estimator.SAD]
+	#			epsilon = 0.1
+	#			samples = 100
+
+	[heuristic.prune]
+		#mode = 'dropnet'
+		mode = 'stablenet'
+		#re_arch = 'last'
+		#pace = 938
+		pace = 50
+		sparsity = 5e-2
+		start = 1
+		end = 10
+			[heuristic.prune.stable_estimator]
+			[heuristic.prune.stable_estimator.SAD]
+				epsilon = 0.04
+				samples = 100
+
+
+
+[verify]
+	time = 600
+	memory = '8G'
+	property = 0
+	epsilon = 0.001
+	debug = true
+	save_log = true
+	verifier = 'DNNVWB:neurify'
+	
+	# model selection strategy for verification
+	# last(default): last epoch model
+	#
+	# For all below: must save intermediate models(save_intermediate = true)
+	# best test accuracy: model with the best test accuracy
+	# best relu accuracy: model with the most amount of stable relus
+	# top [x] test accuaracy: model with the most amount of stable relus with [x]% accuarcy difference of the model with the best tests accuracy
+	# top [x] relu accuaracy: model with the best test accuracy with [x]% stable relu difference of the model with the most amount of stable relus
+	target_model = 'last'

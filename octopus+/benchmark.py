@@ -29,6 +29,10 @@ class Benchmark:
         self.logger = kwargs["logger"]
         self.base_settings = toml.load(open(base_settings, "r"))
         self.result_dir = os.path.join(kwargs["result_dir"], self.base_settings["name"])
+        self.cached_res_path = os.path.join(
+            kwargs["result_dir"],
+            benchmark_settings.split(".")[0].split("/")[-1] + ".feather",
+        )
 
         self._setup_(benchmark_settings)
         self._define_problems()
@@ -387,21 +391,21 @@ class Benchmark:
     def analyze(self):
         self.logger.info("Analyzing ...")
         # self._train_progress_plot()
-        df_cache_path = os.path.join(self.result_dir, "result.feather")
-        if os.path.exists(df_cache_path) and not self.override:
+        # df_cache_path = os.path.join(self.result_dir, "result.feather")
+        if os.path.exists(self.cached_res_path) and not self.override:
             self.logger.info("Using cached results.")
-            df = pd.read_feather(df_cache_path)
+            df = pd.read_feather(self.cached_res_path)
         else:
             self.logger.info("Parsing log files ...")
             df = self._parse_logs()
             if self.go:
-                df.to_feather(df_cache_path)
+                df.to_feather(self.cached_res_path)
                 self.logger.info("Result cached.")
 
         self.logger.debug(f"Data frame: \n{df}")
 
         if self.go:
-            self._train_progress_plot()
+            # self._train_progress_plot()
             # self._analyze_training(df)
             # self._analyze_verification(df)
             # self._analyze_verification_sus(df)
@@ -492,23 +496,29 @@ class Benchmark:
                 "V", a=a, n=n, h=h, s=s, e=e, p=p, v=v
             )
             self.logger.debug(f"Veri log path: {veri_log_path}")
-            answer, verification_time = Problem.Utility.analyze_veri_log(
-                veri_log_path, timeout=600
-            )
+            if os.path.exists(veri_log_path):
+                answer, verification_time = Problem.Utility.analyze_veri_log(
+                    veri_log_path, timeout=600
+                )
+            else:
+                self.logger.warn(f"Missing veri log: {veri_log_path} ... ")
+                self.logger.warn(f"of training model: {train_log_path} ... ")
+                answer = "error"
+                verification_time = 600
 
             if answer is None or verification_time is None:
                 print("rm", veri_log_path)
 
                 ### TEMP solution
                 # TODO REMOVE
-                answer = 5
+                answer = "error"
                 verification_time = 600
 
             # compute unstable ReLUs for DNNVWB
             # supported verifiers:
             # DNNVWB:neurify
 
-            if v in ["DNNVWB:neurify"]:
+            if os.path.exists(veri_log_path) and v in ["DNNVWB:neurify"]:
                 lines = open(veri_log_path, "r").readlines()
                 wb_lines = [x for x in lines if "WB" in x]
                 unstable_relu_lines = [x for x in wb_lines if "unstable" in x]

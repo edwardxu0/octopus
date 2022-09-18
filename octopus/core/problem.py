@@ -95,6 +95,7 @@ class Problem:
     def _setup_train(self):
         if "save_log" in self.cfg_train and self.cfg_train["save_log"]:
             self.logger.debug(f"Saving training log to: {self.train_log_path}")
+
             file_handler = logging.FileHandler(self.train_log_path, "w")
             self.logger.addHandler(file_handler)
 
@@ -216,7 +217,8 @@ class Problem:
                     loss += rs_loss * self.cfg_heuristic["rs_loss"]["weight"]
 
                 if loss.isnan():
-                    raise ValueError("Loss is NaN.")
+                    # raise ValueError("Loss is NaN.")
+                    self.logger.warn("LOSS is Nan.")
 
                 if self.amp:
                     self.amp_scaler.scale(loss).backward()
@@ -237,7 +239,6 @@ class Problem:
                     self.cfg_heuristic["bias_shaping"]["end"],
                 )
             ):
-
                 # print('before', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
                 if self.model.run_heuristics(
                     "bias_shaping",
@@ -275,7 +276,6 @@ class Problem:
                     self.stable_estimators["SIP"].init_inet()
 
             if batch_idx % self.cfg_train["log_interval"] == 0:
-                # TODO: supports more than one estimators
                 se_str = ""
                 for se in self.stable_estimators:
                     self.stable_estimators[se].propagate(
@@ -675,7 +675,7 @@ class Problem:
             elif re.search("^best test accuracy of last .* epochs", target_model):
                 x = int(target_model.split()[-2])
                 max_idx = np.where(test_accs == np.max(test_accs[-x:]))
-                #assert len(max_idx[0]) == 1
+                # assert len(max_idx[0]) == 1
                 target_epoch = max_idx[0][0] + 1
 
             elif re.search("^is .*", target_model):

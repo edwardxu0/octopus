@@ -18,7 +18,7 @@ artifacts = ["CIFAR10"]  # ["MNIST", "FashionMNIST", "CIFAR10"]
 
 networks = {"NetL": [512] * 6}
 
-seeds = [*range(3)]
+seeds = [*range(1)]
 
 heuristics = {
     # BS/RS

@@ -39,24 +39,24 @@ name = 'test'
 	#		epsilon = 0.04
 
 [heuristic]
-	#[heuristic.bias_shaping]
-	#	mode = 'standard'
+	[heuristic.bias_shaping]
+		mode = 'standard'
 		
 		# random scheduling
 		# intensity =  5e-2
         # occurrence = 5e-3
 
 		# interval scheduling
-	#	intensity = 2e-2
-	#	pace = 50
-	#	decay = 0.99
+		intensity = 2e-2
+		pace = 50
+		decay = 0.99
 		
-	#	start = 1 			# inclusive
-	#	end = 10 			# inclusive
-	#	[heuristic.bias_shaping.stable_estimator]
-	#		[heuristic.bias_shaping.stable_estimator.SDD]
-	#			epsilon = 0.04
-	#			samples = 10
+		start = 1 			# inclusive
+		end = 10 			# inclusive
+		[heuristic.bias_shaping.stable_estimator]
+			[heuristic.bias_shaping.stable_estimator.SDD]
+				epsilon = 0.04
+				samples = 10
 
 	#[heuristic.rs_loss]
 	#	mode = 'standard'
