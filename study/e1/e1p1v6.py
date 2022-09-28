@@ -1,7 +1,7 @@
 from study import *
 
-artifacts = ["FashionMNIST"]  # ["MNIST", "FashionMNIST", "CIFAR10"]
-networks = {"NetM": [1024] * 3}
+artifacts = ["MNIST"]  # ["MNIST", "FashionMNIST", "CIFAR10"]
+networks = {"NetS": [128] * 3}
 
 heuristics = {
     "Baseline": None,
@@ -9,7 +9,7 @@ heuristics = {
     "BS_SDD": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 5e-3,
             "pace": 200,
             "start": 1,
             "end": 20,
@@ -19,7 +19,7 @@ heuristics = {
     "BS_SAD": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 5e-3,
             "pace": 200,
             "start": 1,
             "end": 20,
@@ -31,7 +31,7 @@ heuristics = {
     "BS_NIP": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 5e-3,
             "pace": 200,
             "start": 1,
             "end": 20,
@@ -41,7 +41,7 @@ heuristics = {
     "BS_SIP": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 5e-3,
             "pace": 200,
             "start": 1,
             "end": 20,

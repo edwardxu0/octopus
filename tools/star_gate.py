@@ -21,7 +21,8 @@ def _parse_args():
 
 
 def main(args):
-    heuristics = Settings.heuristics[args.study.replace("_", "")]
+    # heuristics = Settings.heuristics[args.study.replace("_", "")]
+    heuristics = Settings.heuristics[args.study[:2]]
 
     combine(args)
     df = pd.read_feather(os.path.join(args.root, f"{args.study}.feather"))
@@ -40,8 +41,21 @@ def combine(args):
     study = args.study
     if study == "e1":
         studies = [f"e1p{x}" for x in [1, 2, 3]]
-        # studies = [f"e1p{x}" for x in [1, 2]]
-        studies = [f"e1p1v3", "e1p2v3"]
+
+    elif study == "e1v1":
+        studies = ["e1p1v1", "e1p2v1", "e1p3v1"]
+        # studies = ["e1p1v1", "e1p2v1"]
+
+    elif study == "e1v2":
+        studies = ["e1p1v2", "e1p2v2", "e1p3v2"]
+        # studies = ["e1p1v2", "e1p2v2"]
+        
+    elif study == "e1v3":
+        studies = ["e1p1v3", "e1p2v3", "e1p3v3"]
+
+    elif study == "e1v4":
+        studies = ["e1p1v4", "e1p2v4", "e1p3v4"]
+
     elif study == "e1_":
         studies = [f"e1p{x}" for x in [1, 2, "3_"]]
     elif study in ["e2", "e2_"]:
@@ -75,11 +89,13 @@ def stable_relu_table(df, heuristics, ta_threshold):
     res_ = {}
     for i, h in enumerate(heuristics):
         res = []
+
         for a in artifacts:
             dft = df[df["verifier"] == "DNNVWB:neurify"]
             dft = dft[dft["artifact"] == a]
             dft = dft[dft["heuristic"] == h]
             ta = dft["test accuracy"]
+            print(h, a, set(ta.to_numpy()))
             ta = np.mean(ta) * 100
 
             srn = dft["relu accuracy veri"]
@@ -105,6 +121,7 @@ def stable_relu_table(df, heuristics, ta_threshold):
     print()
 
 
+# with training stability estimation on
 def stable_relu_table_detailed(df, heuristics):
     artifacts = [*reversed(sorted(set(df["artifact"])))]
 
@@ -160,7 +177,7 @@ def verification_table(df, heuristics):  # , excludes):
                     dft = dft[dft["artifact"] == a]
                     df_baseline = dft[dft["heuristic"] == "Baseline"]
                     ta_baseline = np.mean(df_baseline["test accuracy"].values)
-                    print(f"{ta_baseline:.4f}")
+                    # print(f"{ta_baseline:.4f}")
                     dft = dft[dft["heuristic"] == h]
 
                     # relative test accuracy
@@ -172,7 +189,7 @@ def verification_table(df, heuristics):  # , excludes):
                     # best_ta = sorted(set(dft["test accuracy"].values))[-1]
                     # dft = dft[dft["test accuracy"] == best_ta]
 
-                    print(len(dft))
+                    # print(len(dft))
 
                     veri_ans = dft["veri ans"].values
                     veri_time = dft["veri time"].values

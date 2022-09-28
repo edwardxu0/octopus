@@ -9,7 +9,7 @@ heuristics = {
     "BS_SDD": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 5e-3,
             "pace": 200,
             "start": 1,
             "end": 20,
@@ -19,7 +19,7 @@ heuristics = {
     "BS_SAD": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 5e-3,
             "pace": 200,
             "start": 1,
             "end": 20,
@@ -31,7 +31,7 @@ heuristics = {
     "BS_NIP": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 5e-3,
             "pace": 200,
             "start": 1,
             "end": 20,
@@ -41,7 +41,7 @@ heuristics = {
     "BS_SIP": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 5e-3,
             "pace": 200,
             "start": 1,
             "end": 20,

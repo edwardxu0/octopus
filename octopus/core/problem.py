@@ -105,15 +105,19 @@ class Problem:
         self.test_accuracy = []
 
         # configure heuristics
-        self.stable_estimators = get_stability_estimators(
-            self.cfg_train["stable_estimator"], self.model
-        )
+        if "stable_estimator" in self.cfg_train:
+            self.stable_estimators = get_stability_estimators(
+                self.cfg_train["stable_estimator"], self.model
+            )
+            self.train_stable_ReLUs = {x: [] for x in self.stable_estimators}
+            self.logger.info(
+                f"Train stability estimators: {list(self.stable_estimators.keys())}"
+            )
+        else:
+            self.stable_estimators = None
+            self.train_stable_ReLUs = None
+            self.logger.info("No activated train stability estimators.")
 
-        self.train_stable_ReLUs = {x: [] for x in self.stable_estimators}
-
-        self.logger.info(
-            f"Train stability estimators: {list(self.stable_estimators.keys())}"
-        )
         self.model._setup_heuristics(self.cfg_heuristic)
 
     def _trained(self):
@@ -180,7 +184,7 @@ class Problem:
 
                 self.LR_decay_scheduler.step()
 
-                self._plot_train()
+                # self._plot_train()
 
     def _train_epoch(self, epoch):
         self.model.train()
@@ -276,42 +280,49 @@ class Problem:
                     self.stable_estimators["SIP"].init_inet()
 
             if batch_idx % self.cfg_train["log_interval"] == 0:
-                se_str = ""
-                for se in self.stable_estimators:
-                    self.stable_estimators[se].propagate(
-                        data=data, test_loader=self.test_loader
-                    )
-                    stable_le_0, stable_ge_0 = self.stable_estimators[
-                        se
-                    ].get_stable_ReLUs()
 
-                    stable_le_0 = sum(
-                        [
-                            torch.mean(x.type(torch.float32), axis=-1)
-                            for x in stable_le_0
-                        ]
-                    )
-                    stable_ge_0 = sum(
-                        [
-                            torch.mean(x.type(torch.float32), axis=-1)
-                            for x in stable_ge_0
-                        ]
-                    )
-                    batch_stable_ReLU = stable_le_0 + stable_ge_0
-
-                    relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
-                    se_str += f"{se}: {relu_accuracy*100:.2f}% "
-
-                    self.train_stable_ReLUs[se] += [relu_accuracy.cpu()]
-
+                # log test accuracy
                 self.logger.info(
                     f"[Train] epoch: {epoch:3} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f}"
                 )
+                # log stable ReLUs
+                if self.stable_estimators is not None:
+                    se_str = ""
+                    for se in self.stable_estimators:
+                        self.stable_estimators[se].propagate(
+                            data=data, test_loader=self.test_loader
+                        )
+                        stable_le_0, stable_ge_0 = self.stable_estimators[
+                            se
+                        ].get_stable_ReLUs()
+
+                        stable_le_0 = sum(
+                            [
+                                torch.mean(x.type(torch.float32), axis=-1)
+                                for x in stable_le_0
+                            ]
+                        )
+                        stable_ge_0 = sum(
+                            [
+                                torch.mean(x.type(torch.float32), axis=-1)
+                                for x in stable_ge_0
+                            ]
+                        )
+                        batch_stable_ReLU = stable_le_0 + stable_ge_0
+
+                        relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
+                        se_str += f"{se}: {relu_accuracy*100:.2f}% "
+
+                        self.train_stable_ReLUs[se] += [relu_accuracy.cpu()]
+                else:
+                    se_str = "Disabled."
                 self.logger.info(f"[Train] Stable ReLUs: {se_str}")
                 # print(f"{torch.cuda.memory_allocated() / 1024 / 1024 / 1024:.2f} Gb")
             else:
-                for x in self.train_stable_ReLUs:
-                    self.train_stable_ReLUs[x] += [self.train_stable_ReLUs[x][-1]]
+                if self.train_stable_ReLUs is not None:
+                    for x in self.train_stable_ReLUs:
+                        self.train_stable_ReLUs[x] += [self.train_stable_ReLUs[x][-1]]
+
             self.train_loss += [loss.item()]
 
             gc.collect()
@@ -339,25 +350,28 @@ class Problem:
         test_accuracy = correct / len(self.test_loader.dataset)
         self.test_accuracy += [test_accuracy]
 
-        se_str = ""
-        for se in self.stable_estimators:
-            self.stable_estimators[se].propagate(
-                data=data, test_loader=self.test_loader
-            )
-            stable_le_0, stable_ge_0 = self.stable_estimators[se].get_stable_ReLUs()
-            stable_le_0 = sum(
-                [torch.mean(x.type(torch.float32), axis=-1) for x in stable_le_0]
-            )
-            stable_ge_0 = sum(
-                [torch.mean(x.type(torch.float32), axis=-1) for x in stable_ge_0]
-            )
-            batch_stable_ReLU = stable_le_0 + stable_ge_0
-            relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
-            se_str += f"{se}: {relu_accuracy*100:.2f}% "
-
         self.logger.info(
             f"[Test] epoch: {epoch:3} loss: {test_loss:10.6f}, accuracy: {test_accuracy*100:.2f}%"
         )
+
+        if self.stable_estimators is not None:
+            se_str = ""
+            for se in self.stable_estimators:
+                self.stable_estimators[se].propagate(
+                    data=data, test_loader=self.test_loader
+                )
+                stable_le_0, stable_ge_0 = self.stable_estimators[se].get_stable_ReLUs()
+                stable_le_0 = sum(
+                    [torch.mean(x.type(torch.float32), axis=-1) for x in stable_le_0]
+                )
+                stable_ge_0 = sum(
+                    [torch.mean(x.type(torch.float32), axis=-1) for x in stable_ge_0]
+                )
+                batch_stable_ReLU = stable_le_0 + stable_ge_0
+                relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
+                se_str += f"{se}: {relu_accuracy*100:.2f}% "
+        else:
+            se_str = "Disabled."
         self.logger.info(f"[Test] Stable ReLUs: {se_str}\n")
         # print(f"{torch.cuda.memory_allocated() / 1024 / 1024 / 1024:.2f} Gb")
 
@@ -372,13 +386,19 @@ class Problem:
 
     def _plot_train(self):
         # draw training progress plot
-        X1 = range(len(list(self.train_stable_ReLUs.values())[0]))
-        Y1 = self.train_stable_ReLUs
-        X2 = self.train_BS_points
-        # Y2 = np.array(list(Y1.values())[0])[self.train_BS_points]
-        Y2 = np.zeros(len(X1))[self.train_BS_points]
+        if self.train_stable_ReLUs is not None:
+            X1 = range(len(list(self.train_stable_ReLUs.values())[0]))
+            Y1 = self.train_stable_ReLUs
+        else:
+            X1 = []
+            Y1 = []
+
         X3 = (np.array(range(len(self.test_accuracy))) + 1) * len(self.train_loader)
         Y3 = self.test_accuracy
+
+        X2 = self.train_BS_points
+        Y2 = np.zeros(len(X3))[self.train_BS_points]
+
         X4 = range(len(self.train_loss))
         Y4 = self.train_loss
 

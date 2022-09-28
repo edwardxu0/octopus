@@ -1,20 +1,7 @@
-import numpy as np
-
-sleep_time = 0
-
-train_nodes = None
-train_nodes_ex = "ai01,ai07,ai08,lynx08,lynx09,lynx10,sds01,sds02,lotus,titanx01,titanx02,titanx03,titanx04,titanx05,titanx06,lynx11,lynx12,affogato12,adriatic01,adriatic02,adriatic03,adriatic04,adriatic05,adriatic06,ristretto01,ristretto03,cheetah01"
-
-veri_nodes = [
-    "doppio" + x for x in ["01", "02", "03", "04", "05"]
-]  # ,'06','07','08','09','10']]
-veri_nodes_ex = None
+from study import *
 
 artifacts = ["MNIST"]  # ["MNIST", "FashionMNIST", "CIFAR10"]
-
 networks = {"NetS": [128] * 3}
-
-seeds = [*range(3)]
 
 heuristics = {
     "Baseline": None,
@@ -23,7 +10,7 @@ heuristics = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 100,
+            "pace": 200,
             "start": 1,
             "end": 20,
             "stable_estimator": {"SDD": {}},
@@ -33,7 +20,7 @@ heuristics = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 100,
+            "pace": 200,
             "start": 1,
             "end": 20,
             "stable_estimator": {
@@ -45,7 +32,7 @@ heuristics = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 100,
+            "pace": 200,
             "start": 1,
             "end": 20,
             "stable_estimator": {"NIP": {"mode": "standard", "epsilon": 0.1}},
@@ -55,7 +42,7 @@ heuristics = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 100,
+            "pace": 200,
             "start": 1,
             "end": 20,
             "stable_estimator": {"SIP": {"mode": "standard", "epsilon": 0.1}},
@@ -105,7 +92,7 @@ heuristics = {
         "prune": {
             "mode": "stablenet",
             "pace": 200,
-            "sparsity": 25e-3,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 20,
             "stable_estimator": {"SDD": {}},
@@ -115,7 +102,7 @@ heuristics = {
         "prune": {
             "mode": "stablenet",
             "pace": 200,
-            "sparsity": 25e-3,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 20,
             "stable_estimator": {
@@ -127,7 +114,7 @@ heuristics = {
         "prune": {
             "mode": "stablenet",
             "pace": 200,
-            "sparsity": 25e-3,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 20,
             "stable_estimator": {"NIP": {"mode": "standard", "epsilon": 0.1}},
@@ -137,16 +124,10 @@ heuristics = {
         "prune": {
             "mode": "stablenet",
             "pace": 200,
-            "sparsity": 25e-3,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 20,
             "stable_estimator": {"SIP": {"mode": "standard", "epsilon": 0.1}},
         },
     },
 }
-
-props = [*range(5)]
-
-epsilons = np.linspace(2, 10, 5) / 100
-
-verifiers = ["DNNV:eran_deeppoly", "DNNV:nnenum", "DNNVWB:neurify", "DNNV:marabou"]

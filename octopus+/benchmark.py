@@ -56,10 +56,10 @@ class Benchmark:
             "epsilon",
             "verifier",
             "test accuracy",
-            "ra(sdd)",
-            "ra(sad)",
-            "ra(nip)",
-            "ra(sip)",
+            # "ra(sdd)",
+            # "ra(sad)",
+            # "ra(nip)",
+            # "ra(sip)",
             "veri ans",
             "veri time",
             "training time",
@@ -152,10 +152,10 @@ class Benchmark:
                         sts["heuristic"][x]["stable_estimator"][est]["epsilon"] = float(
                             e
                         )
-
-        for est in sts["train"]["stable_estimator"]:
-            if est in ["SAD", "NIP", "SIP"]:
-                sts["train"]["stable_estimator"][est]["epsilon"] = float(e)
+        if "stable_estimator" in sts["train"]:
+            for est in sts["train"]["stable_estimator"]:
+                if est in ["SAD", "NIP", "SIP"]:
+                    sts["train"]["stable_estimator"][est]["epsilon"] = float(e)
 
         name = Problem.Utility.get_hashed_name([sts["train"], sts["heuristic"], s])
 
@@ -258,12 +258,14 @@ class Benchmark:
                 ]
                 if self.base_settings["train"]["gpu"]:
                     lines += [f"#SBATCH --partition=gpu", "#SBATCH --gres=gpu:1"]
-                if self.train_nodes_ex:
+                if self.train_nodes_ex and "train_nodes" not in self.__dict__:
                     lines += [f"#SBATCH --exclude={self.train_nodes_ex}"]
 
                 lines += [
                     "cat /proc/sys/kernel/hostname",
                     "source .env.d/openenv.sh",
+                    # "source .env.d/openenv_cheetah01.sh",
+                    "which python3",
                     "echo $CUDA_VISIBLE_DEVICES",
                     cmd,
                 ]
@@ -278,7 +280,7 @@ class Benchmark:
 
                 param_node = (
                     f"-w {self.train_nodes[i%len(self.train_nodes)]}"
-                    if self.train_nodes
+                    if "train_nodes" in self.__dict__ and self.train_nodes
                     else ""
                 )
                 slurm_cmd = f"sbatch {param_node_nb} {param_node} {slurm_script_path}"
@@ -412,6 +414,7 @@ class Benchmark:
             # self._analyze_stable_ReLUs(df)
             # self._analyze_stable_ReLUs_two(df)
             self._analyze_time(df)
+            # self._tt(df)
             # self._analyze_table(df)
 
             #######################
@@ -451,23 +454,28 @@ class Benchmark:
                 float(x.strip().split()[-1][:-1]) / 100 for x in test_lines
             ][target_epoch - 1]
 
-            stable_ReLUs = {}
-            for l in relu_lines:
-                tokens = l[63:].split()
-                assert len(tokens) % 2 == 0
-                for i in range(int(len(tokens) / 2)):
-                    se = tokens[i * 2][:-1]
-                    acc = float(tokens[i * 2 + 1][:-1]) / 100
-                    if se not in stable_ReLUs:
-                        stable_ReLUs[se] = [acc]
-                    else:
-                        stable_ReLUs[se] += [acc]
+            # at least 1 stability estimator is enabled during training
+            if "Disabled" not in relu_lines[0]:
+                stable_ReLUs = {}
+                for l in relu_lines:
+                    tokens = l[63:].split()
+                    assert len(tokens) % 2 == 0
+                    for i in range(int(len(tokens) / 2)):
+                        se = tokens[i * 2][:-1]
+                        acc = float(tokens[i * 2 + 1][:-1]) / 100
+                        if se not in stable_ReLUs:
+                            stable_ReLUs[se] = [acc]
+                        else:
+                            stable_ReLUs[se] += [acc]
 
-            stable_estimator = sts["train"]["stable_estimator"]
-            relu_accuracy = [
-                stable_ReLUs[x][target_epoch - 1] for x in stable_estimator
-            ]
+                stable_estimator = sts["train"]["stable_estimator"]
+                relu_accuracy = [
+                    stable_ReLUs[x][target_epoch - 1] for x in stable_estimator
+                ]
 
+            # No stability estimator is enabled during training
+            else:
+                relu_accuracy = None
             # if h == "Baseline":
             #    stable_estimator = sts["train"]["stable_estimator"]
             #    relu_accuracy = [
@@ -534,8 +542,6 @@ class Benchmark:
             else:
                 relu_accuracy_veri = 0
 
-            assert len(relu_accuracy) == 4
-
             if self.go:
                 df.loc[len(df.index)] = [
                     a,
@@ -546,7 +552,7 @@ class Benchmark:
                     e,
                     v,
                     test_accuracy,
-                    *relu_accuracy,
+                    # *relu_accuracy,
                     self.code_veri_answer[answer],
                     verification_time,
                     training_time,
@@ -1132,3 +1138,11 @@ class Benchmark:
                         for n in self.networks:
                             print(x[f"{a}:{v}:{n}:{h}"], end=",")
                     print()
+
+    def _tt(self, df):
+        # print(df)
+        base = list(set(df[df["heuristic"] == "Baseline"]["training time"]))
+        for h in self.heuristics.keys():
+            dft = df
+            dft = dft[dft["heuristic"] == h]
+            print(h, f"{np.array(list(set(dft['training time']))) / base:.2f}", "&")
