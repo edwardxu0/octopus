@@ -1,15 +1,15 @@
 name = 'test'
 
 [train]
-	artifact = 'CIFAR10'
-	net_name = 'NetL'
-	net_layers = [512,512,512,512,512,512]
+	artifact = 'MNIST'
+	net_name = 'NetS'
+	net_layers = [128]
 
 	#net_name = 'LeNet'
 
-	epochs = 5
-	batch_size = 64
-	test_batch_size = 64
+	epochs = 20
+	batch_size = 128
+	test_batch_size = 128
 	lr = 1e-4							# learning rate
 	gamma = 0.95 							# Learning rate decay
 	save_model = true
@@ -57,16 +57,16 @@ name = 'test'
 	#		[heuristic.bias_shaping.stable_estimator.SIP]
 	#			epsilon = 0.04
 
-	[heuristic.rs_loss]
-		mode = 'standard'
-		weight = 1e-4
-		epsilon = 0.1
-		start = 1
-		end = 20
-		[heuristic.rs_loss.stable_estimator]
-			[heuristic.rs_loss.stable_estimator.SIP]
-				epsilon = 0.04
-				
+	#[heuristic.rs_loss]
+	#	mode = 'standard'
+	#	weight = 1e-4
+	#	epsilon = 0.1
+	#	start = 1
+	#	end = 20
+	#	[heuristic.rs_loss.stable_estimator]
+	#		[heuristic.rs_loss.stable_estimator.SIP]
+	#			epsilon = 0.04
+	#			
 
 	#[heuristic.prune]
 	#	mode = 'structure'
@@ -101,4 +101,5 @@ name = 'test'
 	# best relu accuracy: model with the most amount of stable relus
 	# top [x] test accuaracy: model with the most amount of stable relus with [x]% accuarcy difference of the model with the best tests accuracy
 	# top [x] relu accuaracy: model with the best test accuracy with [x]% stable relu difference of the model with the most amount of stable relus
-	target_model = 'last'
+	# target_model = 'last'
+	target_model = 'best test accuracy of last 5 epochs'

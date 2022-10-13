@@ -687,7 +687,7 @@ class Problem:
             relu_lines = [x for x in lines if "[Test] Stable ReLUs" in x]
             assert len(test_lines) == len(relu_lines)
             test_accs = np.array(
-                [float(x.strip().split()[-3][:-1]) for x in test_lines]
+                [float(x.strip().split()[-1][:-1]) for x in test_lines]
             )
 
             if not target_model or target_model == "last":
@@ -695,7 +695,6 @@ class Problem:
             elif re.search("^best test accuracy of last .* epochs", target_model):
                 x = int(target_model.split()[-2])
                 max_idx = np.where(test_accs == np.max(test_accs[-x:]))
-                # assert len(max_idx[0]) == 1
                 target_epoch = max_idx[0][0] + 1
 
             elif re.search("^is .*", target_model):
@@ -703,7 +702,7 @@ class Problem:
 
             elif target_model.startswith("best") or target_model.startswith("top"):
                 assert False, "Need to fix. Which estimator to use?"
-                acc_test = np.array([float(x.strip().split()[-3][:-1]) for x in lines])
+                acc_test = np.array([float(x.strip().split()[-1][:-1]) for x in lines])
                 acc_relu = np.array(
                     [float(x.strip().split()[-1][:-1]) / 100 for x in lines]
                 )

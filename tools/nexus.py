@@ -1,6 +1,5 @@
 class Settings:
     timeout = 600
-    ta_threshold = 5
     verifiers = ["DNNV:eran_deeppoly", "DNNV:nnenum", "DNNVWB:neurify", "DNNV:marabou"]
     fig_dir = "figs"
 
@@ -18,22 +17,22 @@ class Settings:
         "PR_SAD": "P_SAD",
         "PR_NIP": "P_NIP",
         "PR_SIP": "P_SIP",
-        "BRS_SDD": "BR_SDD",
-        "BRS_SAD": "BR_SAD",
-        "BRS_NIP": "BR_NIP",
-        "BRS_SIP": "BR_SIP",
-        "BSPR_SDD": "BP_SDD",
-        "BSPR_SAD": "BP_SAD",
-        "BSPR_NIP": "BP_NIP",
-        "BSPR_SIP": "BP_SIP",
-        "RSPR_SDD": "RP_SDD",
-        "RSPR_SAD": "RP_SAD",
-        "RSPR_NIP": "RP_NIP",
-        "RSPR_SIP": "RP_SIP",
-        "BRSPR_SDD": "BRP_SDD",
-        "BRSPR_SAD": "BRP_SAD",
-        "BRSPR_NIP": "BRP_NIP",
-        "BRSPR_SIP": "BRP_SIP",
+        "BR_SDD": "BR_SDD",
+        "BR_SAD": "BR_SAD",
+        "BR_NIP": "BR_NIP",
+        "BR_SIP": "BR_SIP",
+        "BP_SDD": "BP_SDD",
+        "BP_SAD": "BP_SAD",
+        "BP_NIP": "BP_NIP",
+        "BP_SIP": "BP_SIP",
+        "RP_SDD": "RP_SDD",
+        "RP_SAD": "RP_SAD",
+        "RP_NIP": "RP_NIP",
+        "RP_SIP": "RP_SIP",
+        "BRP_SDD": "BRP_SDD",
+        "BRP_SAD": "BRP_SAD",
+        "BRP_NIP": "BRP_NIP",
+        "BRP_SIP": "BRP_SIP",
     }
 
     heuristics = {
