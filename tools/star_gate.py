@@ -19,6 +19,8 @@ def _parse_args():
     parser.add_argument("task", type=str)
     parser.add_argument("ta_threshold", type=int)
     parser.add_argument("--root", type=str, default="results")
+    parser.add_argument("--s", type=str)
+    parser.add_argument("--a", type=str)
     args = parser.parse_args()
     return args
 
@@ -30,17 +32,19 @@ def main(args):
     combine(args)
     df = pd.read_feather(os.path.join(args.root, f"{args.study}.feather"))
 
-    """
-    df = df[df["verifier"] == "DNNV:nnenum"]
-    df = df[df["artifact"] == "CIFAR10"]
-    # df = df[df["artifact"] == "MNIST"]
-    # df = df[df["heuristic"] == "Baseline"]
-    df = df[df["heuristic"] == "P_NIP"]
+    df = df[df["artifact"] == args.a]
+    # df = df[df["artifact"] == "FashionMNIST"]
+    # df = df[df["artifact"] == "CIFAR10"]
+    df = df[df["heuristic"] == args.s]
+    x = sorted(set(np.array(df["test accuracy"])))
+    # print(x)
+    sum = []
+    for a in x:
+        if a < 20000:
+            sum += [a]
+    print(np.mean(sum))
 
-    a = np.where(np.array(df["veri ans"]) == 1)
-    print(len(a[0]))
     exit()
-    """
 
     if args.task == "st":
         stable_relu_table(df, heuristics, args.ta_threshold)
@@ -74,7 +78,7 @@ def combine(args):
         if study in ["e2v5", "e2v6", "e2v7", "e2v8"]:
             studies += [studies[-1] + "_"]
 
-    print(studies)
+    # print(studies)
 
     dfs = []
     for s in studies:
