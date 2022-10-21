@@ -1,21 +1,29 @@
 # OCTOPUS
-Oh-Crazy Training-Oriented Provable Unified System(OCTOPUS) for DNN verification.
+Oh-Crazy Training-Oriented Provable Unified System(OCTOPUS) for DNN verification, is a framework that allows training neural networks for faster verification, as defined in the [Training for Verification: Increasing Neuron Stability to Scale DNN Verification](link) paper.
 
 
-## 1.How to use?
-### 1.1. Setup
-1. Initialize environment, `python3 -m venv .venv`.
-2. Activate environment, `source .env.d/openenv.sh`.
-3. Install dependencies, `pip install -r .env.d/requirements.txt`.
+## 1. Overview
+
+![](overview.png|width=500)
 
 
-### 1.2. Singular Execution
+## 2. How to use OCTOPUS?
+### 2.1. Setup
+#### 2.1.1 Training Setup
+1. Install dependencies: `python3`
+2. Initialize environment: `python3 -m venv .venv`.
+3. Activate environment: `source .env.d/openenv.sh`.
+4. Install packages: `pip install -r .env.d/requirements.txt`.
+5. (Optional) Install SIP: `git clone `
+#### 2.1.2 Verification Setup
+1. Install DNNV at path: `./lib/DNNV`.
+
+### 2.2. OCTOPUS as Singular Execution
 1. Activate environment, `source .env.d/openenv.sh`.
 2. Use `octopus CONFIG_FILE TASK [OPTIONS]` to run octopus.
 
     **TASKS**
-
-        train: train network with the heuristics.
+        T(rain): train network with stabilizers defined in the .
 
         verify: verify the trained network.
 
@@ -33,9 +41,10 @@ Oh-Crazy Training-Oriented Provable Unified System(OCTOPUS) for DNN verification
         --debug: print debug log.
         --dumb: silence.
 
-### 1.3. OCTOPUS+
+### 2.3. OCTOPUS+
 OCTOPUS+ is a OCTOPUS benchmark tool.
 
+### 2.4. 
 
 ## 2. Features
 * [ ] Network

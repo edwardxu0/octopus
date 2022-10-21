@@ -54,6 +54,8 @@ class Problem:
         use_gpu = False if "gpu" not in cfg else cfg["gpu"]
         if use_gpu and settings.task == "T":
             assert torch.cuda.is_available()
+        else:
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
         use_cuda = use_gpu and torch.cuda.is_available()
         amp = False if "amp" not in cfg else cfg["amp"]
         self.amp = use_cuda and amp

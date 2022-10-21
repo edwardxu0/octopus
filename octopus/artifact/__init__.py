@@ -39,7 +39,7 @@ class Artifact:
 
         # turn on download flag if dataset not downloaded
         dataset1 = eval(f"datasets.{self.name}")(
-            "data", train=True, download=False, transform=transform
+            "data", train=True, download=True, transform=transform
         )
         dataset2 = eval(f"datasets.{self.name}")(
             "data", train=False, transform=transform
