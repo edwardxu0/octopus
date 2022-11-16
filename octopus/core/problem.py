@@ -18,7 +18,7 @@ from ..stability_estimator import get_stability_estimators
 
 from ..plot.train_progress import ProgressPlot
 from ..architecture.ReLUNet import ReLUNet
-from ..architecture.LeNet import LeNet
+from ..architecture.LeNet import LeNet, LeNet2
 
 
 RES_MONITOR_PRETIME = 200
@@ -85,6 +85,13 @@ class Problem:
                 self.device,
                 self.amp,
             ).to(self.device)
+        elif self.cfg_train["net_name"] == "LeNet2":
+            self.model = LeNet2(
+                self.artifact,
+                self.logger,
+                self.device,
+                self.amp,
+            ).to(self.device)
         else:
             raise NotImplementedError(
                 f"Unsupported architecture: {self.cfg_train['net_name']}"
@@ -142,7 +149,7 @@ class Problem:
 
     def train(self):
         if self._trained() and not self.override:
-            self.logger.info("Skipping trained network.")
+            self.logger.info(f"Skipping trained network. {self.__name__}")
         else:
             self._setup_train()
 
@@ -186,7 +193,7 @@ class Problem:
 
                 self.LR_decay_scheduler.step()
 
-                # self._plot_train()
+                self._plot_train()
 
     def _train_epoch(self, epoch):
         self.model.train()
@@ -389,6 +396,8 @@ class Problem:
 
     def _plot_train(self):
         # draw training progress plot
+
+        # # stable relu
         if self.train_stable_ReLUs is not None:
             X1 = range(len(list(self.train_stable_ReLUs.values())[0]))
             Y1 = self.train_stable_ReLUs
@@ -396,14 +405,17 @@ class Problem:
             X1 = []
             Y1 = []
 
+        # test accuracy
         X3 = (np.array(range(len(self.test_accuracy))) + 1) * len(self.train_loader)
         Y3 = self.test_accuracy
 
-        X2 = self.train_BS_points
-        Y2 = np.zeros(len(X3))[self.train_BS_points]
-
+        # train loss
         X4 = range(len(self.train_loss))
         Y4 = self.train_loss
+
+        # bs points
+        X2 = self.train_BS_points
+        Y2 = np.zeros(len(X2))
 
         # max_safe_relu = sum([self.model.activation[layer].view(
         #    self.model.activation[layer].size(0), -1).shape[-1] for layer in self.model.activation])

@@ -43,7 +43,7 @@ name = 'test'
         # occurrence = 5e-3
 
 		# interval scheduling
-		intensity = 2e-2
+		intensity = 1e-1
 		# pace = 1
 		pace = 50
 		# decay = 0.99
