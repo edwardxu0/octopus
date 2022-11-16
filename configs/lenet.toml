@@ -2,12 +2,9 @@ name = 'test'
 
 [train]
 	artifact = 'CIFAR10'
-	net_name = 'NetS'
-	net_layers = [64,64]
+	net_name = 'LeNet'
 
-	#net_name = 'LeNet'
-
-	epochs = 5
+	epochs = 20
 	batch_size = 128
 	test_batch_size = 128
 	lr = 1e-4							# learning rate
@@ -56,6 +53,7 @@ name = 'test'
 		[heuristic.bias_shaping.stable_estimator]
 			[heuristic.bias_shaping.stable_estimator.SDD]
 				epsilon = 0.04
+				samples = 100
 
 	#[heuristic.rs_loss]
 	#	mode = 'standard'

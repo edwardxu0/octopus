@@ -1,5 +1,5 @@
 from torch import nn
-import torch
+from torch.nn import Linear, Conv2d, ReLU
 import numpy as np
 
 
@@ -16,8 +16,21 @@ class BasicNet(nn.Module):
         self.amp = amp
 
     def __setup__(self):
-        self._compute_filtered_named_modules()
+        # self._compute_filtered_named_modules()
         # self.activation = self.register_activation_hocks()
+
+        filtered_named_modules = []
+        # for i, name, module in self.named_modules():
+        for i in range(len(self.layers) - 1):
+            x = list(self.layers.keys())[i]
+            x_ = list(self.layers.keys())[i + 1]
+            l = self.layers[x]
+            l_ = self.layers[x_]
+            if any([isinstance(l, y) for y in [Linear, Conv2d]]) and isinstance(
+                l_, ReLU
+            ):
+                filtered_named_modules += [(x, l)]
+        self.filtered_named_modules = filtered_named_modules
 
     def _compute_filtered_named_modules(self):
         filtered_named_modules = []

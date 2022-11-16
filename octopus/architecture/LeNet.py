@@ -15,6 +15,7 @@ class LeNet(BasicNet):
     def set_layers(self, weights=None, bias=None):
         assert weights is None and bias is None
 
+        self.nb_ReLUs = 0
         self.artifact.output_shape
         self.layers = {
             "Conv1": nn.Conv2d(3, 6, kernel_size=5),
@@ -28,11 +29,22 @@ class LeNet(BasicNet):
             "FC2": nn.Linear(120, 84),
             "Out": nn.Linear(84, 10),
         }
-        for x in self.layers:
-            self.__setattr__(x, self.layers[x])
+
+        for i, x in enumerate(self.layers):
+            l = self.layers[x]
+            self.__setattr__(x, l)
+
+            # set layers
+            if i + 1 < len(self.layers.keys()):
+                l_ = self.layers[list(self.layers.keys())[i + 1]]
+                if isinstance(l, nn.Conv2d) and isinstance(l_, nn.ReLU):
+                    print(l.out_channels)
+                    self.nb_ReLUs += l.out_channels
+                elif isinstance(l, nn.Linear) and isinstance(l_, nn.ReLU):
+                    self.nb_ReLUs += l.out_features
+                    print(l.out_features)
+
         self.to(self.device)
-        
-        self.nb_ReLUs = 0
         super().__setup__()
 
     def forward(self, x):

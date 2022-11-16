@@ -14,8 +14,9 @@ class RSLoss(Heuristic):
         self.stable_estimator.propagate(**kwargs)
         lb_, ub_ = self.stable_estimator.get_bounds()
         loss = []
-        for lb, ub in zip(lb_, ub_):
+        for i, (lb, ub) in enumerate(zip(lb_, ub_)):
             assert len(lb.shape) == 2
+            exit()
             rs_loss = self._l_relu_stable(lb, ub)
             loss += [rs_loss.view(1)]
 

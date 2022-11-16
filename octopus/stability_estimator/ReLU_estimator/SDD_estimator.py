@@ -1,4 +1,5 @@
 import torch
+from torch.nn import Linear, Conv2d
 import numpy as np
 
 from . import ReLUEstimator
@@ -16,13 +17,29 @@ class SDDEstimator(ReLUEstimator):
         le_0_ = []
         ge_0_ = []
         raw_ = []
-        for name, _ in self.model.filtered_named_modules:
+        for name, layer in self.model.filtered_named_modules:
             X = self.model._batch_values[name]
             raw_ += [X]
-            lb = torch.min(X, axis=0).values
-            ub = torch.max(X, axis=0).values
+
+            # get min of kernels
+            if isinstance(layer, Linear):
+                lb = torch.min(X, axis=0).values
+                ub = torch.max(X, axis=0).values
+
+            elif isinstance(layer, Conv2d):
+                X = torch.flatten(X, start_dim=2)
+                X_min = torch.min(X, axis=-1).values
+                X_max = torch.max(X, axis=-1).values
+                lb = torch.min(X_min, axis=0).values
+                ub = torch.max(X_max, axis=0).values
+
+            else:
+                # raise NotImplementedError(layer)
+                pass
+
             lb = lb.view(1, *lb.shape)
             ub = ub.view(1, *ub.shape)
+
             # lb_ += [lb.view(1, *lb.shape)]
             # ub_ += [ub.view(1, *lb.shape)]
             lb_ += [lb]
@@ -43,3 +60,8 @@ class SDDEstimator(ReLUEstimator):
         self.lb_ = lb_
         self.ub_ = ub_
         self.raw_ = raw_
+
+        # for i in range(len(self.lb_)):
+        #    print(self.lb_[i].shape)
+        #    print(self.ub_[i].shape)
+        # exit()

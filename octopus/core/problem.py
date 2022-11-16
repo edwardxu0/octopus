@@ -313,6 +313,7 @@ class Problem:
                         batch_stable_ReLU = stable_le_0 + stable_ge_0
 
                         relu_accuracy = batch_stable_ReLU / self.model.nb_ReLUs
+
                         se_str += f"{se}: {relu_accuracy*100:.2f}% "
 
                         self.train_stable_ReLUs[se] += [relu_accuracy.cpu()]

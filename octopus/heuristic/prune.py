@@ -79,7 +79,11 @@ class Prune(Heuristic):
         elif self.mode == "stablenet":
             lb_, ub_ = self.stable_estimator.get_bounds()
             mean = []
-            for lb, ub in zip(lb_, ub_):
+            # check conv layers
+            for i, (lb, ub) in enumerate(zip(lb_, ub_)):
+                print(i, lb)
+                exit()
+
                 assert len(lb.shape) == 2
                 m = torch.mean(ub, axis=0)
                 mean += [m]
