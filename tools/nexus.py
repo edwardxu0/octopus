@@ -1,6 +1,5 @@
 class Settings:
     timeout = 600
-    verifiers = ["DNNV:eran_deeppoly", "DNNV:nnenum", "DNNVWB:neurify", "DNNV:marabou"]
     fig_dir = "figs"
 
     convert_names = {
@@ -40,16 +39,16 @@ class Settings:
             "Baseline",
             "B_SDD",
             "B_SAD",
-            "B_NIP",
-            "B_SIP",
+            # "B_NIP",
+            # "B_SIP",
             "R_SDD",
             "R_SAD",
-            "R_NIP",
-            "R_SIP",
+            # "R_NIP",
+            # "R_SIP",
             "P_SDD",
             "P_SAD",
-            "P_NIP",
-            "P_SIP",
+            # "P_NIP",
+            # "P_SIP",
         ],
         "e2": [
             "Baseline",

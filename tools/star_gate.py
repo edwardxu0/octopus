@@ -32,19 +32,10 @@ def main(args):
     combine(args)
     df = pd.read_feather(os.path.join(args.root, f"{args.study}.feather"))
 
-    df = df[df["artifact"] == args.a]
+    # df = df[df["artifact"] == args.a]
     # df = df[df["artifact"] == "FashionMNIST"]
     # df = df[df["artifact"] == "CIFAR10"]
-    df = df[df["heuristic"] == args.s]
-    x = sorted(set(np.array(df["test accuracy"])))
-    # print(x)
-    sum = []
-    for a in x:
-        if a < 20000:
-            sum += [a]
-    print(np.mean(sum))
-
-    exit()
+    # df = df[df["heuristic"] == args.s]
 
     if args.task == "st":
         stable_relu_table(df, heuristics, args.ta_threshold)
@@ -79,7 +70,8 @@ def combine(args):
             studies += [studies[-1] + "_"]
 
     # print(studies)
-
+    print(studies)
+    studies = ["e1p4v3"]
     dfs = []
     for s in studies:
         df = pd.read_feather(os.path.join(args.root, f"{s}.feather"))
@@ -113,25 +105,20 @@ def stable_relu_table(df, heuristics, ta_threshold):
         res = []
         rese = []
         for a in artifacts:
-            dft = df[df["verifier"] == "DNNVWB:neurify"]
+            dft = df[df["verifier"] == "DNNV:neurify"]
             dft = dft[dft["artifact"] == a]
             dft = dft[dft["heuristic"] == h]
             ta = dft["test accuracy"]
             # print(h, a, set(ta.to_numpy()))
             ta = np.array(ta) * 100
 
-            dfb = df[df["verifier"] == "DNNVWB:neurify"]
+            dfb = df[df["verifier"] == "DNNV:neurify"]
             dfb = dfb[dfb["artifact"] == a]
             dfb = dfb[dfb["heuristic"] == "Baseline"]
             ta_baseline = np.mean(dfb["test accuracy"].values)
-            # relative test accuracy
 
-            if False and h == "B_NIP":
-                print(len(dft))
+            # relative test accuracy
             dft = dft[dft["test accuracy"] >= (ta_baseline - ta_threshold / 100)]
-            if False and h == "B_NIP":
-                print(len(dft))
-                print(sorted(ta))
 
             srn = dft["relu accuracy veri"]
             srn = np.array(srn) * 100
@@ -264,9 +251,9 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
         print(f"{metric}:")
         res_ = []
         seeds = len(set(df["seed"]))
-
+        verifiers = sorted(list(set(df["verifier"])))
         dft = df
-        dft = dft[dft["verifier"] == Settings.verifiers[0]]
+        dft = dft[dft["verifier"] == verifiers[0]]
         dft = dft[dft["artifact"] == artifacts[0]]
         dft = dft[dft["heuristic"] == "Baseline"]
         nb_problems = len(dft)
@@ -277,7 +264,7 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
             res = []
             left_p = []
             tt = 0
-            for v in Settings.verifiers:
+            for v in verifiers:
 
                 total = 0
                 for a in artifacts:

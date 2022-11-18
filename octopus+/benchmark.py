@@ -367,6 +367,7 @@ class Benchmark:
                     f"#SBATCH --output={log_path}",
                     f"#SBATCH --error={log_path}",
                     f"export TMPDIR={tmpdir}",
+                    "export DNNV_OPTIONAL_SIMPLIFIERS=ReluifyMaxPool",
                     f"mkdir {tmpdir}",
                     "cat /proc/sys/kernel/hostname",
                     "source .env.d/openenv.sh",
@@ -377,7 +378,7 @@ class Benchmark:
 
                 open(slurm_script_path, "w").writelines(lines)
                 param_node = (
-                    f"-w {self.veri_nodes[nb_todo%len(self.veri_nodes)]}"
+                    f"-c 6 -p nolim -w {self.veri_nodes[nb_todo%len(self.veri_nodes)]}"
                     if self.veri_nodes
                     else ""
                 )

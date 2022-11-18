@@ -38,24 +38,24 @@ name = 'test'
 	#		epsilon = 0.04
 
 [heuristic]
-	[heuristic.bias_shaping]
-		mode = 'standard'
-		
+	#[heuristic.bias_shaping]
+	#	mode = 'standard'
+	#	
 		# random scheduling
 		# intensity =  5e-2
         # occurrence = 5e-3
 
 		# interval scheduling
-		intensity = 2e-2
+	#	intensity = 2e-2
 		# pace = 1
-		pace = 50
-		decay = 0.99
+	#	pace = 50
+	#	decay = 0.99
 		
-		start = 1 			# inclusive
-		end = 10 			# inclusive
-		[heuristic.bias_shaping.stable_estimator]
-			[heuristic.bias_shaping.stable_estimator.SDD]
-				epsilon = 0.04
+	#	start = 1 			# inclusive
+	#	end = 10 			# inclusive
+	#	[heuristic.bias_shaping.stable_estimator]
+	#		[heuristic.bias_shaping.stable_estimator.SDD]
+	#			epsilon = 0.04
 
 	#[heuristic.rs_loss]
 	#	mode = 'standard'
@@ -68,16 +68,17 @@ name = 'test'
 	#			epsilon = 0.04
 	#			
 
-	#[heuristic.prune]
-	#	mode = 'structure'
-	#	#re_arch = 'last'
-	#	save_re_arch = true
-	#	sparsity = 0.05
+	[heuristic.prune]
+		mode = 'structure'
+		#re_arch = 'last'
+		save_re_arch = true
+		sparsity = 0.05
+		pace = 50
 
-	#	start = 1
-	#	end = 10
-	#	[heuristic.prune.stable_estimator]
-	#		[heuristic.prune.stable_estimator.SIP]
+		start = 1
+		end = 10
+		[heuristic.prune.stable_estimator]
+			[heuristic.prune.stable_estimator.SDD]
 	#			epsilon = 0.04
 	#			samples = 10
 

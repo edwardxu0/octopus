@@ -1,4 +1,5 @@
 import torch
+from torch.nn import Linear, Conv2d, ReLU
 
 from . import Heuristic
 from ..stability_estimator.ReLU_estimator.SIP_estimator import SIPEstimator
@@ -54,8 +55,10 @@ class Prune(Heuristic):
     def _init_mask(self):
         self.mask = []
         for name, module in self.model.filtered_named_modules:
-            if "FC" in name:
+            if isinstance(module, Linear):
                 self.mask += [torch.ones(module.out_features).to(self.model.device)]
+            elif isinstance(module, Conv2d):
+                self.mask += [torch.ones(module.out_channels).to(self.model.device)]
             else:
                 raise NotImplementedError
 
@@ -81,14 +84,10 @@ class Prune(Heuristic):
             mean = []
             # check conv layers
             for i, (lb, ub) in enumerate(zip(lb_, ub_)):
-                print(i, lb)
-                exit()
-
                 assert len(lb.shape) == 2
                 m = torch.mean(ub, axis=0)
                 mean += [m]
-
-            values = torch.sort(torch.cat(mean).reshape(-1))[0]
+            values = torch.sort(torch.cat(mean).reshape(-1)).values
 
             nb_neurons = len(values)
             nb_unstable = len(values[values > 0])
@@ -101,16 +100,16 @@ class Prune(Heuristic):
 
         for i, m in enumerate(mean):
             self.mask[i][m < threshold] = 0
-            # if torch.where(self.mask[i] == 1)[0].nelement() == 0:
-            #    raise ValueError("Pruning an entire layer is bad idea.")
+        # if torch.where(self.mask[i] == 1)[0].nelement() == 0:
+        #    raise ValueError("Pruning an entire layer is bad idea.")
 
     def _apply_mask(self):
         for i, (_, layer) in enumerate(self.model.filtered_named_modules):
             if isinstance(layer, torch.nn.Linear):
                 layer.weight.data *= self.mask[i].unsqueeze(1)
             elif isinstance(layer, torch.nn.Conv2d):
-                assert False
-                layer.weight.data *= self.mask[i].unsqueeze(1).unsqueeze(2).unsqueeze(3)
+                for j, x in enumerate(layer.weight.data):
+                    x *= self.mask[i][j]
             else:
                 assert False
 
