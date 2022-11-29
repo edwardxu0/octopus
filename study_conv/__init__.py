@@ -13,5 +13,4 @@ props = [*range(10)]
 epsilons = np.linspace(2, 10, 5) / 100
 
 #verifiers = ["DNNV:eran_deeppoly", "DNNV:nnenum", "DNNV:neurify", "DNNV:marabou"]
-verifiers = ["DNNV:nnenum", "DNNV:neurify"]
-verifiers = ["DNNV:neurify"]
+verifiers = ["DNNVWB:neurify"]

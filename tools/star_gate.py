@@ -29,8 +29,11 @@ def main(args):
     # heuristics = Settings.heuristics[args.study.replace("_", "")]
     heuristics = Settings.heuristics[args.study[:2]]
 
-    combine(args)
-    df = pd.read_feather(os.path.join(args.root, f"{args.study}.feather"))
+    #combine(args)
+    #df = pd.read_feather(os.path.join(args.root, f"{args.study}.feather"))
+
+    df = pd.read_feather(os.path.join(args.root, f"e1p4v2_we.feather"))
+    df["heuristic"] = df["heuristic"].map(Settings.convert_names)
 
     # df = df[df["artifact"] == args.a]
     # df = df[df["artifact"] == "FashionMNIST"]
@@ -68,10 +71,6 @@ def combine(args):
             studies = [f"e{study[1]}p{x}v{study[-2]}_" for x in [1, 2, 3]]
         if study in ["e2v5", "e2v6", "e2v7", "e2v8"]:
             studies += [studies[-1] + "_"]
-
-    # print(studies)
-    print(studies)
-    studies = ["e1p4v3"]
     dfs = []
     for s in studies:
         df = pd.read_feather(os.path.join(args.root, f"{s}.feather"))

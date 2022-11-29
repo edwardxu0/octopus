@@ -18,7 +18,7 @@ from ..stability_estimator import get_stability_estimators
 
 from ..plot.train_progress import ProgressPlot
 from ..architecture.ReLUNet import ReLUNet
-from ..architecture.LeNet import LeNet, LeNet2
+from ..architecture.LeNet import LeNet
 
 
 RES_MONITOR_PRETIME = 200
@@ -69,6 +69,7 @@ class Problem:
             use_cuda=self.device,
         )
         self.train_loader, self.test_loader = self.artifact.get_data_loader()
+        
 
         if self.cfg_train["net_name"] in ["NetS", "NetM", "NetL"]:
             self.model = ReLUNet(
@@ -78,16 +79,15 @@ class Problem:
                 self.device,
                 self.amp,
             ).to(self.device)
-        elif self.cfg_train["net_name"] == "LeNet":
+        elif self.cfg_train["net_name"] in [
+            "LeNet_o",
+            "LeNet_w",
+            "LeNet_oe",
+            "LeNet_we",
+        ]:
             self.model = LeNet(
                 self.artifact,
-                self.logger,
-                self.device,
-                self.amp,
-            ).to(self.device)
-        elif self.cfg_train["net_name"] == "LeNet2":
-            self.model = LeNet2(
-                self.artifact,
+                self.cfg_train["net_name"],
                 self.logger,
                 self.device,
                 self.amp,

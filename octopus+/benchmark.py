@@ -340,6 +340,7 @@ class Benchmark:
 
             model_path = f'{config_path.replace("train_config", "model")[:-5]}.{sts["train"]["epochs"]}.onnx'
             if not os.path.exists(model_path):
+                print("No model")
                 continue
             ###########################
 
@@ -535,11 +536,15 @@ class Benchmark:
                 unstable_relus = []
                 for x in unstable_relu_lines:
                     unstable_relus += [int(x.strip().split()[-3])]
+                # print(unstable_relus, veri_log_path)
                 avg_unstable_relus = np.mean(np.array(unstable_relus))
 
-                relu_accuracy_veri = 1 - avg_unstable_relus / np.sum(
-                    np.array(self.networks[n])
-                )
+                # relu_accuracy_veri = 1 - avg_unstable_relus / np.sum(
+                #    np.array(self.networks[n])
+                # )
+                relu_accuracy_veri = avg_unstable_relus
+                # exit()
+
             else:
                 relu_accuracy_veri = 0
 
