@@ -38,3 +38,15 @@ class CIFAR10(Artifact):
         self._mean = 0
         self._std = 1
         super().__init__(**kwargs)
+
+
+class UdacityDrving(Artifact):
+    def __init__(self, **kwargs):
+        self.input_shape = [3, 100, 100]
+        self.output_shape = [1]
+        self.name = "UdacityDriving"
+        self._min = 0
+        self._max = 1
+        self._mean = 0
+        self._std = 1
+        super().__init__(**kwargs)

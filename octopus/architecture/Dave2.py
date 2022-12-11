@@ -4,10 +4,11 @@ import torch.nn as nn
 from . import BasicNet
 
 
-class LeNet(BasicNet):
+class Dave2(BasicNet):
     def __init__(self, artifact, net_name, logger, device, amp):
-        super(LeNet, self).__init__(logger, device, amp)
-        self.__name__ = "LeNet"
+        raise NotImplementedError
+        super(Dave2, self).__init__(logger, device, amp)
+        self.__name__ = "Dave2"
         self.artifact = artifact
         self.set_layers(net_name)
 
@@ -18,7 +19,7 @@ class LeNet(BasicNet):
         self.artifact.output_shape
 
         # original
-        if net_name == "LeNet_o":
+        if net_name == "AlexNet_o":
             self.layers = {
                 "Conv1": nn.Conv2d(3, 6, kernel_size=5),
                 "ReLU1": nn.ReLU(),
@@ -31,51 +32,6 @@ class LeNet(BasicNet):
                 "FC2": nn.Linear(120, 84),
                 "Out": nn.Linear(84, 10),
             }
-        # wide(2x # kernels)
-        elif net_name == "LeNet_w":
-            self.layers = {
-                "Conv1": nn.Conv2d(3, 12, kernel_size=5),
-                "ReLU1": nn.ReLU(),
-                "MaxPool2D1": nn.MaxPool2d(2),
-                "Conv2": nn.Conv2d(12, 32, kernel_size=5),
-                "ReLU2": nn.ReLU(),
-                "MaxPool2D2": nn.MaxPool2d(2),
-                "Flatten": nn.Flatten(),
-                "FC1": nn.Linear(32 * 5 * 5, 120),
-                "FC2": nn.Linear(120, 84),
-                "Out": nn.Linear(84, 10),
-            }
-        # original / extended (no MaxPool2d layer)
-        elif net_name == "LeNet_oe":
-            self.layers = {
-                "Conv1": nn.Conv2d(3, 6, kernel_size=5),
-                "ReLU1": nn.ReLU(),
-                # "MaxPool2D1": nn.MaxPool2d(2),
-                "Conv2": nn.Conv2d(6, 16, kernel_size=5),
-                "ReLU2": nn.ReLU(),
-                # "MaxPool2D2": nn.MaxPool2d(2),
-                "Flatten": nn.Flatten(),
-                "FC1": nn.Linear(9216, 120),
-                "FC2": nn.Linear(120, 84),
-                "Out": nn.Linear(84, 10),
-            }
-
-        # wide (2x # kernels) / extended (no MaxPool2d layer)
-        elif net_name == "LeNet_we":
-            self.layers = {
-                "Conv1": nn.Conv2d(3, 12, kernel_size=5),
-                "ReLU1": nn.ReLU(),
-                # "MaxPool2D1": nn.MaxPool2d(2),
-                "Conv2": nn.Conv2d(12, 32, kernel_size=5),
-                "ReLU2": nn.ReLU(),
-                # "MaxPool2D2": nn.MaxPool2d(2),
-                "Flatten": nn.Flatten(),
-                "FC1": nn.Linear(18432, 120),
-                "FC2": nn.Linear(120, 84),
-                "Out": nn.Linear(84, 10),
-            }
-        else:
-            assert False
 
         for i, x in enumerate(self.layers):
             l = self.layers[x]
@@ -98,9 +54,18 @@ class LeNet(BasicNet):
         self._batch_values = {}
 
         # workout the network
+        y = []
         for l in self.layers:
             x = self.layers[l](x)
             self._batch_values[l] = x
+
+            if isinstance(self.layers[l], torch.nn.Conv2d):
+                print(x.shape)
+                y += [x.shape[1:]]
+
+        y = [x.numel() for x in y]
+        print(y)
+        exit()
         return x
 
     # clear the model
