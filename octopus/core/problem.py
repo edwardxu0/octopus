@@ -19,6 +19,7 @@ from ..stability_estimator import get_stability_estimators
 from ..plot.train_progress import ProgressPlot
 from ..architecture.ReLUNet import ReLUNet
 from ..architecture.LeNet import LeNet
+from ..architecture.OVAL21 import OVAL21
 
 
 RES_MONITOR_PRETIME = 200
@@ -69,9 +70,8 @@ class Problem:
             use_cuda=self.device,
         )
         self.train_loader, self.test_loader = self.artifact.get_data_loader()
-        
 
-        if self.cfg_train["net_name"] in ["NetS", "NetM", "NetL"]:
+        if self.cfg_train["net_name"] in ["NetS", "NetM", "NetL", "FC2", "FC4", "FC6"]:
             self.model = ReLUNet(
                 self.artifact,
                 self.cfg_train["net_layers"],
@@ -86,6 +86,18 @@ class Problem:
             "LeNet_we",
         ]:
             self.model = LeNet(
+                self.artifact,
+                self.cfg_train["net_name"],
+                self.logger,
+                self.device,
+                self.amp,
+            ).to(self.device)
+        elif self.cfg_train["net_name"] in [
+            "OVAL21_o",
+            "OVAL21_w",
+            "OVAL21_d",
+        ]:
+            self.model = OVAL21(
                 self.artifact,
                 self.cfg_train["net_name"],
                 self.logger,
@@ -790,9 +802,11 @@ class Problem:
                 if "  result: " in l:
                     if "result: NeurifyError(Return code: -11)" in l:
                         veri_ans = "error"
+                    elif "TranslatorError" in l:
+                        veri_ans = "error"
                     elif "Invalid counter example" in l:
                         veri_ans = "error"
-                    elif "Error(Return code: 1)" in l:
+                    elif "Error(Return code:" in l:
                         veri_ans = "error"
                     else:
                         veri_ans = l.strip().split()[-1]
@@ -808,7 +822,8 @@ class Problem:
 
                 elif "Out of Memory" in l:
                     veri_ans = "memout"
-                    veri_time = None  # float(l.strip().split()[-3])
+                    # veri_time = None  # float(l.strip().split()[-3])
+                    veri_time = timeout
                     break
 
                 elif "CANCELLED" in l:

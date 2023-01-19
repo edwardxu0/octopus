@@ -8,9 +8,11 @@ train_nodes_ex = "ai01,ai07,ai08,lynx07,lynx08,lynx09,lynx10,sds01,sds02,lotus,t
 veri_nodes = ["doppio" + x for x in ["01", "02", "03", "04", "05"]]
 
 seeds = [*range(1)]
-props = [*range(10)]
+props = [*range(5)]
 
-epsilons = np.linspace(2, 10, 5) / 100
+# epsilons = np.linspace(2, 10, 5) / 100
 
-#verifiers = ["DNNV:eran_deeppoly", "DNNV:nnenum", "DNNV:neurify", "DNNV:marabou"]
+epsilons = np.linspace(0.5, 5, 10) / 256
+
+# verifiers = ["DNNV:eran_deeppoly", "DNNV:nnenum", "DNNV:neurify", "DNNV:marabou"]
 verifiers = ["DNNVWB:neurify"]

@@ -29,11 +29,36 @@ def main(args):
     # heuristics = Settings.heuristics[args.study.replace("_", "")]
     heuristics = Settings.heuristics[args.study[:2]]
 
-    #combine(args)
-    #df = pd.read_feather(os.path.join(args.root, f"{args.study}.feather"))
+    # combine(args)
+    # df = pd.read_feather(os.path.join(args.root, f"{args.study}.feather"))
 
-    df = pd.read_feather(os.path.join(args.root, f"e1p4v2_we.feather"))
-    df["heuristic"] = df["heuristic"].map(Settings.convert_names)
+    # df = pd.read_feather("results_conv/e1p4v2_o.feather")
+    # df = df[df["heuristic"] == "Baseline"]
+    # df.to_feather(os.path.join(args.root, f"baseline.feather"))
+    # print(df)
+    # exit()
+
+    # new conv net
+    # df = pd.read_feather("results_conv/e1p4v2_o.feather")
+    # df["heuristic"] = df["heuristic"].map(Settings.convert_names)
+    # heuristics = Settings.heuristics[args.study[:2]]
+    # print(heuristics)
+    # exit()
+
+    # new combinations
+    root = args.root
+    # root = "results_tacas"
+    # df1 = pd.read_feather(os.path.join(root, f"e1p1ba.feather"))
+    # df2 = pd.read_feather(os.path.join(root, f"e1p1.feather"))
+    # df = pd.concat([df1, df2], ignore_index=True)
+    # heuristics = list(set(df1["heuristic"])) + sorted(list(set(df2["heuristic"])))
+
+    df = pd.read_feather(os.path.join(root, f"e1p10wv1.feather"))
+    # df["heuristic"] = df["heuristic"].map(Settings.convert_names)
+    heuristics = list(sorted(set(df["heuristic"])))
+    heuristics.remove("Baseline")
+    heuristics = ["Baseline"] + heuristics
+    print(heuristics)
 
     # df = df[df["artifact"] == args.a]
     # df = df[df["artifact"] == "FashionMNIST"]
@@ -104,15 +129,12 @@ def stable_relu_table(df, heuristics, ta_threshold):
         res = []
         rese = []
         for a in artifacts:
-            dft = df[df["verifier"] == "DNNV:neurify"]
-            dft = dft[dft["artifact"] == a]
+            dft = df[df["artifact"] == a]
             dft = dft[dft["heuristic"] == h]
             ta = dft["test accuracy"]
-            # print(h, a, set(ta.to_numpy()))
             ta = np.array(ta) * 100
 
-            dfb = df[df["verifier"] == "DNNV:neurify"]
-            dfb = dfb[dfb["artifact"] == a]
+            dfb = df[df["artifact"] == a]
             dfb = dfb[dfb["heuristic"] == "Baseline"]
             ta_baseline = np.mean(dfb["test accuracy"].values)
 
@@ -211,6 +233,7 @@ def stable_relu_table(df, heuristics, ta_threshold):
     print()
 
 
+"""
 # with training stability estimation on
 def stable_relu_table_detailed(df, heuristics):
     artifacts = [*reversed(sorted(set(df["artifact"])))]
@@ -237,6 +260,7 @@ def stable_relu_table_detailed(df, heuristics):
             if h == "Baseline" or i % 4 == 0:
                 print("\\hline")
         print()
+"""
 
 
 def verification_table(df, heuristics, ta_threshold):  # , excludes):
@@ -250,7 +274,9 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
         print(f"{metric}:")
         res_ = []
         seeds = len(set(df["seed"]))
+
         verifiers = sorted(list(set(df["verifier"])))
+        print(verifiers)
         dft = df
         dft = dft[dft["verifier"] == verifiers[0]]
         dft = dft[dft["artifact"] == artifacts[0]]
@@ -294,7 +320,8 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
 
                     veri_time = dft["veri time"].values
                     if metric == "scr":
-                        X = sum([1 for x in veri_ans if x in [1, 2]])
+                        # X = sum([1 for x in veri_ans if x in [1, 2]])
+                        X = sum([1 for x in veri_ans if x in [1]])
                         # print(len(dft), X)
                     elif metric == "time":
                         X = sum(veri_time)
@@ -326,11 +353,13 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
 
                 # res += [total]
                 tt += total
+            res = [x / len(set(df[df["heuristic"] == h]["seed"])) for x in res]
             res_ += [res]
             left_problems += [left_p]
             # res_ += [res + [tt]]
 
-        res_ = np.array(res_) / seeds
+        # res_ = np.array(res_) / seeds
+        res_ = np.array(res_)
 
         target_ids = eval(f"np.arg{best}")(res_.T, axis=1)
 

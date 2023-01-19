@@ -120,7 +120,7 @@ class Benchmark:
                                 for v in self.verifiers:
                                     self.problems_V += [(a, n, h, s, e, p, v)]
 
-    def _exec(self, cmd, slurm_cmd):
+    def _exec(self, cmd, slurm_cmd, sleep_time):
         if not self.go:
             self.logger.info(f"Dry: {cmd}")
             if self.slurm:
@@ -133,7 +133,7 @@ class Benchmark:
             else:
                 self.logger.info(f"Fly: {slurm_cmd}")
                 os.system(slurm_cmd)
-                time.sleep(self.sleep_time)
+                time.sleep(sleep_time)
 
     def _get_problem_paths(self, task, **kwargs):
         sts = copy.deepcopy(self.base_settings)
@@ -217,6 +217,8 @@ class Benchmark:
                 name,
             ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
 
+            print(h, name, self.heuristics[h])
+
             if name not in self.problems_T_hash:
                 self.problems_T_hash += [name]
             else:
@@ -285,7 +287,7 @@ class Benchmark:
                 )
                 slurm_cmd = f"sbatch {param_node_nb} {param_node} {slurm_script_path}"
 
-            self._exec(cmd, slurm_cmd)
+            self._exec(cmd, slurm_cmd, self.train_sleep_time)
 
         self.logger.info(
             f"Tasks: done: {nb_done}, todo: {nb_todo}, total: {len(self.problems_T)}."
@@ -378,14 +380,20 @@ class Benchmark:
                 lines = [x + "\n" for x in lines]
 
                 open(slurm_script_path, "w").writelines(lines)
+                param_node_nb = (
+                    f"-c {self.nb_verify_nodes}"
+                    if "nb_verify_nodes" in self.__dict__
+                    else ""
+                )
+
                 param_node = (
-                    f"-c 6 -p nolim -w {self.veri_nodes[nb_todo%len(self.veri_nodes)]}"
+                    f" -p nolim -w {self.veri_nodes[nb_todo%len(self.veri_nodes)]}"
                     if self.veri_nodes
                     else ""
                 )
-                slurm_cmd = f"sbatch {param_node} {slurm_script_path}"
+                slurm_cmd = f"sbatch {param_node_nb} {param_node} {slurm_script_path}"
 
-            self._exec(cmd, slurm_cmd)
+            self._exec(cmd, slurm_cmd, self.verify_sleep_time)
 
         self.logger.info(
             f"Tasks: done: {nb_done}, todo: {nb_todo}, total: {len(self.problems_V)}."
@@ -517,7 +525,7 @@ class Benchmark:
                 verification_time = 600
 
             if answer is None or verification_time is None:
-                print("rm", veri_log_path)
+                print("rm", veri_log_path)#, verification_time, answer)
 
                 ### TEMP solution
                 # TODO REMOVE

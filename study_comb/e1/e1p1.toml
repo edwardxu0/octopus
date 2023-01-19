@@ -1,0 +1,28 @@
+name = 'e1p1'
+
+[train]
+	epochs = 30
+	batch_size = 24
+	test_batch_size = 24
+	lr = 1e-4				# learning rate
+	gamma = 0.95 			# Learning rate decay
+	save_model = true
+	save_log = true
+	save_intermediate = true
+	log_interval = 100		# pring while n-th batch
+	gpu = true
+	amp = false
+	
+	adv_train = 'nature' # ['nature', 'pgd', 'vae', 'gan', ...]	
+
+	[train.stable_estimator]
+		[train.stable_estimator.SDD]
+
+[verify]
+	time = 3600
+	memory = '16G'
+	save_log = false
+	debug = true
+	
+	target_model = 'last'
+	verifier = 'DNNVWB:neurify'

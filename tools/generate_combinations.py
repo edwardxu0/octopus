@@ -38,37 +38,37 @@ estimator_skeleton = {"SDD": {"SDD": {}}}
 
 def main(args):
     steps = 3
-    stride = 5
+    stride = 10
     estimator = "SDD"
     stabilizers = ["B", "R", "P", "N"]
 
     heuristics = ["".join(x) for x in itertools.product(stabilizers, repeat=steps)]
-    #
 
     H = {}
     for name in heuristics:
         heu = {}
+        heu_shortcuts = {}
         for i, s in enumerate(name):
             # print(i, s)
             if s == "N":
                 continue
             start = i * stride + 1
             end = (i + 1) * stride
-            if not s in heu:
+
+            if not s in heu_shortcuts:
                 stabilizer = copy.deepcopy(stabilizer_skeleton[s])
                 assert len(stabilizer.keys()) == 1
                 s_ = list(stabilizer.keys())[0]
-                heu[s_] = stabilizer[s_]
+
+                stabilizer = stabilizer[s_]
+                stabilizer["stable_estimator"] = estimator_skeleton[estimator]
+                heu[s_] = stabilizer
+                heu_shortcuts[s] = s_
             else:
-                stabilizer = heu[s]
+                stabilizer = heu[heu_shortcuts[s]]
 
-            assert len(stabilizer.keys()) == 1
-            s_ = list(stabilizer.keys())[0]
-            stabilizer[s_]["start"] += [start]
-            stabilizer[s_]["end"] += [end]
-
-            if "stable_estimator" not in stabilizer[s_]:
-                stabilizer[s_]["stable_estimator"] = estimator_skeleton[estimator]
+            stabilizer["start"] += [start]
+            stabilizer["end"] += [end]
 
         H[name] = heu
 
