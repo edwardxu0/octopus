@@ -802,6 +802,8 @@ class Problem:
                 if "  result: " in l:
                     if "result: NeurifyError(Return code: -11)" in l:
                         veri_ans = "error"
+                    elif "MarabouError(NaN values in input.)" in l:
+                        veri_ans = "error"
                     elif "TranslatorError" in l:
                         veri_ans = "error"
                     elif "Invalid counter example" in l:
