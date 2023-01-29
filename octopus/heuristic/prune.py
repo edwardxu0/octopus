@@ -84,8 +84,12 @@ class Prune(Heuristic):
             mean = []
             # check conv layers
             for i, (lb, ub) in enumerate(zip(lb_, ub_)):
-                assert len(lb.shape) == 2
+
+                if len(ub.shape) == 4:
+                    ub = torch.amax(ub, dim=(2, 3))
+
                 m = torch.mean(ub, axis=0)
+
                 mean += [m]
             values = torch.sort(torch.cat(mean).reshape(-1)).values
 
