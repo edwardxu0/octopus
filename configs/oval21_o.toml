@@ -4,7 +4,7 @@ name = 'test'
 	artifact = 'CIFAR10'
 	net_name = 'OVAL21_o'
 
-	epochs = 2
+	epochs = 5
 	batch_size = 128
 	test_batch_size = 128
 	lr = 1e-4							# learning rate
@@ -35,35 +35,34 @@ name = 'test'
 	#		epsilon = 0.04
 
 [heuristic]
-	#[heuristic.bias_shaping]
-	#	mode = 'standard'
+	[heuristic.bias_shaping]
+		mode = 'standard'
 		
 		# random scheduling
 		# intensity =  5e-2
         # occurrence = 5e-3
 
 		# interval scheduling
-	#	intensity = 2e-2
-		# pace = 1
-	#	pace = 50
+		intensity = 2e-1
+		pace = 50
 		# decay = 0.99
 		
-	#	start = 1 			# inclusive
-	#	end = 20 			# inclusive
-	#	[heuristic.bias_shaping.stable_estimator]
-	#		[heuristic.bias_shaping.stable_estimator.NIP]
-	#			epsilon = 0.04
-	#			samples = 100
-
-	[heuristic.rs_loss]
-		mode = 'standard'
-		weight = 1e-4
-		epsilon = 0.1
-		start = 1
-		end = 20
-		[heuristic.rs_loss.stable_estimator]
-			[heuristic.rs_loss.stable_estimator.NIP]
+		start = 1 			# inclusive
+		end = 20 			# inclusive
+		[heuristic.bias_shaping.stable_estimator]
+			[heuristic.bias_shaping.stable_estimator.NIP]
 				epsilon = 0.04
+				samples = 100
+
+	#[heuristic.rs_loss]
+	#	mode = 'standard'
+	#	weight = 1e-4
+	#	epsilon = 0.1
+	#	start = 1
+	#	end = 20
+	#	[heuristic.rs_loss.stable_estimator]
+	#		[heuristic.rs_loss.stable_estimator.NIP]
+	#			epsilon = 0.04
 				
 
 	#[heuristic.prune]
