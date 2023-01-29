@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 from . import BasicNet
 
@@ -77,19 +78,20 @@ class LeNet(BasicNet):
         else:
             assert False
 
+        self.eval()
+        data = torch.randn([1, *self.artifact.input_shape])
+
         for i, x in enumerate(self.layers):
             l = self.layers[x]
             self.__setattr__(x, l)
-
+            data = l(data)
             # set layers
             if i + 1 < len(self.layers.keys()):
                 l_ = self.layers[list(self.layers.keys())[i + 1]]
                 if isinstance(l, nn.Conv2d) and isinstance(l_, nn.ReLU):
-                    print(l.out_channels)
-                    self.nb_ReLUs += l.out_channels
+                    self.nb_ReLUs += np.prod(data.shape)
                 elif isinstance(l, nn.Linear) and isinstance(l_, nn.ReLU):
                     self.nb_ReLUs += l.out_features
-                    print(l.out_features)
 
         self.to(self.device)
         super().__setup__()

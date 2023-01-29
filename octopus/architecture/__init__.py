@@ -1,6 +1,5 @@
 from torch import nn
 from torch.nn import Linear, Conv2d, ReLU
-import numpy as np
 
 
 from ..heuristic.prune import Prune

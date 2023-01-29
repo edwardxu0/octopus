@@ -27,8 +27,11 @@ class ReLUEstimator:
 
     @staticmethod
     def _calculate_stable_ReLUs(lb, ub):
+        if len(lb.shape) == 4 and len(ub.shape) == 4:
+            lb = lb.flatten(start_dim=1)
+            ub = ub.flatten(start_dim=1)
+
         le_0 = torch.sum(ub < 0, axis=-1).int()
         ge_0 = torch.sum(lb >= 0, axis=-1).int()
-        # TODO: do we need eq 0 as a stand-alone case?
-        # eq_0 = torch.sum(lb == 0 and ub==0, axis=-1).int()
+
         return le_0, ge_0

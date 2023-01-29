@@ -3,7 +3,8 @@ import torch.nn as nn
 
 from . import BasicNet
 
-
+# THIS ARTIFACT IS NOT IMPLEMENTED
+# TODO: implement DAVE2
 class Dave2(BasicNet):
     def __init__(self, artifact, net_name, logger, device, amp):
         raise NotImplementedError
