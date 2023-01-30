@@ -4,9 +4,9 @@ name = 'test'
 	artifact = 'CIFAR10'
 	net_name = 'OVAL21_o'
 
-	epochs = 50
-	batch_size = 128
-	test_batch_size = 128
+	epochs = 20
+	batch_size = 24
+	test_batch_size = 24
 	lr = 1e-4							# learning rate
 	gamma = 0.95 							# Learning rate decay
 	save_model = true
@@ -29,11 +29,11 @@ name = 'test'
 		#	epsilon = 0.04
 		#	samples = 100
 
-	 	[train.stable_estimator.NIP]
-			epsilon = 0.04
+	 	#[train.stable_estimator.NIP]
+		#	epsilon = 0.04
 			
-	#	[train.stable_estimator.SIP]
-	#		epsilon = 0.04
+		[train.stable_estimator.SIP]
+			epsilon = 0.04
 
 [heuristic]
 	[heuristic.bias_shaping]
@@ -44,14 +44,14 @@ name = 'test'
         # occurrence = 5e-3
 
 		# interval scheduling
-		intensity = 2e-1
-		pace = 50
+		intensity = 0.2
+		pace = 200
 		# decay = 0.99
 		
 		start = 1 			# inclusive
 		end = 20 			# inclusive
 		[heuristic.bias_shaping.stable_estimator]
-			[heuristic.bias_shaping.stable_estimator.NIP]
+			[heuristic.bias_shaping.stable_estimator.SIP]
 				epsilon = 0.04
 				samples = 100
 

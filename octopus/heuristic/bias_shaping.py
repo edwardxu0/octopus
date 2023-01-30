@@ -46,12 +46,14 @@ class BiasShaping(Heuristic):
                     le_0_, ge_0_ = self.stable_estimator.get_stable_ReLUs()
                     lb_, ub_ = self.stable_estimator.get_bounds()
 
-                    if len(lb_[i].shape) == 4:
+                    if len(lb_[i].shape) == 2:
+                        val_min = torch.min(lb_[i].T, axis=-1).values
+                        val_max = torch.max(ub_[i].T, axis=-1).values
+                    elif len(lb_[i].shape) == 4:
                         val_min = torch.amin(lb_[i], dim=(0, 2, 3))
                         val_max = torch.amax(ub_[i], dim=(0, 2, 3))
                     else:
-                        val_min = torch.min(lb_[i].T, axis=-1).values
-                        val_max = torch.max(ub_[i].T, axis=-1).values
+                        raise ValueError(len(lb_[i].shape))
 
                     (
                         safe_le_zero,

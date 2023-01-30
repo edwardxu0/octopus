@@ -4,7 +4,11 @@ import torch.nn as nn
 
 from . import ReLUEstimator
 
-from symbolic_interval.symbolic_network import Interval_network
+from symbolic_interval.symbolic_network import (
+    Interval_network,
+    Interval_Dense,
+    Interval_Conv2d,
+)
 from symbolic_interval.interval import Symbolic_interval
 
 # Naive Interval Propagation estimator
@@ -23,7 +27,11 @@ class SIPEstimator(ReLUEstimator):
 
     def propagate(self, **kwargs):
         data = kwargs["data"]
-        X = data.view((-1, np.prod(self.model.artifact.input_shape)))
+
+        if isinstance(self.inet.net[0], Interval_Dense):
+            X = data.view((-1, np.prod(self.model.artifact.input_shape)))
+        elif isinstance(self.inet.net[0], Interval_Conv2d):
+            X = data
 
         minimum = X.min().item()
         maximum = X.max().item()
@@ -32,6 +40,7 @@ class SIPEstimator(ReLUEstimator):
             torch.clamp(X + self.epsilon, minimum, maximum),
             use_cuda=self.model.device == torch.device("cuda"),
         )
+
         ixo = self.inet(ix)
 
         lb_ = []
@@ -51,8 +60,24 @@ class SIPEstimator(ReLUEstimator):
                 # ge_0_ += [ge_0.view(1, *ge_0.shape)]
                 le_0_ += [le_0]
                 ge_0_ += [ge_0]
+            elif isinstance(layer, torch.nn.Conv2d):
+                assert len(l.l.shape) == 2
+                nb_channel = layer.out_channels
+                nb_neurons = int(np.sqrt(l.l.shape[1] / nb_channel))
+                assert l.l.shape[1] == nb_channel * nb_neurons**2
+                # print(l.l.shape, nb_channel, nb_neurons, nb_neurons)
 
+                lb = l.l.reshape(l.l.shape[0], nb_channel, nb_neurons, nb_neurons)
+                ub = l.u.reshape(l.l.shape[0], nb_channel, nb_neurons, nb_neurons)
+                lb_ += [lb]
+                ub_ += [ub]
+
+                le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(lb, ub)
+                le_0_ += [le_0]
+                ge_0_ += [ge_0]
             elif isinstance(layer, torch.nn.ReLU):
+                pass
+            elif isinstance(layer, torch.nn.Flatten):
                 pass
             else:
                 raise NotImplementedError(layer)

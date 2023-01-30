@@ -8,8 +8,8 @@ name = 'test'
 	#net_name = 'LeNet'
 
 	epochs = 5
-	batch_size = 128
-	test_batch_size = 128
+	batch_size = 4
+	test_batch_size = 4
 	lr = 1e-4							# learning rate
 	gamma = 0.95 							# Learning rate decay
 	save_model = true
@@ -32,11 +32,11 @@ name = 'test'
 		#	epsilon = 0.04
 		#	samples = 100
 
-		[train.stable_estimator.NIP]
-			epsilon = 0.04
-			
-		#[train.stable_estimator.SIP]
+		#[train.stable_estimator.NIP]
 		#	epsilon = 0.04
+			
+		[train.stable_estimator.SIP]
+			epsilon = 0.04
 
 [heuristic]
 	#[heuristic.bias_shaping]
@@ -79,7 +79,7 @@ name = 'test'
 		start = 1
 		end = 10
 		[heuristic.prune.stable_estimator]
-			[heuristic.prune.stable_estimator.NIP]
+			[heuristic.prune.stable_estimator.SIP]
 				epsilon = 0.04
 				samples = 10
 
