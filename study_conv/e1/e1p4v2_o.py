@@ -49,6 +49,17 @@ heuristics = {
             },
         },
     },
+    "RS_SAD": {
+        "rs_loss": {
+            "mode": "standard",
+            "weight": 1e-4,
+            "start": 1,
+            "end": 20,
+            "stable_estimator": {
+                "SAD": {"mode": "standard", "epsilon": 0.1, "samples": 100}
+            },
+        },
+    },
     # PR
     "PR_SDD": {
         "prune": {

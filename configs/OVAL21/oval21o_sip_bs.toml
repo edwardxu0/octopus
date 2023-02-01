@@ -5,8 +5,8 @@ name = 'test'
 	net_name = 'OVAL21_o'
 
 	epochs = 20
-	batch_size = 24
-	test_batch_size = 24
+	batch_size = 12
+	test_batch_size = 12
 	lr = 1e-4							# learning rate
 	gamma = 0.95 							# Learning rate decay
 	save_model = true

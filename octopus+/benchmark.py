@@ -260,7 +260,10 @@ class Benchmark:
                 ]
                 if self.base_settings["train"]["gpu"]:
                     lines += [f"#SBATCH --partition=gpu", "#SBATCH --gres=gpu:1"]
-                if self.train_nodes_ex and "train_nodes" not in self.__dict__:
+                if (
+                    "train_nodes_ex" in self.__dict__
+                    and "train_nodes" not in self.__dict__
+                ):
                     lines += [f"#SBATCH --exclude={self.train_nodes_ex}"]
 
                 lines += [
@@ -342,6 +345,7 @@ class Benchmark:
 
             model_path = f'{config_path.replace("train_config", "model")[:-5]}.{sts["train"]["epochs"]}.onnx'
             if not os.path.exists(model_path):
+                print(model_path)
                 print("No model")
                 continue
             ###########################
@@ -452,6 +456,29 @@ class Benchmark:
             self.logger.debug(f"Name: {name}")
             self.logger.debug(f"Train log path: {train_log_path}")
             lines = open(train_log_path, "r").readlines()
+
+            # TODO:
+            # temp solution for new ReLU calculations
+            # remove this for new log files
+
+            if a == "CIFAR10" and n == "OVAL21_o":
+                total_nb_relus = 3172
+            elif a == "CIFAR10" and n == "OVAL21_w":
+                total_nb_relus = 6244
+            elif a == "CIFAR10" and n == "OVAL21_d":
+                total_nb_relus = 6756
+            elif a == "CIFAR10" and n in [
+                "LeNet_o",
+                "LeNet_w",
+                "LeNet_oe",
+                "LeNet_we",
+            ]:
+                assert False
+            else:
+                nb_relu_line = [x for x in lines if "# ReLUs" in x]
+                assert len(nb_relu_line) == 1
+                total_nb_relus = int(nb_relu_line[0].split()[-1])
+
             test_lines = [x for x in lines if "[Test] epoch:" in x]
             relu_lines = [x for x in lines if "[Test] Stable ReLUs:" in x]
 
@@ -460,6 +487,7 @@ class Benchmark:
             target_epoch = Problem.Utility.get_target_epoch(
                 target_model, train_log_path
             )
+            # print(test_lines, len(test_lines), train_log_path)
             test_accuracy = [
                 float(x.strip().split()[-1][:-1]) / 100 for x in test_lines
             ][target_epoch - 1]
@@ -525,7 +553,7 @@ class Benchmark:
                 verification_time = 600
 
             if answer is None or verification_time is None:
-                print("rm", veri_log_path)#, verification_time, answer)
+                print("rm", veri_log_path)  # , verification_time, answer)
 
                 ### TEMP solution
                 # TODO REMOVE
@@ -547,11 +575,7 @@ class Benchmark:
                 # print(unstable_relus, veri_log_path)
                 avg_unstable_relus = np.mean(np.array(unstable_relus))
 
-                # relu_accuracy_veri = 1 - avg_unstable_relus / np.sum(
-                #    np.array(self.networks[n])
-                # )
-                relu_accuracy_veri = avg_unstable_relus
-                # exit()
+                relu_accuracy_veri = 1 - avg_unstable_relus / total_nb_relus
 
             else:
                 relu_accuracy_veri = 0

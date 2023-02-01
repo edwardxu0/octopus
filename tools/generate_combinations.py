@@ -8,7 +8,7 @@ stabilizer_skeleton = {
     "B": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 2e-2,
+            "intensity": 1e-2,
             "pace": 100,
             "start": [],
             "end": [],
@@ -25,7 +25,7 @@ stabilizer_skeleton = {
     "P": {
         "prune": {
             "mode": "stablenet",
-            "sparsity": 2e-2,
+            "sparsity": 1e-2,
             "pace": 100,
             "start": [],
             "end": [],
@@ -38,7 +38,7 @@ estimator_skeleton = {"SDD": {"SDD": {}}}
 
 def main(args):
     steps = 3
-    stride = 10
+    stride = 7
     estimator = "SDD"
     stabilizers = ["B", "R", "P", "N"]
 
