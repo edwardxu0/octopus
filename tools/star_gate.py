@@ -2,6 +2,7 @@
 
 import os
 import re
+import pathlib
 import copy
 import argparse
 import pandas as pd
@@ -15,9 +16,9 @@ from nexus import Settings
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="Plotter")
-    parser.add_argument("study", type=str)
     parser.add_argument("task", type=str)
-    parser.add_argument("ta_threshold", type=int)
+    parser.add_argument("feathers", nargs="+", type=str)
+    parser.add_argument("--ta_threshold", type=int, default=2)
     parser.add_argument("--root", type=str, default="results")
     parser.add_argument("--s", type=str)
     parser.add_argument("--a", type=str)
@@ -26,46 +27,31 @@ def _parse_args():
 
 
 def main(args):
-    # heuristics = Settings.heuristics[args.study.replace("_", "")]
-    heuristics = Settings.heuristics[args.study[:2]]
 
-    # combine(args)
-    # df = pd.read_feather(os.path.join(args.root, f"{args.study}.feather"))
-
-    # df = pd.read_feather("results_conv/e1p4v2_o.feather")
-    # df = df[df["heuristic"] == "Baseline"]
-    # df.to_feather(os.path.join(args.root, f"baseline.feather"))
-    # print(df)
-    # exit()
-
-    # new conv net
-    # df = pd.read_feather("results_conv/e1p4v2_o.feather")
-    # df["heuristic"] = df["heuristic"].map(Settings.convert_names)
-    # heuristics = Settings.heuristics[args.study[:2]]
-    # print(heuristics)
-    # exit()
-
-    # new combinations
     root = args.root
-    # root = "results_tacas"
-    # df1 = pd.read_feather(os.path.join(root, f"e1p1ba.feather"))
-    # df2 = pd.read_feather(os.path.join(root, f"e1p1.feather"))
-    # df = pd.concat([df1, df2], ignore_index=True)
-    # heuristics = list(set(df1["heuristic"])) + sorted(list(set(df2["heuristic"])))
 
-    df = pd.read_feather(os.path.join(root, f"e1p10wv1.feather"))
-    # df["heuristic"] = df["heuristic"].map(Settings.convert_names)
+    dfs = []
+    for x in args.feathers:
+        df = pd.read_feather(os.path.join(root, f"{x}.feather"))
+        dfs += [df]
+
+    df = pd.concat(dfs, ignore_index=True)
+
+    df["heuristic"] = df["heuristic"].map(Settings.convert_names)
+
+    print(set(df["network"]))
+
+    df = df[df["network"] != "NetL"]
+
     heuristics = list(sorted(set(df["heuristic"])))
-    heuristics.remove("Baseline")
-    heuristics = ["Baseline"] + heuristics
+
+    heuristics.sort(key=Settings.heuristics_order.index)
+
     print(heuristics)
 
-    # df = df[df["artifact"] == args.a]
-    # df = df[df["artifact"] == "FashionMNIST"]
-    # df = df[df["artifact"] == "CIFAR10"]
-    # df = df[df["heuristic"] == args.s]
-
-    if args.task == "st":
+    if args.task == "pb":
+        plot_baseline(df)
+    elif args.task == "st":
         stable_relu_table(df, heuristics, args.ta_threshold)
     elif args.task == "vt":
         verification_table(df, heuristics, args.ta_threshold)
@@ -77,84 +63,74 @@ def main(args):
     else:
         assert False
 
+    print(len(df))
+    print(df)
+    print("Verification Time: ", np.sum(df["veri time"]) / 3600)
+    print("Training Time: ", np.sum(df["training time"]) / 3600 / 50)
 
-def combine(args):
-    study = args.study
-    if study == "e1":
-        studies = [f"e1p{x}" for x in [1, 2, 3]]
-    elif study == "e2v50":
-        studies = ["e2p3v51", "e2p3v52"]
-    elif study == "e2v50_":
-        studies = ["e2p3v51_", "e2p3v52_"]
-    elif study == "e2v50__":
-        studies = ["e2p3v51__", "e2p3v52__"]
-
-    elif any([x in study for x in ["e1v", "e2v"]]):
-        if len(study) == 4:
-            studies = [f"e{study[1]}p{x}v{study[-1]}" for x in [1, 2, 3]]
-        elif len(study) == 5:
-            studies = [f"e{study[1]}p{x}v{study[-2]}_" for x in [1, 2, 3]]
-        if study in ["e2v5", "e2v6", "e2v7", "e2v8"]:
-            studies += [studies[-1] + "_"]
-    dfs = []
-    for s in studies:
-        df = pd.read_feather(os.path.join(args.root, f"{s}.feather"))
-        dfs += [df]
-
-    """
-    if study in ["e2", "e2_", "e3", "e3_"]:
-        df = pd.read_feather(os.path.join(args.root, "e1.feather"))
-        df = df[df["heuristic"] == "Baseline"]
-        dfs += [df]
-    """
-
-    if "e2" in study:
-        df = pd.read_feather(os.path.join(args.root, f"e1v2.feather"))
-        df = df[df["heuristic"] == "Baseline"]
-        dfs += [df]
-
-    df_ = pd.concat(dfs, ignore_index=True)
-    df_["heuristic"] = df_["heuristic"].map(Settings.convert_names)
-
-    save_path = os.path.join(args.root, f"{study}.feather")
-    df_.to_feather(save_path)
+    exit()
 
 
 def stable_relu_table(df, heuristics, ta_threshold):
-    artifacts = [*reversed(sorted(set(df["artifact"])))]
+    # artifacts = [*reversed(sorted(set(df["artifact"])))]
+    artifacts = list(set(df["network"]))
+    artifacts.sort(key=Settings.network_order.index)
     res_ = []
     res_e = []
+
+    df = df[df["verifier"] == "DNNVWB:neurify"]
 
     for i, h in enumerate(heuristics):
         res = []
         rese = []
         for a in artifacts:
-            dft = df[df["artifact"] == a]
+            # dft = df[df["artifact"] == a]
+            dft = df[df["network"] == a]
             dft = dft[dft["heuristic"] == h]
             ta = dft["test accuracy"]
             ta = np.array(ta) * 100
 
-            dfb = df[df["artifact"] == a]
+            # dfb = df[df["artifact"] == a]
+            dfb = df[df["network"] == a]
             dfb = dfb[dfb["heuristic"] == "Baseline"]
-            ta_baseline = np.mean(dfb["test accuracy"].values)
+            ta_baseline = np.mean(dfb["test accuracy"].values) * 100
 
             # relative test accuracy
-            dft = dft[dft["test accuracy"] >= (ta_baseline - ta_threshold / 100)]
+            # dft = dft[dft["test accuracy"] >= (ta_baseline - ta_threshold / 100)]
 
             srn = dft["relu accuracy veri"]
             srn = np.array(srn) * 100
-            if len(srn) == 0:
-                res += [np.mean(ta), 0]
+
+            # if h == "B_NIP" and a == "FC6":
+            #    print(np.mean(ta), np.mean(srn))
+            #    exit()
+
+            index_meat_ta_threshold = np.where(ta + ta_threshold >= ta_baseline)
+            # index_meat_ta_threshold = np.where(ta >= ta_baseline * 0.98)
+            # print(index_meat_ta_threshold)
+            if len(index_meat_ta_threshold) != 0:
+                ta = ta[index_meat_ta_threshold]
+                srn = srn[index_meat_ta_threshold]
+            else:
+                ta = -1
+                srn = -1
+
+            assert len(ta) == len(srn)
+            if len(ta) == 0:
+                res += [-1, -1]
             else:
                 res += [np.mean(ta), np.mean(srn)]
 
-            rese += [ta, srn]
+            rese += [np.array(ta), np.array(srn)]
+
+        # print(np.array(rese).shape)
 
         res_ += [res]
         res_e += [rese]
 
     res_ = np.array(res_)
-    res_e = np.array(res_e)
+
+    # gres_e = np.array(res_e)
     assert heuristics[0] == "Baseline"
 
     best = "max"
@@ -164,21 +140,31 @@ def stable_relu_table(df, heuristics, ta_threshold):
     bt_ = []
     for i, h in enumerate(heuristics):
         bt = []
-        below_ta = 0
+
+        # below TA flag
+        # 0: None below TA
+        # 1: Some
+        # 2: All
+
         for j, x in enumerate(res_e[i]):
+            # test accuracy
             if j % 2 == 0:
                 if all(x + ta_threshold > res_[0][j]):
+                    # if all(x > res_[0][j] * 0.98):
                     below_ta = 0
                 elif any(x + ta_threshold > res_[0][j]):
+                    # elif any(x > res_[0][j] * 0.98):
                     below_ta = 1
+                    print(res_[0][j])
                 else:
                     below_ta = 2
                     res_2[i][j] = 0
-                bt += [below_ta, 0]
+                bt += [below_ta, below_ta]
+            # relu accuracy
             else:
                 if below_ta == 2:
                     res_2[i][j] = 0
-                    below_ta = 0
+
         bt_ += [bt]
 
     target_ids = []
@@ -188,6 +174,7 @@ def stable_relu_table(df, heuristics, ta_threshold):
 
     for i, h in enumerate(heuristics):
         line = h.replace("_", "\_")
+        """
         for j, x in enumerate(res_[i]):
             if bt_[i][j] == 0:
                 line += " &"
@@ -211,6 +198,16 @@ def stable_relu_table(df, heuristics, ta_threshold):
                 line += "} "
             elif bt_[i][j] == 2:
                 line += "} "
+        """
+        for j, x in enumerate(res_[i]):
+
+            line += " &"
+            if x in [-1, 0]:
+                line += " - "
+            elif i in target_ids[j]:
+                line += f" \\tb{x:.2f}"
+            else:
+                line += f" {x:.2f}"
 
         print(f"{line}\\\\")
         if h == "Baseline" or i % 4 == 0:
@@ -233,40 +230,22 @@ def stable_relu_table(df, heuristics, ta_threshold):
     print()
 
 
-"""
-# with training stability estimation on
-def stable_relu_table_detailed(df, heuristics):
-    artifacts = [*reversed(sorted(set(df["artifact"])))]
-
-    for a in artifacts:
-        print(a)
-        for i, h in enumerate(heuristics):
-            dft = df[df["verifier"] == "DNNVWB:neurify"]
-            dft = dft[dft["artifact"] == a]
-            dft = dft[dft["heuristic"] == h]
-            ta = dft["test accuracy"]
-            ta = np.mean(ta) * 100
-
-            sr1 = np.mean(dft["ra(sdd)"]) * 100
-            sr2 = np.mean(dft["ra(sad)"]) * 100
-            sr3 = np.mean(dft["ra(nip)"]) * 100
-            sr4 = np.mean(dft["ra(sip)"]) * 100
-            srn = np.mean(dft["relu accuracy veri"]) * 100
-            h_name = h.replace("_", "\_")
-            print(
-                f"{h_name} & {ta:.2f} & {sr1:.2f} & {sr2:.2f} & {sr3:.2f} & {sr4:.2f} & {srn:.2f} \\\\"
-            )
-
-            if h == "Baseline" or i % 4 == 0:
-                print("\\hline")
-        print()
-"""
-
-
 def verification_table(df, heuristics, ta_threshold):  # , excludes):
-    artifacts = [*reversed(sorted(set(df["artifact"])))]
+    # artifacts = [*reversed(sorted(set(df["artifact"])))]
+    artifacts = list(set(df["network"]))
+    artifacts.sort(key=Settings.network_order.index)
+    print(artifacts)
 
-    def verification_table(metric, normalize, best, worst_case, ta_threshold):
+    def verification_table(
+        metric,
+        normalize,
+        best,
+        worst_case,
+        ta_threshold,
+        target_ids=None,
+        zero_ids=None,
+        zero_ids_flag=False,
+    ):
         if best == "min":
             exclude_case = worst_case + 1
         elif best == "max":
@@ -275,10 +254,12 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
         res_ = []
         seeds = len(set(df["seed"]))
 
-        verifiers = sorted(list(set(df["verifier"])))
+        verifiers = list(set(df["verifier"]))
+        verifiers.sort(key=Settings.verifier_order.index)
         print(verifiers)
         dft = df
         dft = dft[dft["verifier"] == verifiers[0]]
+        # dft = dft[dft["artifact"] == artifacts[0]]
         dft = dft[dft["artifact"] == artifacts[0]]
         dft = dft[dft["heuristic"] == "Baseline"]
         nb_problems = len(dft)
@@ -302,16 +283,21 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
 
                     dft = df
                     dft = dft[dft["verifier"] == v]
-                    dft = dft[dft["artifact"] == a]
+                    # dft = dft[dft["artifact"] == a]
+                    dft = dft[dft["network"] == a]
                     df_baseline = dft[dft["heuristic"] == "Baseline"]
                     ta_baseline = np.mean(df_baseline["test accuracy"].values)
                     # print(f"{ta_baseline:.4f}")
                     dft = dft[dft["heuristic"] == h]
 
                     # relative test accuracy
-                    dft = dft[
-                        dft["test accuracy"] >= (ta_baseline - ta_threshold / 100)
-                    ]
+                    nb_problems_total = len(dft)
+
+                    dft = dft[dft["test accuracy"] >= ta_baseline - ta_threshold / 100]
+                    # dft = dft[dft["test accuracy"] >= ta_baseline * 0.98]
+
+                    nb_problems_meet_ta = len(dft)
+                    nb_problems_excluded = nb_problems_total - nb_problems_meet_ta
 
                     # best_ta = sorted(set(dft["test accuracy"].values))[-1]
                     # dft = dft[dft["test accuracy"] == best_ta]
@@ -320,11 +306,14 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
 
                     veri_time = dft["veri time"].values
                     if metric == "scr":
-                        # X = sum([1 for x in veri_ans if x in [1, 2]])
-                        X = sum([1 for x in veri_ans if x in [1]])
-                        # print(len(dft), X)
+                        X = sum([1 for x in veri_ans if x in [1, 2]])
+                        # X = sum([1 for x in veri_ans if x in [1]])
+                    # print(len(dft), X)
                     elif metric == "time":
-                        X = sum(veri_time)
+                        if len(veri_time) == 0:
+                            X = float("inf")
+                        else:
+                            X = np.mean(veri_time)
 
                     elif metric == "par2":
                         assert len(veri_ans) == len(veri_time)
@@ -335,25 +324,29 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
                                 if veri_ans[i] in [1, 2]
                             ]
                         )
-                        par2_b = sum(
-                            [
-                                Settings.timeout * 2
-                                for i in range(len(veri_ans))
-                                if veri_ans[i] not in [1, 2]
-                            ]
+                        par2_b = (
+                            sum(
+                                [
+                                    Settings.timeout * 2
+                                    for i in range(len(veri_ans))
+                                    if veri_ans[i] not in [1, 2]
+                                ]
+                            )
+                            + nb_problems_excluded * Settings.timeout * 2
                         )
-                        X = par2_a + par2_b
+                        X = (par2_a + par2_b) / 1000
 
                     else:
                         assert False
                     total += X
 
                     res += [X]
-                    left_p += [len(dft)]
+                    left_p += [nb_problems_meet_ta]
 
                 # res += [total]
                 tt += total
-            res = [x / len(set(df[df["heuristic"] == h]["seed"])) for x in res]
+            if metric != "time":
+                res = [x / len(set(df[df["heuristic"] == h]["seed"])) for x in res]
             res_ += [res]
             left_problems += [left_p]
             # res_ += [res + [tt]]
@@ -361,87 +354,67 @@ def verification_table(df, heuristics, ta_threshold):  # , excludes):
         # res_ = np.array(res_) / seeds
         res_ = np.array(res_)
 
-        target_ids = eval(f"np.arg{best}")(res_.T, axis=1)
+        if metric == "scr":
+            baseline = res_[0]
+            # target_ids = eval(f"np.arg{best}")(res_.T, axis=1)
+            target_ids = []
+            zero_ids = []
 
-        target_ids = []
-        for x in res_.T:
-            i = eval(f"np.arg{best}")(x)
-            if x[i] == worst_case:
-                target_ids += [[]]
-            else:
-                target_ids += [np.where(x == x[i])[0].tolist()]
+            for i, x in enumerate(res_.T):
+                temp = np.argsort(x)[-3:]
+                ids = []
+                for j in temp:
+                    if x[j] >= baseline[i] and j != 0:
+                        ids += [j]
+                zeros = []
+                for j, x_ in enumerate(x):
+                    if x_ == 0:
+                        zeros += [j]
+
+                target_ids += [ids]
+                zero_ids += [zeros]
+
+            print(target_ids)
 
         assert heuristics[0] == "Baseline"
         for i, row in enumerate(res_):
 
             h_name = heuristics[i].replace("_", "\_")
-            line = f"{h_name} &"
+            line = f"{h_name} & "
 
             for j, x in enumerate(row):
 
-                if x == exclude_case:
-                    line += " $\\times$ &"
+                if left_problems[i][j] == 0:
+                    line += "- & "
+                elif x == 0:
+                    line += f"{x:,.0f}& "
+                elif zero_ids_flag and i in zero_ids[j]:
+                    line += "- &"
+                elif i in target_ids[j]:
+                    line += f"\\tb{x:,.2f}& "
                 else:
-                    if normalize:
-                        if res_[0][j] == 0:
-                            line += f" N/A &"
-                        else:
-                            x /= res_[0][j]
-                            if i in target_ids[j]:
-                                line += f" \\tb{x:,.2f} &"
-                            else:
-                                line += f" {x:,.2f} &"
+                    line += f"{x:,.2f}& "
 
-                    else:
-                        if (
-                            left_problems[i][j] != nb_problems
-                            and left_problems[i][j] != 0
-                        ):
-                            line += " "
-
-                        else:
-                            line += " "
-
-                        if i in target_ids[j]:
-                            line += f"\\tb{x:,.2f}"
-                        elif left_problems[i][j] == 0:
-                            line += "-"
-                        elif x == 0:
-                            line += f"{x:,.0f}"
-                        else:
-                            line += f"{x:,.2f}"
-
-                        if (
-                            left_problems[i][j] != nb_problems
-                            and left_problems[i][j] != 0
-                        ):
-                            line += " &"
-                        else:
-                            line += " &"
-
-            print(f"{line[:-1]} \\\\")
+            print(f"{line[:-2]} \\\\")
             if h == "Baseline" or i % 4 == 0:
                 print("\\hline")
 
-        res_2 = copy.copy(res_)
-        res_2[0] = res_2[0] * 0
-        line = "Best"
-        for i, x in enumerate(np.argmax(res_2.T, axis=1)):
-            y = res_.T[i][x]
-            if y == 0 and res_.T[i][0] == 0:
-                line += "& /"
-            elif y == 0 and res_.T[i][0] != 0:
-                line += f"& -{res_.T[i][0]} "
-            elif res_.T[i][0] != 0:
-                line += f"& {y/res_.T[i][0]:.2f} "
-            else:
-                line += f"& +{y:.2f} "
         line += " \\\\"
-        print(line)
-        print("\\hline")
-        print()
 
-    verification_table("scr", False, "max", 0, ta_threshold)
+        return target_ids, zero_ids
+
+    target_ids, zero_ids = verification_table("scr", False, "max", 0, ta_threshold)
+    verification_table(
+        "time",
+        False,
+        "min",
+        0,
+        ta_threshold,
+        target_ids=target_ids,
+        zero_ids=zero_ids,
+        zero_ids_flag=True,
+    )
+    # verification_table("par2", False, "min", 0, ta_threshold)
     # verification_table('time', False, 'min')
     # verification_table('par2', False, 'min')
 
@@ -520,6 +493,64 @@ def verification_plot(df, heuristics, excludes):
         )
         fig.clear()
         plt.close(fig)
+
+
+def plot_baseline(df):
+    df = df[df["heuristic"] == "Baseline"]
+    verifiers = set(df["verifier"])
+    eps = sorted(set(df["epsilon"]))
+
+    fig, ax1 = plt.subplots(1, 1, figsize=(8, 4))
+    for v in verifiers:
+        dft = df[df["verifier"] == v]
+        nb_unsat = []
+        nb_sat = []
+        for e in eps:
+            dft_ = dft[dft["epsilon"] == e]
+            unsat = len([x for x in dft_["veri ans"] if x == 1])
+            sat = len([x for x in dft_["veri ans"] if x == 2])
+            nb_unsat += [unsat]
+            nb_sat += [sat]
+
+        print(v, nb_unsat, nb_sat)
+
+        ax1.plot(
+            # np.arange(len(nb_unsat)) + 1,
+            eps,
+            nb_unsat,
+            linewidth=1,
+            linestyle="--",
+            label="UNSAT",
+            color="blue",
+        )
+
+        ax1.plot(
+            # np.arange(len(nb_sat)) + 1,
+            eps,
+            nb_sat,
+            linewidth=1,
+            linestyle=":",
+            label="SAT",
+            color="orange",
+        )
+        ax1.legend(
+            # loc="upper right",
+            bbox_to_anchor=(1, 1),
+            fancybox=True,
+        )
+        ax1.set_xlabel("Epsilon")
+        ax1.set_ylabel("Instances Proved/Falsified")
+        ax1.set_ylim(-1, len(dft_) + 1)
+        pathlib.Path(Settings.fig_dir).mkdir(parents=True, exist_ok=True)
+
+        artifact = f'{list(set(dft_["artifact"]))[0]}:{list(set(dft_["network"]))[0]}'
+        plt.savefig(
+            os.path.join(Settings.fig_dir, f"A={artifact}_V={v}.pdf"),
+            format="pdf",
+            bbox_inches="tight",
+        )
+        ax1.clear()
+        # plt.close(fig)
 
 
 if __name__ == "__main__":
