@@ -33,13 +33,15 @@ stabilizer_skeleton = {
     },
 }
 
-estimator_skeleton = {"SDD": {"SDD": {}}}
+estimator_skeleton = {"SDD": {"SDD": {}},
+                      "SIP": {"SIP": {"mode": "standard", "epsilon": 0.1}}}
 
 
 def main(args):
     steps = 3
     stride = 7
-    estimator = "SDD"
+    #estimator = "SDD"
+    estimator = "SIP"
     stabilizers = ["B", "R", "P", "N"]
 
     heuristics = ["".join(x) for x in itertools.product(stabilizers, repeat=steps)]

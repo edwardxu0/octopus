@@ -804,6 +804,8 @@ class Problem:
                         veri_ans = "error"
                     elif "MarabouError(NaN values in input.)" in l:
                         veri_ans = "error"
+                    elif "NnenumError(result:error)" in l:
+                        veri_ans = "error"
                     elif "TranslatorError" in l:
                         veri_ans = "error"
                     elif "Invalid counter example" in l:

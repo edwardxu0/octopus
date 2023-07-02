@@ -259,7 +259,7 @@ class Benchmark:
                     f"#SBATCH --error={log_path}",
                 ]
                 if self.base_settings["train"]["gpu"]:
-                    lines += [f"#SBATCH --partition=gpu", "#SBATCH --gres=gpu:1"]
+                    lines += [f"#SBATCH --partition=gnolim", "#SBATCH --gres=gpu:1"]
                 if (
                     "train_nodes_ex" in self.__dict__
                     and "train_nodes" not in self.__dict__
