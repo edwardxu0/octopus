@@ -1,13 +1,13 @@
 import torch
 from torch.nn import Linear, Conv2d, ReLU
 
-from . import Heuristic
+from . import Stabilizer
 from ..stability_estimator.ReLU_estimator.SIP_estimator import SIPEstimator
 
 
-class Prune(Heuristic):
+class StablePrune(Stabilizer):
     def __init__(self, model, cfg):
-        super().__init__(model, cfg["stable_estimator"])
+        super().__init__(model, cfg["stable_estimators"])
         self.__name__ = "Prune"
         self.model = model
         self.mode = cfg["mode"]
@@ -37,7 +37,6 @@ class Prune(Heuristic):
                     re_arch_on = True
                 elif self.re_arch == "last":
                     if kwargs["epoch"] == kwargs["total_epoch"]:
-
                         self.logger.warning(
                             "re_arch on last EPOCH, not last pruning instance."
                         )
@@ -63,10 +62,10 @@ class Prune(Heuristic):
                 raise NotImplementedError
 
     def _update_mask(self, pr_ratio, **kwargs):
-        self.stable_estimator.propagate(**kwargs)
+        self.stable_estimators.propagate(**kwargs)
 
         if self.mode == "dropnet":
-            lb_, ub_ = self.stable_estimator.get_bounds()
+            lb_, ub_ = self.stable_estimators.get_bounds()
             mean = []
             for lb, ub in zip(lb_, ub_):
                 assert len(lb.shape) == 2
@@ -80,11 +79,10 @@ class Prune(Heuristic):
             threshold = weight_sorted_nonzero[int(pr_ratio * nb_neurons)]
 
         elif self.mode == "stablenet":
-            lb_, ub_ = self.stable_estimator.get_bounds()
+            lb_, ub_ = self.stable_estimators.get_bounds()
             mean = []
             # check conv layers
             for i, (lb, ub) in enumerate(zip(lb_, ub_)):
-
                 if len(ub.shape) == 4:
                     ub = torch.amax(ub, dim=(2, 3))
 
@@ -132,8 +130,8 @@ class Prune(Heuristic):
         self.logger.info(f"# ReLUs: {self.model.nb_ReLUs}")
 
         self._init_mask()
-        if isinstance(self.stable_estimator, SIPEstimator):
-            self.stable_estimator.init_inet()
+        if isinstance(self.stable_estimators, SIPEstimator):
+            self.stable_estimators.init_inet()
 
     def _filter_parameters(self):
         weight_ = []

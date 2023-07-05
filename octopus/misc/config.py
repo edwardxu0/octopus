@@ -35,7 +35,7 @@ class Settings:
         self.sub_dirs = {"result_dir": self.result_dir}
 
         self.cfg_train = cfg["train"]
-        self.cfg_heuristic = cfg["heuristic"] if "heuristic" in cfg else None
+        self.cfg_stabilizers = cfg["stabilizers"] if "stabilizers" in cfg else None
         self.cfg_verify = cfg["verify"]
 
         self.answer_code = {

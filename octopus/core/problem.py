@@ -30,7 +30,7 @@ class Problem:
         self.override = settings.override
         self.sub_dirs = settings.sub_dirs
         self.cfg_train = settings.cfg_train
-        self.cfg_heuristic = settings.cfg_heuristic
+        self.cfg_stabilizers = settings.cfg_stabilizers
         self.cfg_verify = settings.cfg_verify
         self.logger = settings.logger
         self._setup_(settings)
@@ -42,7 +42,7 @@ class Problem:
         torch.set_printoptions(threshold=100000)
 
         self.__name__ = self.Utility.get_hashed_name(
-            [self.cfg_train, self.cfg_heuristic, self.seed]
+            [self.cfg_train, self.cfg_stabilizers, self.seed]
         )
         self.model_path = os.path.join(
             self.sub_dirs["model_dir"], f"{self.__name__}.onnx"
@@ -125,10 +125,10 @@ class Problem:
         self.train_loss = []
         self.test_accuracy = []
 
-        # configure heuristics
-        if "stable_estimator" in self.cfg_train:
+        # configure stabilizers
+        if "stable_estimators" in self.cfg_train:
             self.stable_estimators = get_stability_estimators(
-                self.cfg_train["stable_estimator"], self.model
+                self.cfg_train["stable_estimators"], self.model
             )
             self.train_stable_ReLUs = {x: [] for x in self.stable_estimators}
             self.logger.info(
@@ -139,7 +139,7 @@ class Problem:
             self.train_stable_ReLUs = None
             self.logger.info("No activated train stability estimators.")
 
-        self.model._setup_heuristics(self.cfg_heuristic)
+        self.model._setup_stabilizers(self.cfg_stabilizers)
 
     def _trained(self):
         # TODO: account for log file and # epochs
@@ -219,7 +219,6 @@ class Problem:
             # with torch.cuda.amp.autocast(enabled=self.amp):
             # to disable warning when cuda==false and amp==true.
             with torch.autocast(self.device.type, enabled=self.amp):
-
                 output_pre_softmax = self.model(data)
                 output = F.log_softmax(output_pre_softmax, dim=1)
 
@@ -227,19 +226,18 @@ class Problem:
 
                 # [H] RS loss
                 if (
-                    self.cfg_heuristic
-                    and "rs_loss" in self.cfg_heuristic
-                    and self.Utility.heuristic_enabled_epochwise(
+                    self.cfg_stabilizers
+                    and "rs_loss" in self.cfg_stabilizers
+                    and self.Utility.stabilizer_enabled_epochwise(
                         epoch,
-                        self.cfg_heuristic["rs_loss"]["start"],
-                        self.cfg_heuristic["rs_loss"]["end"],
+                        self.cfg_stabilizers["rs_loss"]["start"],
+                        self.cfg_stabilizers["rs_loss"]["end"],
                     )
                 ):
-
-                    rs_loss = self.model.run_heuristics(
+                    rs_loss = self.model.run_stabilizers(
                         "rs_loss", data=data, test_loader=self.test_loader
                     )
-                    loss += rs_loss * self.cfg_heuristic["rs_loss"]["weight"]
+                    loss += rs_loss * self.cfg_stabilizers["rs_loss"]["weight"]
 
                 if loss.isnan():
                     # raise ValueError("Loss is NaN.")
@@ -255,17 +253,17 @@ class Problem:
 
             # [H] bias shaping
             if (
-                self.cfg_heuristic
-                and "bias_shaping" in self.cfg_heuristic
+                self.cfg_stabilizers
+                and "bias_shaping" in self.cfg_stabilizers
                 and batch_idx != 0
-                and self.Utility.heuristic_enabled_epochwise(
+                and self.Utility.stabilizer_enabled_epochwise(
                     epoch,
-                    self.cfg_heuristic["bias_shaping"]["start"],
-                    self.cfg_heuristic["bias_shaping"]["end"],
+                    self.cfg_stabilizers["bias_shaping"]["start"],
+                    self.cfg_stabilizers["bias_shaping"]["end"],
                 )
             ):
                 # print('before', self.model.estimate_stable_ReLU(self.cfg_train['ReLU_estimation']), self.test_loader)
-                if self.model.run_heuristics(
+                if self.model.run_stabilizers(
                     "bias_shaping",
                     data=data,
                     epoch=epoch,
@@ -280,16 +278,16 @@ class Problem:
             # prune after entire epoch trained
             # using pre-activation values of last mini-batch
             if (
-                self.cfg_heuristic
-                and "prune" in self.cfg_heuristic
-                and self.Utility.heuristic_enabled_epochwise(
+                self.cfg_stabilizers
+                and "prune" in self.cfg_stabilizers
+                and self.Utility.stabilizer_enabled_epochwise(
                     epoch,
-                    self.cfg_heuristic["prune"]["start"],
-                    self.cfg_heuristic["prune"]["end"],
+                    self.cfg_stabilizers["prune"]["start"],
+                    self.cfg_stabilizers["prune"]["end"],
                 )
             ):
-                re_arched = self.model.run_heuristics(
-                    "prune",
+                re_arched = self.model.run_stabilizers(
+                    "stable_prune",
                     data=data,
                     epoch=epoch,
                     batch_idx=batch_idx,
@@ -301,7 +299,6 @@ class Problem:
                     self.stable_estimators["SIP"].init_inet()
 
             if batch_idx % self.cfg_train["log_interval"] == 0:
-
                 # log test accuracy
                 self.logger.info(
                     f"[Train] epoch: {epoch:3} batch: {batch_idx:5} {100.*batch_idx/len(self.train_loader):5.2f}% Loss: {loss.item():10.6f}"
@@ -479,7 +476,7 @@ class Problem:
         veri_log_name = Problem.Utility.get_hashed_name(
             [
                 self.cfg_train,
-                self.cfg_heuristic,
+                self.cfg_stabilizers,
                 self.cfg_verify,
                 target_epoch,
                 self.seed,
@@ -611,13 +608,13 @@ class Problem:
                 identifiers_ += [str(x)]
             return str(hash("".join(identifiers_)) + sys.maxsize + 1)
 
-        def get_name(cfg_train, cfg_heuristic, seed):
+        def get_name(cfg_train, cfg_stabilizers, seed):
             name = f"A={cfg_train['artifact']}"
             name += f"_N={cfg_train['net_name']}"
             epsilon = ""
-            for x in cfg_train["stable_estimator"]:
+            for x in cfg_train["stable_estimators"]:
                 if x in ["SAD", "NIP", "SIP"]:
-                    epsilon = f":_eps={cfg_train['stable_estimator'][x]['epsilon']}"
+                    epsilon = f":_eps={cfg_train['stable_estimators'][x]['epsilon']}"
                     break
             name += epsilon
 
@@ -628,9 +625,9 @@ class Problem:
                     + str(x["end"]).replace(" ", "")
                 )
 
-            if cfg_heuristic:
-                for h in cfg_heuristic:
-                    x = cfg_heuristic[h]
+            if cfg_stabilizers:
+                for h in cfg_stabilizers:
+                    x = cfg_stabilizers[h]
 
                     if h == "bias_shaping":
                         if x["mode"] == "standard":
@@ -674,10 +671,10 @@ class Problem:
                         assert False
                     # only works with 1 ReLU estimator
                     # TODO: fix me, don't use descriptive naming, use HASH instead.
-                    se = f'{list(x["stable_estimator"].keys())[0]}'
+                    se = f'{list(x["stable_estimators"].keys())[0]}'
                     se += (
-                        f':({x["stable_estimator"]["epsilon"]})'
-                        if "epsilon" in x["stable_estimator"]
+                        f':({x["stable_estimators"]["epsilon"]})'
+                        if "epsilon" in x["stable_estimators"]
                         else ""
                     )
                 name += f":{se}"
@@ -693,7 +690,7 @@ class Problem:
             return f"P={p}_E={e}_V={v}"
 
         @staticmethod
-        def heuristic_enabled_epochwise(epoch, start, end):
+        def stabilizer_enabled_epochwise(epoch, start, end):
             assert type(start) == type(end)
             if isinstance(start, int):
                 enabled = start <= epoch <= end

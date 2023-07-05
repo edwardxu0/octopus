@@ -11,20 +11,25 @@ from symbolic_interval.symbolic_network import (
 )
 from symbolic_interval.interval import Symbolic_interval
 
+from auto_LiRPA import BoundedModule, BoundedTensor
+from auto_LiRPA.perturbations import *
 
-# Symbolic Interval Propagation estimator
-class SIPEstimator(ReLUEstimator):
+
+# Naive Interval Propagation estimator
+class ALREstimator(ReLUEstimator):
     def __init__(self, model, **kwargs):
         super().__init__(model)
-        self.__name__ = "SIP ReLU Estimator"
+        self.__name__ = "ALR ReLU Estimator"
         self.epsilon = kwargs["epsilon"]
-        self.init_inet()
 
-    def init_inet(self):
-        layers = list(self.model.layers.values())
-        self.layers = [x for x in layers if not isinstance(x, nn.Dropout)]
-        inet_model = nn.Sequential(*layers).to(self.model.device)
-        self.inet = Interval_network(inet_model, None)
+        bounded_model = BoundedModule(
+            model,
+            torch.zeros([1] + model.artifact.input_shape),
+            bound_opts={"conv_mode": "patches"},
+        )
+        bounded_model.eval()
+        print("nihao!")
+        exit()
 
     def propagate(self, **kwargs):
         data = kwargs["data"]

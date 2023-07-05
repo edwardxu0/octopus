@@ -2,9 +2,9 @@ from torch import nn
 from torch.nn import Linear, Conv2d, ReLU
 
 
-from ..heuristic.prune import Prune
-from ..heuristic.RS_loss import RSLoss
-from ..heuristic.bias_shaping import BiasShaping
+from ..stabilizer.stable_prune import StablePrune
+from ..stabilizer.RS_loss import RSLoss
+from ..stabilizer.bias_shaping import BiasShaping
 
 
 class BasicNet(nn.Module):
@@ -40,29 +40,30 @@ class BasicNet(nn.Module):
         filtered_named_modules = filtered_named_modules[1:-1]
         self.filtered_named_modules = filtered_named_modules
 
-    def _setup_heuristics(self, cfg_heuristics):
-        self.heuristics = {}
-        if cfg_heuristics is None or len(cfg_heuristics) == 0:
-            self.logger.info("No training heuristics.")
+    def _setup_stabilizers(self, cfg_stabilizers):
+        self.stabilizers = {}
+        if cfg_stabilizers is None or len(cfg_stabilizers) == 0:
+            self.logger.info("No training stabilizers.")
         else:
-
-            for cfg_name in cfg_heuristics:
+            for cfg_name in cfg_stabilizers:
                 if cfg_name == "bias_shaping":
-                    self.heuristics[cfg_name] = BiasShaping(
-                        self, cfg_heuristics[cfg_name]
+                    self.stabilizers[cfg_name] = BiasShaping(
+                        self, cfg_stabilizers[cfg_name]
                     )
                 elif cfg_name == "rs_loss":
-                    self.heuristics[cfg_name] = RSLoss(self, cfg_heuristics[cfg_name])
-                elif cfg_name == "prune":
-                    self.heuristics[cfg_name] = Prune(self, cfg_heuristics[cfg_name])
+                    self.stabilizers[cfg_name] = RSLoss(self, cfg_stabilizers[cfg_name])
+                elif cfg_name == "stable_prune":
+                    self.stabilizers[cfg_name] = StablePrune(
+                        self, cfg_stabilizers[cfg_name]
+                    )
                 else:
                     raise NotImplementedError
             self.logger.info(
-                f"Train heuristics: {[f'{self.heuristics[x].__name__}({self.heuristics[x].stable_estimator.__name__.split()[0]})' for x in self.heuristics]}"
+                f"Train stabilizers: {[f'{self.stabilizers[x].__name__}({self.stabilizers[x].stable_estimators.__name__.split()[0]})' for x in self.stabilizers]}"
             )
 
-    def run_heuristics(self, name, **kwargs):
-        return self.heuristics[name].run(**kwargs)
+    def run_stabilizers(self, name, **kwargs):
+        return self.stabilizers[name].run(**kwargs)
 
     def register_activation_hocks(self):
         activation = {}

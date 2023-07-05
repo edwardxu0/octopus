@@ -2,15 +2,15 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from . import Heuristic
+from . import Stabilizer
 
 from ..stability_estimator import get_stability_estimators
 from ..stability_estimator.ReLU_estimator.NIP_estimator import NIPEstimator
 
 
-class BiasShaping(Heuristic):
+class BiasShaping(Stabilizer):
     def __init__(self, model, cfg):
-        super().__init__(model, cfg["stable_estimator"])
+        super().__init__(model, cfg["stable_estimators"])
         self.__name__ = "Bias Shaping"
 
         self.mode = cfg["mode"]
@@ -41,10 +41,10 @@ class BiasShaping(Heuristic):
                 # print(name, layer)
 
                 if any(isinstance(layer, x) for x in [nn.Linear, nn.Conv2d]):
-                    self.stable_estimator.propagate(test_loader=test_loader, data=data)
+                    self.stable_estimators.propagate(test_loader=test_loader, data=data)
                     val = self.model._batch_values[name]
-                    le_0_, ge_0_ = self.stable_estimator.get_stable_ReLUs()
-                    lb_, ub_ = self.stable_estimator.get_bounds()
+                    le_0_, ge_0_ = self.stable_estimators.get_stable_ReLUs()
+                    lb_, ub_ = self.stable_estimators.get_bounds()
 
                     if len(lb_[i].shape) == 2:
                         val_min = torch.min(lb_[i].T, axis=-1).values
@@ -58,7 +58,7 @@ class BiasShaping(Heuristic):
                     (
                         safe_le_zero,
                         safe_ge_zero,
-                    ) = self.stable_estimator._calculate_stable_ReLUs(val_min, val_max)
+                    ) = self.stable_estimators._calculate_stable_ReLUs(val_min, val_max)
 
                     val_min_lt_zero = np.copy(val_min.detach().cpu().numpy())
                     val_max_gt_zero = np.copy(val_max.detach().cpu().numpy())

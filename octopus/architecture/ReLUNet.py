@@ -24,6 +24,13 @@ class ReLUNet(BasicNet):
             + [np.prod(self.artifact.output_shape)]
         )
         self.layers = {}
+
+        # TODO: add flatten if first layer is FC, fix this if conv layers are added
+        # layer_name = "Flatten1"
+        # layer = nn.Flatten()
+        # self.layers[layer_name] = layer
+        # self.__setattr__(layer_name, layer)
+
         for i, l in enumerate(layers[1:-1]):
             # add FC layers
             if type(l) == int:
@@ -77,8 +84,11 @@ class ReLUNet(BasicNet):
             self.layers[list(self.layers.keys())[0]], torch.nn.modules.linear.Linear
         ):
             x = x.view(-1, np.prod(self.artifact.input_shape))
+        # 2 x = x.flatten(1)
         else:
             assert False
+
+        # print(self.layers)
 
         # workout the network
         for l in self.layers:

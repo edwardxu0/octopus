@@ -7,8 +7,9 @@ source .venv/bin/activate
 export DNNV=./lib/DNNV
 export DNNVWB=./lib/DNNVWB
 export SIP=./lib/SIP
+export ALR=./lib/auto_LiRPA
 
-export PYTHONPATH=$PYTHONPATH:$SIP
+export PYTHONPATH=$PYTHONPATH:$SIP:$ALR
 
 # Remove tensorflow warnings
 export TF_CPP_MIN_LOG_LEVEL=2

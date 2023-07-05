@@ -50,7 +50,7 @@ class Benchmark:
         self.labels = [
             "artifact",
             "network",
-            "heuristic",
+            "stabilizer",
             "seed",
             "property",
             "epsilon",
@@ -112,7 +112,7 @@ class Benchmark:
 
         for a in self.artifacts:
             for n in self.networks:
-                for h in self.heuristics:
+                for h in self.stabilizers:
                     for s in self.seeds:
                         for e in self.epsilons:
                             self.problems_T += [(a, n, h, s, e)]
@@ -143,21 +143,21 @@ class Benchmark:
         sts["train"]["artifact"] = a
         sts["train"]["net_name"] = n
         sts["train"]["net_layers"] = self.networks[n]
-        sts["heuristic"] = copy.deepcopy(self.heuristics[h])
+        sts["stabilizer"] = copy.deepcopy(self.stabilizers[h])
 
-        if sts["heuristic"]:
-            for x in sts["heuristic"]:
-                for est in sts["heuristic"][x]["stable_estimator"]:
+        if sts["stabilizer"]:
+            for x in sts["stabilizer"]:
+                for est in sts["stabilizer"][x]["stable_estimators"]:
                     if est in ["SAD", "NIP", "SIP"]:
-                        sts["heuristic"][x]["stable_estimator"][est]["epsilon"] = float(
-                            e
-                        )
-        if "stable_estimator" in sts["train"]:
-            for est in sts["train"]["stable_estimator"]:
+                        sts["stabilizer"][x]["stable_estimators"][est][
+                            "epsilon"
+                        ] = float(e)
+        if "stable_estimators" in sts["train"]:
+            for est in sts["train"]["stable_estimators"]:
                 if est in ["SAD", "NIP", "SIP"]:
-                    sts["train"]["stable_estimator"][est]["epsilon"] = float(e)
+                    sts["train"]["stable_estimators"][est]["epsilon"] = float(e)
 
-        name = Problem.Utility.get_hashed_name([sts["train"], sts["heuristic"], s])
+        name = Problem.Utility.get_hashed_name([sts["train"], sts["stabilizer"], s])
 
         log_path = os.path.join(self.sub_dirs["train_log_dir"], f"{name}.txt")
 
@@ -189,7 +189,7 @@ class Benchmark:
             # veri_name_postfix = Problem.Utility.get_verification_postfix(sts["verify"])
             # veri_name = f"{name}_e={target_epoch}_{veri_name_postfix}"
             veri_name = Problem.Utility.get_hashed_name(
-                [sts["train"], sts["heuristic"], sts["verify"], target_epoch, s]
+                [sts["train"], sts["stabilizer"], sts["verify"], target_epoch, s]
             )
             log_path = os.path.join(self.sub_dirs["veri_log_dir"], f"{veri_name}.txt")
             config_path = os.path.join(
@@ -217,7 +217,7 @@ class Benchmark:
                 name,
             ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
 
-            print(h, name, self.heuristics[h])
+            print(h, name, self.stabilizers[h])
 
             if name not in self.problems_T_hash:
                 self.problems_T_hash += [name]
@@ -332,7 +332,6 @@ class Benchmark:
         nb_done = 0
         nb_todo = 0
         for i, (a, n, h, s, e, p, v) in enumerate(tqdm(self.problems_V)):
-
             ###########################
             # SKIP untrained networks for faster verification on partial benchmarks
             (
@@ -506,28 +505,28 @@ class Benchmark:
                         else:
                             stable_ReLUs[se] += [acc]
 
-                stable_estimator = sts["train"]["stable_estimator"]
+                stable_estimators = sts["train"]["stable_estimators"]
                 relu_accuracy = [
-                    stable_ReLUs[x][target_epoch - 1] for x in stable_estimator
+                    stable_ReLUs[x][target_epoch - 1] for x in stable_estimators
                 ]
 
             # No stability estimator is enabled during training
             else:
                 relu_accuracy = None
             # if h == "Baseline":
-            #    stable_estimator = sts["train"]["stable_estimator"]
+            #    stable_estimators = sts["train"]["stable_estimators"]
             #    relu_accuracy = [
-            #        stable_ReLUs[x][target_epoch - 1] for x in stable_estimator
+            #        stable_ReLUs[x][target_epoch - 1] for x in stable_estimators
             #    ]
 
             # else:
             #    assert (
-            #        len(list(self.heuristics[h].values())[0]["stable_estimator"]) == 1
+            #        len(list(self.stabilizers[h].values())[0]["stable_estimators"]) == 1
             #    )
-            #    stable_estimator = list(
-            #        list(self.heuristics[h].values())[0]["stable_estimator"]
+            #    stable_estimators = list(
+            #        list(self.stabilizers[h].values())[0]["stable_estimators"]
             #    )[0]
-            #    relu_accuracy = [stable_ReLUs[stable_estimator][target_epoch - 1]]
+            #    relu_accuracy = [stable_ReLUs[stable_estimators][target_epoch - 1]]
 
             # this is a hack to work around broken training logs
             info_lines = [x for x in lines if "(INFO)" in x]
@@ -675,7 +674,7 @@ class Benchmark:
                 y_stride=0.2,
             )
 
-            title = Problem.Utility.get_name(sts["train"], sts["heuristic"], s)
+            title = Problem.Utility.get_name(sts["train"], sts["stabilizer"], s)
             fig_dir = os.path.join(self.result_dir, "train_figures")
             Path(fig_dir).mkdir(parents=True, exist_ok=True)
             path = os.path.join(fig_dir, title + ".pdf")
@@ -703,18 +702,18 @@ class Benchmark:
 
     def _train_boxplot(self, df):
         self.logger.info("Plotting training ...")
-        # plot accuracy/stable relu among network/heuristic pairs.
+        # plot accuracy/stable relu among network/stabilizer pairs.
         x_labels = []
         c_test_acc = []
         c_relu_acc = []
         # c_stable_relu = []
         for a in self.artifacts:
             for n in self.networks:
-                for h in self.heuristics.keys():
+                for h in self.stabilizers.keys():
                     dft = df
                     dft = dft[dft["artifact"] == a]
                     dft = dft[dft["network"] == n]
-                    dft = dft[dft["heuristic"] == h]
+                    dft = dft[dft["stabilizer"] == h]
                     dft = dft[dft["property"] == self.props[0]]
                     dft = dft[dft["epsilon"] == self.epsilons[0]]
                     dft = dft[dft["verifier"] == self.verifiers[0]]
@@ -750,7 +749,7 @@ class Benchmark:
         )
 
         # make grid & set correct xlabels
-        ax1.xaxis.set_major_locator(MultipleLocator(len(self.heuristics)))
+        ax1.xaxis.set_major_locator(MultipleLocator(len(self.stabilizers)))
         ax1.xaxis.set_minor_locator(MultipleLocator(1))
         ax1.xaxis.set_major_formatter(
             lambda x, pos: x_labels[int(x - 1) % len(x_labels)]
@@ -761,9 +760,9 @@ class Benchmark:
         ax1.grid(which="major", axis="x", color="grey", linestyle=":", linewidth=0.25)
         ax1.grid(which="minor", axis="x", color="grey", linestyle=":", linewidth=0.25)
 
-        vt_lines = list(np.arange(0, len(x_labels), len(self.heuristics)) + 0.5)[1:]
+        vt_lines = list(np.arange(0, len(x_labels), len(self.stabilizers)) + 0.5)[1:]
         for x in vt_lines:
-            if int(x - 0.5) % (len(self.artifacts) * len(self.heuristics)) == 0:
+            if int(x - 0.5) % (len(self.artifacts) * len(self.stabilizers)) == 0:
                 ax1.axvline(x=x, color="grey", linestyle="--", linewidth=1)
             else:
                 ax1.axvline(x=x, color="grey", linestyle="-.", linewidth=0.5)
@@ -779,9 +778,9 @@ class Benchmark:
         ax1.set_ylim(0, 100)
         ax1.set_ylabel("Test Accuracy(%,Red)/Stable ReLUs(%,Blue)")
         # ax2.set_ylabel("# Stable ReLUs(%)")
-        ax1.set_xlabel("Artifact:Network:Heuristics")
+        ax1.set_xlabel("Artifact:Network:stabilizers")
         plt.title(
-            "Test Accuracy and # Stable ReLUs vs. Artifact, Network, and Heuristics"
+            "Test Accuracy and # Stable ReLUs vs. Artifact, Network, and stabilizers"
         )
         plt.savefig(
             os.path.join(self.result_dir, "T.pdf"),
@@ -810,7 +809,7 @@ class Benchmark:
         sns.catplot(
             x="network",
             y=kind,
-            hue="heuristic",
+            hue="stabilizer",
             col="artifact",
             kind="box",
             data=df,
@@ -826,17 +825,17 @@ class Benchmark:
 
     def _analyze_verification(self, df):
         self.logger.info("Plotting verification ...")
-        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.heuristics) - 1)
+        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.stabilizers) - 1)
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
-                    # plot verification time(Y) vs. Epsilon Values(X) for each heuristic
+                    # plot verification time(Y) vs. Epsilon Values(X) for each stabilizer
                     fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
                     ax2 = ax1.twinx()
                     title_prefix = f"[{a}:{n}:{v}]"
                     collection_verification_time = {}
                     collection_problem_solved = {}
-                    for i, h in enumerate(self.heuristics.keys()):
+                    for i, h in enumerate(self.stabilizers.keys()):
                         avg_v_time = []
                         nb_solved = []
                         for e in self.epsilons:
@@ -844,7 +843,7 @@ class Benchmark:
                             dft = dft[dft["artifact"] == a]
                             dft = dft[dft["network"] == n]
                             dft = dft[dft["verifier"] == v]
-                            dft = dft[dft["heuristic"] == h]
+                            dft = dft[dft["stabilizer"] == h]
                             dft = dft[dft["epsilon"] == e]
                             nb_problems = len(dft["veri ans"])
                             avg_v_time += [np.mean(dft["veri time"].to_numpy())]
@@ -904,15 +903,15 @@ class Benchmark:
 
     def _analyze_verification_sus(self, df):
         self.logger.info("Plotting verification sat/unsat...")
-        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.heuristics) - 1)
+        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.stabilizers) - 1)
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
-                    # plot verification time(Y) vs. Epsilon Values(X) for each heuristic
+                    # plot verification time(Y) vs. Epsilon Values(X) for each stabilizer
                     fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
                     ax2 = ax1.twinx()
                     title_prefix = f"[{a}:{n}:{v}]"
-                    for i, h in enumerate(self.heuristics.keys()):
+                    for i, h in enumerate(self.stabilizers.keys()):
                         nb_unsat = []
                         nb_sat = []
                         for e in self.epsilons:
@@ -920,7 +919,7 @@ class Benchmark:
                             dft = dft[dft["artifact"] == a]
                             dft = dft[dft["network"] == n]
                             dft = dft[dft["verifier"] == v]
-                            dft = dft[dft["heuristic"] == h]
+                            dft = dft[dft["stabilizer"] == h]
                             dft = dft[dft["epsilon"] == e]
                             nb_problems = len(dft["veri ans"])
                             nb_unsat += [
@@ -975,7 +974,7 @@ class Benchmark:
 
     def _analyze_stable_ReLUs(self, df):
         self.logger.info("Plotting stable ReLUs ...")
-        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.heuristics) - 1)
+        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.stabilizers) - 1)
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
@@ -984,7 +983,7 @@ class Benchmark:
                     title_prefix = f"[{a}:{n}:{v}]"
                     sr_train = {}
                     sr_veri = {}
-                    for i, h in enumerate(self.heuristics.keys()):
+                    for i, h in enumerate(self.stabilizers.keys()):
                         sr_train_ = []
                         sr_veri_ = []
                         for e in self.epsilons:
@@ -992,7 +991,7 @@ class Benchmark:
                             dft = dft[dft["artifact"] == a]
                             dft = dft[dft["network"] == n]
                             dft = dft[dft["verifier"] == v]
-                            dft = dft[dft["heuristic"] == h]
+                            dft = dft[dft["stabilizer"] == h]
                             dft = dft[dft["epsilon"] == e]
 
                             sr_train_ += [np.mean(dft["relu accuracy"].to_numpy())]
@@ -1046,7 +1045,7 @@ class Benchmark:
                     plt.close(fig)
 
     def _analyze_stable_ReLUs_two(self, df):
-        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.heuristics) - 1)
+        colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.stabilizers) - 1)
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
@@ -1056,7 +1055,7 @@ class Benchmark:
                         title_prefix = f"[{a}:{n}:{v}:{s}]"
                         sr_train = {}
                         sr_veri = {}
-                        for i, h in enumerate(self.heuristics.keys()):
+                        for i, h in enumerate(self.stabilizers.keys()):
                             sr_train_ = []
                             sr_veri_ = []
                             x1_ = []
@@ -1067,7 +1066,7 @@ class Benchmark:
                                 dft = dft[dft["artifact"] == a]
                                 dft = dft[dft["network"] == n]
                                 dft = dft[dft["verifier"] == v]
-                                dft = dft[dft["heuristic"] == h]
+                                dft = dft[dft["stabilizer"] == h]
                                 dft = dft[dft["epsilon"] == e]
 
                                 tmp = dft["relu accuracy"].to_numpy()
@@ -1135,7 +1134,7 @@ class Benchmark:
         for a in self.artifacts:
             for v in self.verifiers:
                 for n in self.networks:
-                    for h in self.heuristics.keys():
+                    for h in self.stabilizers.keys():
                         name = f"{a}:{v}:{n}:{h}"
                         solved = 0
                         time = 0
@@ -1148,7 +1147,7 @@ class Benchmark:
                                     dft = dft[dft["artifact"] == a]
                                     dft = dft[dft["network"] == n]
                                     dft = dft[dft["verifier"] == v]
-                                    dft = dft[dft["heuristic"] == h]
+                                    dft = dft[dft["stabilizer"] == h]
                                     dft = dft[dft["epsilon"] == e]
                                     dft = dft[dft["property"] == p]
 
@@ -1170,7 +1169,7 @@ class Benchmark:
         for a in self.artifacts:
             for i, x in enumerate([solved_, time_, par2_]):
                 print(a, i)
-                for h in self.heuristics:
+                for h in self.stabilizers:
                     print(h, end=",")
                     for v in self.verifiers:
                         for n in self.networks:
@@ -1179,8 +1178,8 @@ class Benchmark:
 
     def _tt(self, df):
         # print(df)
-        base = list(set(df[df["heuristic"] == "Baseline"]["training time"]))
-        for h in self.heuristics.keys():
+        base = list(set(df[df["stabilizer"] == "Baseline"]["training time"]))
+        for h in self.stabilizers.keys():
             dft = df
-            dft = dft[dft["heuristic"] == h]
+            dft = dft[dft["stabilizer"] == h]
             print(h, f"{np.array(list(set(dft['training time']))) / base:.2f}", "&")

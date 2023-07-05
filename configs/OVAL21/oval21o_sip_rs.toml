@@ -12,7 +12,7 @@ name = 'test'
 	save_model = true
 	save_intermediate = true
 	save_log = true
-	gpu = true
+	gpu = false
 	log_interval = 100					# Stable ReLU estimation/print interval
 	amp = false							# enabled only when gpu == true
 
@@ -22,17 +22,17 @@ name = 'test'
 	# SDD: sampled dataset distribution
 	# SAD: sampled adversarial distribution
 	# NIP: interval propagation
-	[train.stable_estimator]
-		#[train.stable_estimator.SDD]
+	[train.stable_estimators]
+		#[train.stable_estimators.SDD]
 		
-		#[train.stable_estimator.SAD]
+		#[train.stable_estimators.SAD]
 		#	epsilon = 0.04
 		#	samples = 100
 
-	 	#[train.stable_estimator.NIP]
+	 	#[train.stable_estimators.NIP]
 		#	epsilon = 0.04
 			
-		[train.stable_estimator.SIP]
+		[train.stable_estimators.SIP]
 			epsilon = 0.04
 
 [heuristic]
@@ -50,8 +50,8 @@ name = 'test'
 		
 	#	start = 1 			# inclusive
 	#	end = 20 			# inclusive
-	#	[heuristic.bias_shaping.stable_estimator]
-	#		[heuristic.bias_shaping.stable_estimator.SIP]
+	#	[heuristic.bias_shaping.stable_estimators]
+	#		[heuristic.bias_shaping.stable_estimators.SIP]
 	#			epsilon = 0.04
 	#			samples = 100
 
@@ -61,12 +61,12 @@ name = 'test'
 		epsilon = 0.1
 		start = 1
 		end = 20
-		[heuristic.rs_loss.stable_estimator]
-			[heuristic.rs_loss.stable_estimator.SIP]
+		[heuristic.rs_loss.stable_estimators]
+			[heuristic.rs_loss.stable_estimators.SIP]
 				epsilon = 0.04
 				
 
-	#[heuristic.prune]
+	#[heuristic.stable_prune]
 	#	mode = 'stablenet'
 	#	#re_arch = 'last'
 	#	save_re_arch = true
@@ -75,8 +75,8 @@ name = 'test'
 
 	#	start = 1
 	#	end = 10
-	#	[heuristic.prune.stable_estimator]
-	#		[heuristic.prune.stable_estimator.SDD]
+	#	[heuristic.stable_prune.stable_estimators]
+	#		[heuristic.stable_prune.stable_estimators.SDD]
 	#			epsilon = 0.04
 	#			samples = 10
 
