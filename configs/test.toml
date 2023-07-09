@@ -7,15 +7,16 @@ name = 'test'
 
 	#net_name = 'LeNet'
 
-	epochs = 5
-	batch_size = 128
-	test_batch_size = 128
+	epochs = 10
+	batch_size = 32
+	test_batch_size = 32
 	lr = 1e-4							# learning rate
 	gamma = 0.95 							# Learning rate decay
 	save_model = true
 	save_intermediate = true
 	save_log = true
 	log_interval = 100					# Stable ReLU estimation/print interval
+	gpu = true
 	amp = true							# enabled only when gpu == true
 
 	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
@@ -40,34 +41,35 @@ name = 'test'
 		
 		[train.stable_estimators.ALR]
 			epsilon = 0.04
-#[stabilizers]
-#	[stabilizers.bias_shaping]
-#		mode = 'standard'
+
+[stabilizers]
+	[stabilizers.bias_shaping]
+		mode = 'standard'
 		
 		# random scheduling
 		# intensity =  5e-2
         # occurrence = 5e-3
 
 		# interval scheduling
-#		intensity = 2e-2
-#		pace = 50
-#		decay = 0.99
+		intensity = 2e-2
+		pace = 50
+		decay = 0.99
 		
-#		start = 1 			# inclusive
-#		end = 10 			# inclusive
-#		[stabilizers.bias_shaping.stable_estimators]
-#			[stabilizers.bias_shaping.stable_estimators.NIP]
-#				epsilon = 0.04
+		start = 1 			# inclusive
+		end = 25 			# inclusive
+		[stabilizers.bias_shaping.stable_estimators]
+			[stabilizers.bias_shaping.stable_estimators.NIP]
+				epsilon = 0.04
 
 #	[stabilizers.rs_loss]
 #		mode = 'standard'
 #		weight = 1e-4
 #		epsilon = 0.1
 #		start = 1
-#		end = 20
+#		end = 25
 #		[stabilizers.rs_loss.stable_estimators]
-#			[stabilizers.rs_loss.stable_estimators.SIP]
-#				epsilon = 0.04			
+#			[stabilizers.rs_loss.stable_estimators.ALR]
+#				epsilon = 0.04
 
 #	[stabilizers.stable_prune]
 #		mode = 'stablenet'
@@ -77,7 +79,7 @@ name = 'test'
 #		pace = 1
 
 #		start = 1
-#		end = 10
+#		end = 25
 #		[stabilizers.stable_prune.stable_estimators]
 #			[stabilizers.stable_prune.stable_estimators.SIP]
 #				epsilon = 0.04

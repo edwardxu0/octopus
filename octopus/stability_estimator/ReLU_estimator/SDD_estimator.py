@@ -44,8 +44,9 @@ class SDDEstimator(ReLUEstimator):
             # ub_ += [ub.view(1, *lb.shape)]
             lb_ += [lb]
             ub_ += [ub]
-
+            # print("SDD lb", lb.shape)
             le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(lb, ub)
+            # print("SDD le_0", le_0.shape)
             # le_0_ += [le_0.view(1, *le_0.shape)]
             # ge_0_ += [ge_0.view(1, *ge_0.shape)]
             le_0_ += [le_0]

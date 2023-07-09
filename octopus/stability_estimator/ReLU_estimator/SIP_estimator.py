@@ -56,9 +56,11 @@ class SIPEstimator(ReLUEstimator):
                 # ub_ += [l.u.view([1, *l.u.shape])]
                 lb_ += [l.l]
                 ub_ += [l.u]
+                # print("SIP lb", l.l.shape)
                 le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(l.l, l.u)
                 # le_0_ += [le_0.view(1, *le_0.shape)]
                 # ge_0_ += [ge_0.view(1, *ge_0.shape)]
+                # print("SIP le_0", le_0.shape)
                 le_0_ += [le_0]
                 ge_0_ += [ge_0]
             elif isinstance(layer, torch.nn.Conv2d):

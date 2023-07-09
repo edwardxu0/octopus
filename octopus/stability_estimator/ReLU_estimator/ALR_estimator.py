@@ -1,15 +1,9 @@
 import numpy as np
 import torch
-import torch.nn as nn
+import copy
+from torch.nn import Linear, Conv2d
 
 from . import ReLUEstimator
-
-from symbolic_interval.symbolic_network import (
-    Interval_network,
-    Interval_Dense,
-    Interval_Conv2d,
-)
-from symbolic_interval.interval import Symbolic_interval
 
 from auto_LiRPA import BoundedModule, BoundedTensor
 from auto_LiRPA.perturbations import *
@@ -21,72 +15,77 @@ class ALREstimator(ReLUEstimator):
         super().__init__(model)
         self.__name__ = "ALR ReLU Estimator"
         self.epsilon = kwargs["epsilon"]
+        self.device = model.device
 
-        bounded_model = BoundedModule(
-            model,
-            torch.zeros([1] + model.artifact.input_shape),
+        self.bounded_model = BoundedModule(
+            copy.deepcopy(model),
+            torch.zeros([1] + model.artifact.input_shape).to(self.device),
             bound_opts={"conv_mode": "patches"},
+            device=self.device,
         )
-        bounded_model.eval()
-        print("nihao!")
-        exit()
+
+    def get_hidden_bounds(self):
+        lower_bounds = [
+            layer.inputs[0].lower.detach()
+            for layer in self.bounded_model.perturbed_optimizable_activations
+        ]
+        upper_bounds = [
+            layer.inputs[0].upper.detach()
+            for layer in self.bounded_model.perturbed_optimizable_activations
+        ]
+        return lower_bounds, upper_bounds
 
     def propagate(self, **kwargs):
         data = kwargs["data"]
 
-        if isinstance(self.inet.net[0], Interval_Dense):
-            X = data.view((-1, np.prod(self.model.artifact.input_shape)))
-        elif isinstance(self.inet.net[0], Interval_Conv2d):
-            X = data
+        X = data.view((-1, np.prod(self.model.artifact.input_shape)))
+        # X = data
 
-        minimum = X.min().item()
-        maximum = X.max().item()
-        ix = Symbolic_interval(
-            torch.clamp(X - self.epsilon, minimum, maximum),
-            torch.clamp(X + self.epsilon, minimum, maximum),
-            use_cuda=self.model.device == torch.device("cuda"),
-        )
+        norm = np.inf
+        ptb = PerturbationLpNorm(norm=norm, eps=self.epsilon)
+        # Input tensor is wrapped in a BoundedTensor object.
+        bounded_image = BoundedTensor(X, ptb).to(self.device)
+        with torch.no_grad():  # If gradients of the bounds are not needed, we can use no_grad to save memory.
+            self.bounded_model.eval()
+            lb, ub = self.bounded_model.compute_bounds(
+                x=(bounded_image,), method="CROWN"
+            )
+            self.bounded_model.train()
 
-        ixo = self.inet(ix)
-
-        lb_ = []
-        ub_ = []
+        lb_, ub_ = self.get_hidden_bounds()
         le_0_ = []
         ge_0_ = []
-        assert len(self.inet.intermediate_ix) == len(self.layers)
-        for i, l in enumerate(self.inet.intermediate_ix[:-1]):
-            layer = self.layers[i]
-            if isinstance(layer, torch.nn.Linear):
-                # lb_ += [l.l.view([1, *l.l.shape])]
-                # ub_ += [l.u.view([1, *l.u.shape])]
-                lb_ += [l.l]
-                ub_ += [l.u]
-                le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(l.l, l.u)
-                # le_0_ += [le_0.view(1, *le_0.shape)]
-                # ge_0_ += [ge_0.view(1, *ge_0.shape)]
-                le_0_ += [le_0]
-                ge_0_ += [ge_0]
-            elif isinstance(layer, torch.nn.Conv2d):
-                assert len(l.l.shape) == 2
-                nb_channel = layer.out_channels
-                nb_neurons = int(np.sqrt(l.l.shape[1] / nb_channel))
-                assert l.l.shape[1] == nb_channel * nb_neurons**2
-                # print(l.l.shape, nb_channel, nb_neurons, nb_neurons)
+        for i, (name, layer) in enumerate(self.model.filtered_named_modules):
+            # get min of kernels
+            if isinstance(layer, Linear):
+                lb = lb_[i]
+                ub = ub_[i]
 
-                lb = l.l.reshape(l.l.shape[0], nb_channel, nb_neurons, nb_neurons)
-                ub = l.u.reshape(l.l.shape[0], nb_channel, nb_neurons, nb_neurons)
-                lb_ += [lb]
-                ub_ += [ub]
-
-                le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(lb, ub)
-                le_0_ += [le_0]
-                ge_0_ += [ge_0]
-            elif isinstance(layer, torch.nn.ReLU):
-                pass
-            elif isinstance(layer, torch.nn.Flatten):
-                pass
+            elif isinstance(layer, Conv2d):
+                raise NotImplementedError(layer)
             else:
                 raise NotImplementedError(layer)
+
+            # lb = lb.view(1, *lb.shape)
+            # ub = ub.view(1, *ub.shape)
+
+            # lb_ += [lb.view(1, *lb.shape)]
+            # ub_ += [ub.view(1, *lb.shape)]
+
+            # print("ALR lb", lb.shape)
+            le_0, ge_0 = ReLUEstimator._calculate_stable_ReLUs(lb, ub)
+            # le_0_ += [le_0.view(1, *le_0.shape)]
+            # ge_0_ += [ge_0.view(1, *ge_0.shape)]
+            le_0_ += [le_0]
+            ge_0_ += [ge_0]
+            # print("ALR le_0", le_0.shape)
+
+        # s = 0
+        # for x in le_0_:
+        #    s += sum(x)
+        # for x in ge_0_:
+        #    s += sum(x)
+        # print("total: ", s)
 
         # self.stable_le_0_ = torch.cat(le_0_, dim=0)
         # self.stable_ge_0_ = torch.cat(ge_0_, dim=0)
@@ -96,8 +95,3 @@ class ALREstimator(ReLUEstimator):
         # self.ub_ = torch.cat(ub_, dim=0)
         self.lb_ = lb_
         self.ub_ = ub_
-
-        del ix
-        del ixo
-        del self.inet.intermediate_ix
-        self.inet.intermediate_ix = []

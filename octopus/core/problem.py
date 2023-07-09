@@ -208,11 +208,11 @@ class Problem:
                 self._plot_train()
 
     def _train_epoch(self, epoch):
-        self.model.train()
-
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
+            self.model.zero_grad()
+            self.model.train()
 
             # Use AMP
             # equivalent to:
@@ -241,7 +241,7 @@ class Problem:
 
                 if loss.isnan():
                     # raise ValueError("Loss is NaN.")
-                    self.logger.warn("LOSS is Nan.")
+                    self.logger.warn("LOSS is NaN.")
 
                 if self.amp:
                     self.amp_scaler.scale(loss).backward()
