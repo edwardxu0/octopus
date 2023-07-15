@@ -27,7 +27,8 @@ class Benchmark:
         self.slurm = kwargs["slurm"]
         self.override = kwargs["override"]
         self.logger = kwargs["logger"]
-        self.base_settings = toml.load(open(base_settings, "r"))
+        with open(base_settings, "r") as fp:
+            self.base_settings = toml.load(fp)
         self.result_dir = os.path.join(kwargs["result_dir"], self.base_settings["name"])
         self.cached_res_path = os.path.join(
             kwargs["result_dir"],
@@ -56,10 +57,6 @@ class Benchmark:
             "epsilon",
             "verifier",
             "test accuracy",
-            # "ra(sdd)",
-            # "ra(sad)",
-            # "ra(nip)",
-            # "ra(sip)",
             "veri ans",
             "veri time",
             "training time",
@@ -143,21 +140,19 @@ class Benchmark:
         sts["train"]["artifact"] = a
         sts["train"]["net_name"] = n
         sts["train"]["net_layers"] = self.networks[n]
-        sts["stabilizer"] = copy.deepcopy(self.stabilizers[h])
+        sts["stabilizers"] = copy.deepcopy(self.stabilizers[h])
 
-        if sts["stabilizer"]:
-            for x in sts["stabilizer"]:
-                for est in sts["stabilizer"][x]["stable_estimators"]:
-                    if est in ["SAD", "NIP", "SIP"]:
-                        sts["stabilizer"][x]["stable_estimators"][est][
-                            "epsilon"
-                        ] = float(e)
         if "stable_estimators" in sts["train"]:
             for est in sts["train"]["stable_estimators"]:
-                if est in ["SAD", "NIP", "SIP"]:
-                    sts["train"]["stable_estimators"][est]["epsilon"] = float(e)
+                sts["train"]["stable_estimators"][est]["epsilon"] = float(e)
+        if sts["stabilizers"]:
+            for x in sts["stabilizers"]:
+                for est in sts["stabilizers"][x]["stable_estimators"]:
+                    sts["stabilizers"][x]["stable_estimators"][est]["epsilon"] = float(
+                        e
+                    )
 
-        name = Problem.Utility.get_hashed_name([sts["train"], sts["stabilizer"], s])
+        name = Problem.Utility.get_hashed_name([sts["train"], sts["stabilizers"], s])
 
         log_path = os.path.join(self.sub_dirs["train_log_dir"], f"{name}.txt")
 
@@ -217,7 +212,7 @@ class Benchmark:
                 name,
             ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
 
-            print(h, name, self.stabilizers[h])
+            print(h, name, e, self.stabilizers[h])
 
             if name not in self.problems_T_hash:
                 self.problems_T_hash += [name]
@@ -228,14 +223,10 @@ class Benchmark:
             # check if done
             self.logger.debug(f"Train log: {log_path}")
             if os.path.exists(log_path) and not self.override:
+                with open(log_path, "r") as log_fp:
+                    log_lines = log_fp.readlines()
                 trained = (
-                    len(
-                        [
-                            x
-                            for x in open(log_path, "r").readlines()
-                            if "[Test] epoch: " in x
-                        ]
-                    )
+                    len([x for x in log_lines if "[Test] epoch: " in x])
                     == self.base_settings["train"]["epochs"]
                 )
                 if not trained:
@@ -244,8 +235,8 @@ class Benchmark:
                 continue
             else:
                 nb_todo += 1
-
-            toml.dump(sts, open(config_path, "w"))
+            with open(config_path, "w") as fp:
+                toml.dump(sts, fp)
             cmd = f"python -m octopus {config_path} T --seed {s} --debug"
             if self.override:
                 cmd += " --override"
@@ -290,7 +281,7 @@ class Benchmark:
                 )
                 slurm_cmd = f"sbatch {param_node_nb} {param_node} {slurm_script_path}"
 
-            self._exec(cmd, slurm_cmd, self.train_sleep_time)
+            self._exec(cmd, slurm_cmd, self.sleep_train)
 
         self.logger.info(
             f"Tasks: done: {nb_done}, todo: {nb_todo}, total: {len(self.problems_T)}."
@@ -396,7 +387,7 @@ class Benchmark:
                 )
                 slurm_cmd = f"sbatch {param_node_nb} {param_node} {slurm_script_path}"
 
-            self._exec(cmd, slurm_cmd, self.verify_sleep_time)
+            self._exec(cmd, slurm_cmd, self.sleep_verify)
 
         self.logger.info(
             f"Tasks: done: {nb_done}, todo: {nb_todo}, total: {len(self.problems_V)}."

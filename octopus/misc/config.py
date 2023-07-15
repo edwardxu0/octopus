@@ -7,8 +7,8 @@ from .logging import initialize_logger
 
 
 def configure(args):
-    config_file = open(args.configs, "r").read()
-    cfg = toml.loads(config_file)
+    with open(args.configs, "r") as config_file:
+        cfg = toml.loads(config_file.read())
     cfg["result_dir"] = os.path.join(args.result_dir, f'{cfg["name"]}')
     cfg["seed"] = args.seed
     cfg["task"] = args.task

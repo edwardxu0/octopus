@@ -24,7 +24,6 @@ class BiasShaping(Stabilizer):
     def run(self, **kwargs):
         epoch = kwargs["epoch"]
         data = kwargs["data"]
-        test_loader = kwargs["test_loader"]
         BS_switch = False
 
         # probability check
@@ -41,7 +40,7 @@ class BiasShaping(Stabilizer):
                 # print(name, layer)
 
                 if any(isinstance(layer, x) for x in [nn.Linear, nn.Conv2d]):
-                    self.stable_estimators.propagate(test_loader=test_loader, data=data)
+                    self.stable_estimators.propagate(data=data)
                     val = self.model._batch_values[name]
                     le_0_, ge_0_ = self.stable_estimators.get_stable_ReLUs()
                     lb_, ub_ = self.stable_estimators.get_bounds()

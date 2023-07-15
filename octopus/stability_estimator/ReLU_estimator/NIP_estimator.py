@@ -3,6 +3,7 @@ import torch
 
 from . import ReLUEstimator
 
+
 # Naive Interval Propagation estimator
 class NIPEstimator(ReLUEstimator):
     def __init__(self, model, **kwargs):

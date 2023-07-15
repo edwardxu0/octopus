@@ -10,19 +10,10 @@ class SADEstimator(ReLUEstimator):
         super().__init__(model)
         self.__name__ = "SAD ReLU Estimator"
         self.epsilon = kwargs["epsilon"]
-        self.samples = kwargs["samples"]
         self.SDDEstimator = SDDEstimator(model)
 
     def propagate(self, **kwargs):
-        test_loader = kwargs["test_loader"]
-
-        data, _ = next(iter(test_loader))
-
-        # TODO: fix this samples issue afterwards
-        # while len(data) < self.samples:
-        #    data = torch.cat((data, next(iter(test_loader))[0]))
-
-        data = data[: self.samples]
+        data = kwargs["data"]
         data = data.to(self.model.device)
         adv = (
             torch.FloatTensor(data.shape)

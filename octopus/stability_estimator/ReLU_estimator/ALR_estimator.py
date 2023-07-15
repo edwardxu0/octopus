@@ -7,6 +7,10 @@ from . import ReLUEstimator
 
 from auto_LiRPA import BoundedModule, BoundedTensor
 from auto_LiRPA.perturbations import *
+import warnings
+
+warnings.filterwarnings("ignore", module="auto_LiRPA")
+# warnings.filterwarnings("ignore", module="torch")
 
 
 # Naive Interval Propagation estimator
@@ -15,11 +19,12 @@ class ALREstimator(ReLUEstimator):
         super().__init__(model)
         self.__name__ = "ALR ReLU Estimator"
         self.epsilon = kwargs["epsilon"]
+        self.model = model
         self.device = model.device
-
+        self.method = kwargs["method"]
         self.bounded_model = BoundedModule(
-            copy.deepcopy(model),
-            torch.zeros([1] + model.artifact.input_shape).to(self.device),
+            copy.deepcopy(self.model),
+            torch.zeros([1] + self.model.artifact.input_shape).to(self.device),
             bound_opts={"conv_mode": "patches"},
             device=self.device,
         )
@@ -36,19 +41,24 @@ class ALREstimator(ReLUEstimator):
         return lower_bounds, upper_bounds
 
     def propagate(self, **kwargs):
+        self.model.eval()
+        self.bounded_model = BoundedModule(
+            self.model.clone(),
+            torch.zeros([1] + self.model.artifact.input_shape).to(self.device),
+            bound_opts={"conv_mode": "patches"},
+            device=self.device,
+        )
         data = kwargs["data"]
-
         X = data.view((-1, np.prod(self.model.artifact.input_shape)))
         # X = data
 
-        norm = np.inf
-        ptb = PerturbationLpNorm(norm=norm, eps=self.epsilon)
+        ptb = PerturbationLpNorm(norm=np.inf, eps=self.epsilon)
         # Input tensor is wrapped in a BoundedTensor object.
         bounded_image = BoundedTensor(X, ptb).to(self.device)
         with torch.no_grad():  # If gradients of the bounds are not needed, we can use no_grad to save memory.
             self.bounded_model.eval()
             lb, ub = self.bounded_model.compute_bounds(
-                x=(bounded_image,), method="CROWN"
+                x=(bounded_image,), method=self.method
             )
             self.bounded_model.train()
 

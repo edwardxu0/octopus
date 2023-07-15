@@ -1,3 +1,4 @@
+import copy
 from torch import nn
 from torch.nn import Linear, Conv2d, ReLU
 
@@ -5,6 +6,8 @@ from torch.nn import Linear, Conv2d, ReLU
 from ..stabilizer.stable_prune import StablePrune
 from ..stabilizer.RS_loss import RSLoss
 from ..stabilizer.bias_shaping import BiasShaping
+
+# from .ReLUNet import ReLUNet
 
 
 class BasicNet(nn.Module):
@@ -70,6 +73,20 @@ class BasicNet(nn.Module):
         for name, module in self.filtered_named_modules:
             module.register_forward_hook(self.get_activation(name, activation))
         return activation
+
+    def clone(self):
+        from .ReLUNet import ReLUNet
+
+        if isinstance(self, ReLUNet):
+            new_model = ReLUNet(
+                self.artifact, self.layers_configs, self.logger, self.device, self.amp
+            )
+        else:
+            assert False
+
+        pretrained = copy.deepcopy(self.state_dict())
+        new_model.load_state_dict(pretrained)
+        return new_model
 
     @staticmethod
     def get_activation(name, activation):

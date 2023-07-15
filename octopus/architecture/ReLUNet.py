@@ -10,6 +10,8 @@ class ReLUNet(BasicNet):
         super(ReLUNet, self).__init__(logger, device, amp)
         self.__name__ = "ReLUNet"
         self.artifact = artifact
+        self.layers_configs = layers
+        self.dropout = False
         self.set_layers(layers)
 
     def set_layers(self, layers, weights=None, bias=None):
@@ -54,7 +56,7 @@ class ReLUNet(BasicNet):
                 assert False
 
             # add a dropout layer before the output layer
-            if i == len(layers) - 3:
+            if self.dropout and i == len(layers) - 3:
                 layer_name = f"Dropout1"
                 layer = nn.Dropout(0.5)
                 self.layers[layer_name] = layer

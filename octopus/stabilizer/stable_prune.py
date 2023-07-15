@@ -24,7 +24,7 @@ class StablePrune(Stabilizer):
             self.logger.info("Prune starts here ...")
             # prune weights
 
-            if self.mode in ["dropnet", "stablenet"]:
+            if self.mode in ["standard", "dropnet"]:
                 self.logger.info("Using iterative structure pruning ...")
                 self._update_mask(self.sparsity, **kwargs)
                 self._apply_mask()
@@ -78,7 +78,7 @@ class StablePrune(Stabilizer):
             nb_neurons = sum([sum(x) for x in self.mask])
             threshold = weight_sorted_nonzero[int(pr_ratio * nb_neurons)]
 
-        elif self.mode == "stablenet":
+        elif self.mode == "standard":
             lb_, ub_ = self.stable_estimators.get_bounds()
             mean = []
             # check conv layers

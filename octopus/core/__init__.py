@@ -9,7 +9,7 @@ def workout(settings):
     if settings.task == "T":
         settings.logger.info("Training ...")
         problem.train()
-        
+
     elif settings.task == "Test":
         settings.logger.info("Testing ...")
         problem.test()
@@ -31,6 +31,7 @@ def workout(settings):
         problem.analyze()
     else:
         raise NotImplementedError
+    settings.logger.info(f"Network name: {problem.__name__}.")
     settings.logger.info("Mission Complete.")
     end_time = datetime.datetime.now()
     duration = (end_time - start_time).total_seconds()

@@ -1,17 +1,11 @@
-name = 'test'
+name = 'e1v1'
 
 [train]
-	artifact = 'MNIST'
-	net_name = 'NetL'
-	net_layers = [100,5]
-
-	#net_name = 'LeNet'
-
-	epochs = 10
-	batch_size = 32
-	test_batch_size = 32
-	lr = 1e-4							# learning rate
-	gamma = 0.95 							# Learning rate decay
+	epochs = 20
+	batch_size = 64
+	test_batch_size = 64
+	lr = 1e-3							# learning rate
+	gamma = 0.95 						# Learning rate decay
 	save_model = true
 	save_intermediate = true
 	save_log = true
@@ -39,53 +33,8 @@ name = 'test'
 			epsilon = 0.08
 		
 		[train.stable_estimators.ALR]
-			method = 'CROWN'
 			epsilon = 0.08
-
-[stabilizers]
-#	[stabilizers.bias_shaping]
-#		mode = 'standard'
-		
-		# random scheduling
-		# intensity =  5e-2
-        # occurrence = 5e-3
-
-		# interval scheduling
-#		intensity = 2e-2
-#		pace = 100
-		#decay = 0.99
-		
-#		start = 1 			# inclusive
-#		end = 25 			# inclusive
-#		[stabilizers.bias_shaping.stable_estimators]
-#			[stabilizers.bias_shaping.stable_estimators.SDD]
-#				epsilon = 0.08
-
-#	[stabilizers.rs_loss]
-#		mode = 'standard'
-		weight = 1e-4
-		start = 5
-		end = 25
-		[stabilizers.rs_loss.stable_estimators]
-			[stabilizers.rs_loss.stable_estimators.SIP]
-				epsilon = 0.08
-
-	[stabilizers.stable_prune]
-		mode = 'standard'
-		#re_arch = 'last'
-		#save_re_arch = true
-		sparsity = 2e-2
-		pace = 100
-
-		start = 1
-		end = 5
-		[stabilizers.stable_prune.stable_estimators]
-			[stabilizers.stable_prune.stable_estimators.ALR]
-				method = 'CROWN'
-				epsilon = 0.08
-
-
-
+			method = "CROWN"
 
 [verify]
 	time = 600

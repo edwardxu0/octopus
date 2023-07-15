@@ -21,6 +21,9 @@ from ..architecture.ReLUNet import ReLUNet
 from ..architecture.LeNet import LeNet
 from ..architecture.OVAL21 import OVAL21
 
+import warnings
+
+warnings.filterwarnings("ignore", module="torch")
 
 RES_MONITOR_PRETIME = 200
 
@@ -71,7 +74,15 @@ class Problem:
         )
         self.train_loader, self.test_loader = self.artifact.get_data_loader()
 
-        if self.cfg_train["net_name"] in ["NetS", "NetM", "NetL", "FC2", "FC4", "FC6"]:
+        if self.cfg_train["net_name"] in [
+            "NetS",
+            "NetM",
+            "NetL",
+            "FC2",
+            "FC4",
+            "FC6",
+            "Net256x2",
+        ]:
             self.model = ReLUNet(
                 self.artifact,
                 self.cfg_train["net_layers"],
@@ -147,21 +158,17 @@ class Problem:
         if not os.path.exists(self.train_log_path):
             trained = False  # os.path.exists(self.model_path)
         else:
+            with open(self.train_log_path, "r") as fp:
+                log_lines = fp.readlines()
             trained = (
-                len(
-                    [
-                        x
-                        for x in open(self.train_log_path, "r").readlines()
-                        if "[Test] epoch: " in x
-                    ]
-                )
+                len([x for x in log_lines if "[Test] epoch: " in x])
                 == self.cfg_train["epochs"]
             )
         return trained
 
     def train(self):
         if self._trained() and not self.override:
-            self.logger.info(f"Skipping trained network. {self.__name__}")
+            self.logger.info(f"Skipping trained network.")
         else:
             self._setup_train()
 
@@ -268,7 +275,6 @@ class Problem:
                     data=data,
                     epoch=epoch,
                     batch=batch_idx,
-                    test_loader=self.test_loader,
                 ):
                     BS_point = len(self.train_loader) * (epoch - 1) + batch_idx
                     self.train_BS_points += [BS_point]
@@ -279,11 +285,11 @@ class Problem:
             # using pre-activation values of last mini-batch
             if (
                 self.cfg_stabilizers
-                and "prune" in self.cfg_stabilizers
+                and "stable_prune" in self.cfg_stabilizers
                 and self.Utility.stabilizer_enabled_epochwise(
                     epoch,
-                    self.cfg_stabilizers["prune"]["start"],
-                    self.cfg_stabilizers["prune"]["end"],
+                    self.cfg_stabilizers["stable_prune"]["start"],
+                    self.cfg_stabilizers["stable_prune"]["end"],
                 )
             ):
                 re_arched = self.model.run_stabilizers(
@@ -292,7 +298,6 @@ class Problem:
                     epoch=epoch,
                     batch_idx=batch_idx,
                     total_batches=len(self.train_loader),
-                    test_loader=self.test_loader,
                     total_epoch=self.cfg_train["epochs"],
                 )
                 if re_arched and "SIP" in self.stable_estimators:
@@ -307,9 +312,7 @@ class Problem:
                 if self.stable_estimators is not None:
                     se_str = ""
                     for se in self.stable_estimators:
-                        self.stable_estimators[se].propagate(
-                            data=data, test_loader=self.test_loader
-                        )
+                        self.stable_estimators[se].propagate(data=data)
                         stable_le_0, stable_ge_0 = self.stable_estimators[
                             se
                         ].get_stable_ReLUs()
@@ -336,7 +339,9 @@ class Problem:
                 else:
                     se_str = "Disabled."
                 self.logger.info(f"[Train] Stable ReLUs: {se_str}")
-                # print(f"{torch.cuda.memory_allocated() / 1024 / 1024 / 1024:.2f} Gb")
+                # print("lb",self.stable_estimators["SIP"].lb_[-1][0].detach().cpu().numpy(),)
+                # print("ub",self.stable_estimators["SIP"].ub_[-1][0].detach().cpu().numpy(),)
+
             else:
                 if self.train_stable_ReLUs is not None:
                     for x in self.train_stable_ReLUs:
@@ -351,7 +356,7 @@ class Problem:
         self.model.eval()
         test_loss = 0
         correct = 0
-        with torch.no_grad():
+        if True:
             for data, target in self.test_loader:
                 data, target = data.to(self.device), target.to(self.device)
                 output = self.model(data)
@@ -650,7 +655,7 @@ class Problem:
                             raise NotImplementedError
                         name += f"_RS={m}:{x['weight']}:{parse_start_end(x)}"
 
-                    elif h == "prune":
+                    elif h == "stable_prune":
                         if x["mode"] == "structure":
                             m = "S"
                         else:
