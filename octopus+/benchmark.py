@@ -7,7 +7,6 @@ import importlib
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from datetime import datetime
 
 import matplotlib.pyplot as plt
 
@@ -16,8 +15,12 @@ from tqdm import tqdm
 
 from octopus.core.problem import Problem
 from octopus.plot.train_progress import ProgressPlot
-
 from octopus.plot.box_plot import colored_box_plot
+
+
+from swarm_host.core.problem import VerificationProblem
+
+
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 
 
@@ -169,7 +172,7 @@ class Benchmark:
         elif task == "V":
             a, n, h, s, e, p, v = kwargs.values()
             sts["verify"]["property"] = p
-            sts["verify"]["epsilon"] = e
+            sts["verify"]["epsilon"] = str(e)
             sts["verify"]["verifier"] = v
 
             # configure log path
@@ -184,7 +187,7 @@ class Benchmark:
             # veri_name_postfix = Problem.Utility.get_verification_postfix(sts["verify"])
             # veri_name = f"{name}_e={target_epoch}_{veri_name_postfix}"
             veri_name = Problem.Utility.get_hashed_name(
-                [sts["train"], sts["stabilizer"], sts["verify"], target_epoch, s]
+                [sts["train"], sts["stabilizers"], sts["verify"], target_epoch, s]
             )
             log_path = os.path.join(self.sub_dirs["veri_log_dir"], f"{veri_name}.txt")
             config_path = os.path.join(
@@ -212,7 +215,7 @@ class Benchmark:
                 name,
             ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
 
-            print(h, name, e, self.stabilizers[h])
+            # print(h, name, e, self.stabilizers[h])
 
             if name not in self.problems_T_hash:
                 self.problems_T_hash += [name]
@@ -307,7 +310,7 @@ class Benchmark:
                 continue
 
             # check if done
-            print(log_path)
+            # print(log_path)
             assert os.path.exists(log_path) and not self.slurm
 
             cmd = f"python -m octopus {config_path} Test --seed {s} --debug"
@@ -349,7 +352,8 @@ class Benchmark:
                 continue
             else:
                 nb_todo += 1
-            toml.dump(sts, open(config_path, "w"))
+            with open(config_path, "w") as fp:
+                toml.dump(sts, fp)
 
             cmd = f"python -m octopus {config_path} V --seed {s} --debug"
             if self.override:
@@ -408,19 +412,12 @@ class Benchmark:
                 df.to_feather(self.cached_res_path)
                 self.logger.info("Result cached.")
 
-        self.logger.debug(f"Data frame: \n{df}")
+        # self.logger.debug(f"Data frame: \n{df}")
 
         if self.go:
-            # self._train_progress_plot()
-            # self._analyze_training(df)
-            # self._analyze_verification(df)
-            # self._analyze_verification_sus(df)
-            # self._analyze_stable_ReLUs(df)
-            # self._analyze_stable_ReLUs_two(df)
             self._analyze_time(df)
-            # self._tt(df)
-            # self._analyze_table(df)
-
+            self._analyze_training(df)
+            self._analyze_verification(df)
             #######################
             #######################
             #######################
@@ -445,7 +442,8 @@ class Benchmark:
             self.logger.debug(f"Problem configs: {sts}")
             self.logger.debug(f"Name: {name}")
             self.logger.debug(f"Train log path: {train_log_path}")
-            lines = open(train_log_path, "r").readlines()
+            with open(train_log_path, "r") as fp:
+                lines = fp.readlines()
 
             # TODO:
             # temp solution for new ReLU calculations
@@ -464,8 +462,11 @@ class Benchmark:
                 "LeNet_we",
             ]:
                 assert False
+            elif a == "MNIST" and n == "Net256x2":
+                total_nb_relus = 512
             else:
                 nb_relu_line = [x for x in lines if "# ReLUs" in x]
+                # print(nb_relu_line)
                 assert len(nb_relu_line) == 1
                 total_nb_relus = int(nb_relu_line[0].split()[-1])
 
@@ -486,7 +487,7 @@ class Benchmark:
             if "Disabled" not in relu_lines[0]:
                 stable_ReLUs = {}
                 for l in relu_lines:
-                    tokens = l[63:].split()
+                    tokens = l[l.index("[Test] Stable ReLUs:") + 20 :].split()
                     assert len(tokens) % 2 == 0
                     for i in range(int(len(tokens) / 2)):
                         se = tokens[i * 2][:-1]
@@ -520,10 +521,13 @@ class Benchmark:
             #    relu_accuracy = [stable_ReLUs[stable_estimators][target_epoch - 1]]
 
             # this is a hack to work around broken training logs
-            info_lines = [x for x in lines if "(INFO)" in x]
-            start = datetime.strptime(info_lines[0][16:38], "%m/%d/%Y %H:%M:%S %p")
-            end = datetime.strptime(info_lines[-1][16:38], "%m/%d/%Y %H:%M:%S %p")
-            training_time = (end - start).seconds
+            # info_lines = [x for x in lines if "(INFO)" in x]
+            # start = datetime.strptime(info_lines[0][16:38], "%m/%d/%Y %H:%M:%S %p")
+            # end = datetime.strptime(info_lines[-1][16:38], "%m/%d/%Y %H:%M:%S %p")
+            # training_time = (end - start).seconds
+            train_time_line = [x for x in lines if "Spent" in x]
+            assert len(train_time_line) == 1
+            training_time = float(train_time_line[0].split()[1])
 
             # TODO: retract to this after fixing pruning
             # assert 'Spent' in lines[-1], train_log_path
@@ -531,29 +535,25 @@ class Benchmark:
             _, _, _, veri_log_path, _ = self._get_problem_paths(
                 "V", a=a, n=n, h=h, s=s, e=e, p=p, v=v
             )
+
+            vp = VerificationProblem(self.logger, veri_log_path, _, v)
+
             self.logger.debug(f"Veri log path: {veri_log_path}")
             if os.path.exists(veri_log_path):
-                answer, verification_time = Problem.Utility.analyze_veri_log(
-                    veri_log_path, timeout=600
-                )
+                answer, verification_time = vp.analyze()
             else:
                 self.logger.warn(f"Missing veri log: {veri_log_path} ... ")
                 self.logger.warn(f"of training model: {train_log_path} ... ")
-                answer = "error"
-                verification_time = 600
+                answer = None
+                verification_time = None
 
             if answer is None or verification_time is None:
                 print("rm", veri_log_path)  # , verification_time, answer)
 
-                ### TEMP solution
-                # TODO REMOVE
-                answer = "error"
-                verification_time = 600
-
             # compute unstable ReLUs for DNNVWB
             # supported verifiers:
             # DNNVWB:neurify
-
+            """
             if os.path.exists(veri_log_path) and v in ["DNNVWB:neurify"]:
                 lines = open(veri_log_path, "r").readlines()
                 wb_lines = [x for x in lines if "WB" in x]
@@ -569,6 +569,7 @@ class Benchmark:
 
             else:
                 relu_accuracy_veri = 0
+            """
 
             if self.go:
                 df.loc[len(df.index)] = [
@@ -584,35 +585,57 @@ class Benchmark:
                     self.code_veri_answer[answer],
                     verification_time,
                     training_time,
-                    relu_accuracy_veri,
                 ]
         self.logger.info("--------------------")
         return df
 
+    def _analyze_time(self, df):
+        verification_times = df["veri time"].values
+        dft = df[df["property"] == self.props[0]]
+        dft = dft[dft["verifier"] == self.verifiers[0]]
+        dft = dft[dft["epsilon"] == self.epsilons[0]]
+        training_times = dft["training time"]
+        self.logger.info(f"Total training time: {np.sum(training_times)/3600} hours.")
+        self.logger.info(
+            f"Total verification time: {np.sum(verification_times)/3600} hours."
+        )
+
+    def _analyze_training(self, df):
+        self.logger.info("Analyzing training ...")
+
+        # train progress plotter
+        # self._train_progress_plot()
+        # train test accuracy plot
+        self._train_boxplot(df)
+        # train catplot
+        self._train_catplot(df, "test accuracy")
+
     def _train_progress_plot(self):
+        self.logger.info("Generating training progress plot ...")
         for i, (a, n, h, s, e) in enumerate(tqdm(self.problems_T)):
             (
                 sts,
-                config_path,
+                _,
                 _,
                 log_path,
                 name,
             ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
 
-            lines = open(log_path, "r").readlines()
+            with open(log_path, "r") as fp:
+                lines = fp.readlines()
             assert any([x for x in lines if "Mission Complete" in x])
             lines_train = [x for x in lines if "[Train]" in x]
             lines_test = [x for x in lines if "[Test]" in x]
 
             train_stable_ReLUs = {}
             for l in [x for x in lines_train if "Stable ReLUs" in x]:
-                tokens = l[63:].split()
+                tokens = l[l.index("[Train] Stable ReLUs:") + 21 :].split()
                 assert len(tokens) % 2 == 0
                 for i in range(int(len(tokens) / 2)):
                     se = tokens[i * 2][:-1]
                     acc = float(tokens[i * 2 + 1][:-1]) / 100
                     if se not in train_stable_ReLUs:
-                        train_stable_ReLUs[se] = [acc]
+                        train_stable_ReLUs[se] = [0, acc]
                     else:
                         train_stable_ReLUs[se] += [acc]
 
@@ -631,14 +654,18 @@ class Benchmark:
 
             # train stable ReLUs
             Y1 = train_stable_ReLUs
-            X1 = range(len(list(Y1.values())[0]))
+            X1 = range(0, len(list(Y1.values())[0]))
 
             # bias shaping points
             X2 = []
             Y2 = []
 
             # test accuracy
-            X3 = np.linspace(0, nb_steps, nb_epochs) + 1
+            X3 = np.linspace(
+                nb_steps / nb_epochs,
+                nb_steps,
+                nb_epochs,
+            )
             Y3 = test_accuracy
 
             # train loss
@@ -665,31 +692,11 @@ class Benchmark:
                 y_stride=0.2,
             )
 
-            title = Problem.Utility.get_name(sts["train"], sts["stabilizer"], s)
             fig_dir = os.path.join(self.result_dir, "train_figures")
             Path(fig_dir).mkdir(parents=True, exist_ok=True)
-            path = os.path.join(fig_dir, title + ".pdf")
-            p_plot.save(title, path)
+            path = os.path.join(fig_dir, name + ".pdf")
+            p_plot.save(name, path)
             p_plot.clear()
-
-    def _analyze_time(self, df):
-        verification_times = df["veri time"].values
-        dft = df[df["property"] == self.props[0]]
-        dft = dft[dft["verifier"] == self.verifiers[0]]
-        dft = dft[dft["epsilon"] == self.epsilons[0]]
-        training_times = dft["training time"]
-        self.logger.info(f"Total training time: {np.sum(training_times)/3600} hours.")
-        self.logger.info(
-            f"Total verification time: {np.sum(verification_times)/3600} hours."
-        )
-
-    def _analyze_training(self, df):
-        self._train_boxplot(df)
-        # self._train_catplot(df, "test accuracy")
-        # self._train_catplot(df, "relu accuracy")
-
-    def _train_table(self, df):
-        self.logger.info("Plotting training tables ...")
 
     def _train_boxplot(self, df):
         self.logger.info("Plotting training ...")
@@ -701,24 +708,25 @@ class Benchmark:
         for a in self.artifacts:
             for n in self.networks:
                 for h in self.stabilizers.keys():
+                    # for e in self.epsilons:
                     dft = df
                     dft = dft[dft["artifact"] == a]
                     dft = dft[dft["network"] == n]
                     dft = dft[dft["stabilizer"] == h]
                     dft = dft[dft["property"] == self.props[0]]
-                    dft = dft[dft["epsilon"] == self.epsilons[0]]
                     dft = dft[dft["verifier"] == self.verifiers[0]]
 
                     x_labels += [f"{a[0]}:{n[-1]}:{h}"]
 
                     test_acc = dft["test accuracy"].values
-                    relu_acc = dft["relu accuracy"].values
+                    relu_acc = 0
+                    # relu_acc = dft["relu accuracy"].values
 
                     # stable_relu = dft['stable relu'].values
                     c_test_acc += [test_acc]
                     c_relu_acc += [relu_acc]
                     # c_stable_relu += [stable_relu]
-
+        # print(c_test_acc)
         c_test_acc = np.array(c_test_acc, dtype=object) * 100
         c_relu_acc = np.array(c_relu_acc, dtype=object) * 100
         # c_ = np.array(c_stable_relu, dtype=object)
@@ -726,6 +734,9 @@ class Benchmark:
         fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
         # ax2 = ax1.twinx()
         bp1 = colored_box_plot(ax1, c_test_acc.T, "red", "tan")
+        assert len(set(c_test_acc[0])) == 1
+        ax1.axhline(y=c_test_acc[0][0], color="pink")
+        ax1.axhline(y=c_test_acc[0][0] - 2, color="pink")
         bp2 = colored_box_plot(ax1, c_relu_acc.T, "blue", "cyan")
         # bp2 = colored_box_plot(ax2, collection_stable_relu.T, 'blue', 'cyan')
 
@@ -766,7 +777,9 @@ class Benchmark:
 
         ax1.plot()
 
-        ax1.set_ylim(0, 100)
+        # ax1.set_ylim(0, 100)
+        ax1.set_ylim(90, 100)
+        ax1.grid()
         ax1.set_ylabel("Test Accuracy(%,Red)/Stable ReLUs(%,Blue)")
         # ax2.set_ylabel("# Stable ReLUs(%)")
         ax1.set_xlabel("Artifact:Network:stabilizers")
@@ -815,7 +828,20 @@ class Benchmark:
         plt.close(fig)
 
     def _analyze_verification(self, df):
+        stabilizers = list(self.stabilizers.keys())
+
+        stabilizers_bs = ["Baseline"] + [x for x in stabilizers if "BS" in x]
+        self._verification_plot_eps(df, stabilizers_bs)
+        stabilizers_rs = ["Baseline"] + [x for x in stabilizers if "RS" in x]
+        self._verification_plot_eps(df, stabilizers_rs)
+        stabilizers_sp = ["Baseline"] + [x for x in stabilizers if "SP" in x]
+        self._verification_plot_eps(df, stabilizers_sp)
+
+        self._analyze_table(df)
+
+    def _verification_plot_eps(self, df, stabilizers):
         self.logger.info("Plotting verification ...")
+
         colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.stabilizers) - 1)
         for a in self.artifacts:
             for n in self.networks:
@@ -826,7 +852,8 @@ class Benchmark:
                     title_prefix = f"[{a}:{n}:{v}]"
                     collection_verification_time = {}
                     collection_problem_solved = {}
-                    for i, h in enumerate(self.stabilizers.keys()):
+                    # for i, h in enumerate(self.stabilizers.keys()):
+                    for i, h in enumerate(stabilizers):
                         avg_v_time = []
                         nb_solved = []
                         for e in self.epsilons:
@@ -884,8 +911,11 @@ class Benchmark:
                         title_prefix
                         + " Avg. Verification Time/Problems Solved vs. Epsilons"
                     )
+                    postfix = stabilizers[-1][:2]
                     plt.savefig(
-                        os.path.join(self.result_dir, f"V_{title_prefix}.pdf"),
+                        os.path.join(
+                            self.result_dir, f"V_{title_prefix}_{postfix}.pdf"
+                        ),
                         format="pdf",
                         bbox_inches="tight",
                     )
@@ -1159,18 +1189,14 @@ class Benchmark:
         print(self.verifiers)
         for a in self.artifacts:
             for i, x in enumerate([solved_, time_, par2_]):
-                print(a, i)
+                print(a, "Raw", "X")
                 for h in self.stabilizers:
                     print(h, end=",")
                     for v in self.verifiers:
                         for n in self.networks:
-                            print(x[f"{a}:{v}:{n}:{h}"], end=",")
+                            base = x[f"{a}:{v}:{n}:{'Baseline'}"]
+                            print(
+                                f'{x[f"{a}:{v}:{n}:{h}"]:.2f}, {x[f"{a}:{v}:{n}:{h}"]/base:.2f}',
+                                end=",",
+                            )
                     print()
-
-    def _tt(self, df):
-        # print(df)
-        base = list(set(df[df["stabilizer"] == "Baseline"]["training time"]))
-        for h in self.stabilizers.keys():
-            dft = df
-            dft = dft[dft["stabilizer"] == h]
-            print(h, f"{np.array(list(set(dft['training time']))) / base:.2f}", "&")

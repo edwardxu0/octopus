@@ -21,6 +21,8 @@ from ..architecture.ReLUNet import ReLUNet
 from ..architecture.LeNet import LeNet
 from ..architecture.OVAL21 import OVAL21
 
+from swarm_host.core.problem import VerificationProblem
+
 import warnings
 
 warnings.filterwarnings("ignore", module="torch")
@@ -473,11 +475,6 @@ class Problem:
 
         target_epoch = self.Utility.get_target_epoch(target_model, self.train_log_path)
 
-        self.veri_log_path = os.path.join(
-            self.sub_dirs["veri_log_dir"],
-            f"{self.__name__}_e={target_epoch}_{self.Utility.get_verification_postfix(self.cfg_verify)}.txt",
-        )
-
         veri_log_name = Problem.Utility.get_hashed_name(
             [
                 self.cfg_train,
@@ -490,7 +487,6 @@ class Problem:
         self.veri_log_path = os.path.join(
             self.sub_dirs["veri_log_dir"], f"{veri_log_name}.txt"
         )
-
         return target_epoch
 
     def _verified(self):
@@ -503,9 +499,10 @@ class Problem:
         cfg = self.cfg_verify
         prop = cfg["property"]
         eps = cfg["epsilon"]
-        veri_framework = cfg["verifier"].split(":")[0]
-        verifier = cfg["verifier"].split(":")[1]
-        debug = cfg["debug"] if "debug" in cfg else None
+        verifier = cfg["verifier"]
+        # veri_framework = cfg["verifier"].split(":")[0]
+        # verifier = cfg["verifier"].split(":")[1]
+        # debug = cfg["debug"] if "debug" in cfg else None
         save_log = cfg["save_log"] if "save_log" in cfg else None
 
         target_epoch = self._setup_verification()
@@ -525,17 +522,36 @@ class Problem:
                 raise FileNotFoundError(f"Missing model file: {model_path}")
 
             # generate property
-            self.logger.info("Generating property ...")
-            prop_path = self.artifact.gen_property(
-                prop, eps, self.sub_dirs["property_dir"]
-            )
+            # self.logger.info("Generating property ...")
+            # prop_path = self.artifact.gen_property(
+            #    prop, eps, self.sub_dirs["property_dir"]
+            # )
 
+            property = {
+                "type": "local robustness",
+                "artifact": self.model.artifact.__name__,
+                "norm": ".inf",
+                "id": prop,
+                "eps": eps,
+                "time": cfg["time"],
+                "memory": cfg["memory"],
+            }
+
+            vp = VerificationProblem(
+                self.logger,
+                self.veri_log_path,
+                property,
+                verifier,
+            )
+            vp.verify(model_path, property)
+
+            """
             # compose DNNV command
             res_monitor_path = os.path.join(
                 os.environ["DNNV"], "tools", "resmonitor.py"
             )
             cmd = f"python3 {res_monitor_path} -T {cfg['time']+RES_MONITOR_PRETIME} -M {cfg['memory']}"
-
+            
             if veri_framework in ["DNNV", "DNNVWB"]:
                 cmd += f" ./tools/run_{veri_framework}.sh"
             else:
@@ -550,7 +566,7 @@ class Problem:
 
             if debug:
                 cmd += " --debug"
-
+            
             if save_log:
                 veri_log_file = open(self.veri_log_path, "a")
             else:
@@ -584,6 +600,7 @@ class Problem:
             )
             rc = sp.wait()
             assert rc == 0
+            """
 
     def analyze(self):
         # analyze train
@@ -592,9 +609,28 @@ class Problem:
         self._setup_verification()
         assert self._verified()
         self.logger.debug(f"Analyzing log: {self.veri_log_path}")
-        veri_ans, veri_time = self.Utility.analyze_veri_log(
-            self.veri_log_path, timeout=self.cfg_verify["time"]
+
+        property = {
+            "type": "local robustness",
+            "artifact": self.model.artifact.__name__,
+            "norm": ".inf",
+            "id": self.cfg_verify["property"],
+            "eps": self.cfg_verify["epsilon"],
+            "time": self.cfg_verify["time"],
+            "memory": self.cfg_verify["memory"],
+        }
+
+        vp = VerificationProblem(
+            self.logger,
+            self.veri_log_path,
+            property,
+            self.cfg_verify["verifier"],
         )
+        veri_ans, veri_time = vp.analyze()
+
+        # veri_ans, veri_time = self.Utility.analyze_veri_log(
+        #    self.veri_log_path, timeout=self.cfg_verify["time"]
+        # )
         if veri_ans and veri_time:
             self.logger.info(f"Result: {veri_ans}, {veri_time}s.")
         else:
@@ -687,14 +723,6 @@ class Problem:
             return name
 
         @staticmethod
-        def get_verification_postfix(cfg_verify):
-            print("Deprecated.")
-            p = cfg_verify["property"]
-            e = cfg_verify["epsilon"]
-            v = cfg_verify["verifier"]
-            return f"P={p}_E={e}_V={v}"
-
-        @staticmethod
         def stabilizer_enabled_epochwise(epoch, start, end):
             assert type(start) == type(end)
             if isinstance(start, int):
@@ -707,11 +735,9 @@ class Problem:
 
         @staticmethod
         def get_target_epoch(target_model, train_log_path):
-            lines = [
-                x.strip()
-                for x in open(train_log_path, "r").readlines()
-                if "[Test]" in x
-            ]
+            with open(train_log_path, "r") as fp:
+                train_log = fp.readlines()
+            lines = [x.strip() for x in train_log if "[Test]" in x]
             test_lines = [x for x in lines if "[Test] epoch" in x]
             relu_lines = [x for x in lines if "[Test] Stable ReLUs" in x]
             assert len(test_lines) == len(relu_lines)

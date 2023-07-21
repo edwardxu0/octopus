@@ -38,10 +38,10 @@ class Artifact:
         )
 
         # turn on download flag if dataset not downloaded
-        dataset1 = eval(f"datasets.{self.name}")(
+        dataset1 = eval(f"datasets.{self.__name__}")(
             "data", train=True, download=True, transform=transform
         )
-        dataset2 = eval(f"datasets.{self.name}")(
+        dataset2 = eval(f"datasets.{self.__name__}")(
             "data", train=False, transform=transform
         )
 
@@ -64,13 +64,15 @@ class Artifact:
         img = data[prop_id]
 
         # save image to disk
-        save_image(img, os.path.join(prop_dir, f"{self.name}_{prop_id}.png"))
-        npy_img_path = os.path.join(prop_dir, f"{self.name}_{prop_id}.npy")
+        save_image(img, os.path.join(prop_dir, f"{self.__name__}_{prop_id}.png"))
+        npy_img_path = os.path.join(prop_dir, f"{self.__name__}_{prop_id}.npy")
         img_npy = img.numpy()
         img_npy = img_npy.reshape((1, *img_npy.shape))
         np.save(npy_img_path, img_npy)
 
-        property_path = os.path.join(prop_dir, f"{self.name}_{prop_id}_{epsilon}.py")
+        property_path = os.path.join(
+            prop_dir, f"{self.__name__}_{prop_id}_{epsilon}.py"
+        )
 
         property_lines = [
             "from dnnv.properties import *\n",

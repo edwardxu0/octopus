@@ -1,4 +1,4 @@
-name = 'e1v1'
+name = 'e1'
 
 [train]
 	epochs = 20
@@ -37,13 +37,10 @@ name = 'e1v1'
 			method = "CROWN"
 
 [verify]
-	time = 600
+	time = 300
 	memory = '8G'
-	property = 0
-	epsilon = 0.001
 	debug = true
 	save_log = true
-	verifier = 'DNNVWB:neurify'
 	
 	# model selection strategy for verification
 	# last(default): last epoch model

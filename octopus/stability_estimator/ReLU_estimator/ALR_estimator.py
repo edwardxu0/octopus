@@ -55,12 +55,12 @@ class ALREstimator(ReLUEstimator):
         ptb = PerturbationLpNorm(norm=np.inf, eps=self.epsilon)
         # Input tensor is wrapped in a BoundedTensor object.
         bounded_image = BoundedTensor(X, ptb).to(self.device)
-        with torch.no_grad():  # If gradients of the bounds are not needed, we can use no_grad to save memory.
-            self.bounded_model.eval()
-            lb, ub = self.bounded_model.compute_bounds(
-                x=(bounded_image,), method=self.method
-            )
-            self.bounded_model.train()
+        # with torch.no_grad():  # If gradients of the bounds are not needed, we can use no_grad to save memory.
+        self.bounded_model.eval()
+        lb, ub = self.bounded_model.compute_bounds(
+            x=(bounded_image,), method=self.method
+        )
+        self.bounded_model.train()
 
         lb_, ub_ = self.get_hidden_bounds()
         le_0_ = []

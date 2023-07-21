@@ -2,12 +2,12 @@ name = 'test'
 
 [train]
 	artifact = 'MNIST'
-	net_name = 'NetL'
-	net_layers = [100,5]
+	net_name = 'NetS'
+	net_layers = [32,32]
 
 	#net_name = 'LeNet'
 
-	epochs = 10
+	epochs = 5
 	batch_size = 32
 	test_batch_size = 32
 	lr = 1e-4							# learning rate
@@ -63,12 +63,12 @@ name = 'test'
 
 #	[stabilizers.rs_loss]
 #		mode = 'standard'
-		weight = 1e-4
-		start = 5
-		end = 25
-		[stabilizers.rs_loss.stable_estimators]
-			[stabilizers.rs_loss.stable_estimators.SIP]
-				epsilon = 0.08
+#		weight = 1e-4
+#		start = 5
+#		end = 25
+#		[stabilizers.rs_loss.stable_estimators]
+#			[stabilizers.rs_loss.stable_estimators.SIP]
+#				epsilon = 0.08
 
 	[stabilizers.stable_prune]
 		mode = 'standard'
@@ -94,7 +94,7 @@ name = 'test'
 	epsilon = 0.001
 	debug = true
 	save_log = true
-	verifier = 'DNNVWB:neurify'
+	verifier = 'SH:abcrown'
 	
 	# model selection strategy for verification
 	# last(default): last epoch model
