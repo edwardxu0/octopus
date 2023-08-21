@@ -15,7 +15,8 @@ props = [*range(10)]
 epsilons = np.linspace(2, 10, 5) / 100  # mnist
 epsilons = np.linspace(1, 10, 10) / 100  # mnist
 # epsilons = np.linspace(0.5, 5, 10) / 256 # cifar
-epsilons = np.linspace(3, 3, 1) / 100  # mnist
+# epsilons = np.linspace(3, 3, 1) / 100  # mnist
 
 # verifiers = ["DNNV:eran_deeppoly", "DNNV:nnenum", "DNNV:neurify", "DNNV:marabou"]
 verifiers = ["SH:abcrown"]
+verifiers = ["SH:mnbab"]

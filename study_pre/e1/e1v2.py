@@ -56,6 +56,16 @@ stabilizers = {
             "stable_estimators": {"ALR": {"method": "CROWN"}},
         },
     },
+    "BS_ALR2": {
+        "bias_shaping": {
+            "mode": "standard",
+            "intensity": 5e-2,
+            "pace": 100,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
+        },
+    },
     # RS Loss
     "RS_SDD": {
         "rs_loss": {
@@ -100,6 +110,15 @@ stabilizers = {
             "start": 1,
             "end": 50,
             "stable_estimators": {"ALR": {"method": "CROWN"}},
+        },
+    },
+    "RS_ALR2": {
+        "rs_loss": {
+            "mode": "standard",
+            "weight": 1e-4,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
         },
     },
     # PR
@@ -151,6 +170,16 @@ stabilizers = {
             "start": 1,
             "end": 50,
             "stable_estimators": {"ALR": {"method": "CROWN"}},
+        },
+    },
+    "SP_ALR2": {
+        "stable_prune": {
+            "mode": "standard",
+            "pace": 100,
+            "sparsity": 5e-2,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
         },
     },
 }

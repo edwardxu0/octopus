@@ -4,7 +4,35 @@ artifacts = ["MNIST"]
 networks = {"Net256x2": [256, 256]}
 
 stabilizers = {
-    "Baseline": None,
+    "BS_ALR": {
+        "bias_shaping": {
+            "mode": "standard",
+            "intensity": 5e-2,
+            "pace": 100,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN"}},
+        },
+    },
+    "RS_ALR": {
+        "rs_loss": {
+            "mode": "standard",
+            "weight": 1e-4,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN"}},
+        },
+    },
+    "SP_ALR": {
+        "stable_prune": {
+            "mode": "standard",
+            "pace": 100,
+            "sparsity": 5e-2,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN"}},
+        },
+    },
     "BS_ALR2": {
         "bias_shaping": {
             "mode": "standard",

@@ -528,13 +528,14 @@ class Problem:
             # )
 
             property = {
-                "type": "local robustness",
                 "artifact": self.model.artifact.__name__,
-                "norm": ".inf",
+                "type": "local robustness",
+                "norm": np.inf,
                 "id": prop,
-                "eps": eps,
+                "eps": float(eps),
                 "time": cfg["time"],
                 "memory": cfg["memory"],
+                "prop_dir": self.sub_dirs["property_dir"],
             }
 
             vp = VerificationProblem(
@@ -543,6 +544,7 @@ class Problem:
                 property,
                 verifier,
             )
+            vp.generate_property(property)
             vp.verify(model_path, property)
 
             """
@@ -632,7 +634,7 @@ class Problem:
         #    self.veri_log_path, timeout=self.cfg_verify["time"]
         # )
         if veri_ans and veri_time:
-            self.logger.info(f"Result: {veri_ans}, {veri_time}s.")
+            self.logger.info(f"Result: {veri_ans}, {veri_time} seconds.")
         else:
             self.logger.info(f"Failed.")
 

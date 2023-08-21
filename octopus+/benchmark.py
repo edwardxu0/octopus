@@ -63,7 +63,7 @@ class Benchmark:
             "veri ans",
             "veri time",
             "training time",
-            "relu accuracy veri",
+            # "relu accuracy veri",
         ]
 
         self.sub_dirs = {}
@@ -570,6 +570,7 @@ class Benchmark:
             else:
                 relu_accuracy_veri = 0
             """
+            # relu_accuracy_veri = 0
 
             if self.go:
                 df.loc[len(df.index)] = [
@@ -581,7 +582,6 @@ class Benchmark:
                     e,
                     v,
                     test_accuracy,
-                    # *relu_accuracy,
                     self.code_veri_answer[answer],
                     verification_time,
                     training_time,
@@ -1161,7 +1161,8 @@ class Benchmark:
                         time = 0
                         par2 = 0
                         for s in self.seeds:
-                            for e in self.epsilons:
+                            # for e in self.epsilons:
+                            for e in [0.03]:
                                 for p in self.props:
                                     dft = df
                                     dft = dft[dft["seed"] == s]

@@ -4,13 +4,14 @@
 source .venv/bin/activate
 
 # add library to paths
-export DNNV=./lib/DNNV
-export DNNVWB=./lib/DNNVWB
-export SIP=./lib/SIP
-export ALR=./lib/auto_LiRPA
-export SwarmHost=./lib/SwarmHost
+export OCTOPUS=`pwd`
+export DNNV=$OCTOPUS/lib/DNNV
+export SIP=$OCTOPUS/lib/SIP
+export ALR=$OCTOPUS/lib/auto_LiRPA
+export SwarmHost=$OCTOPUS/lib/SwarmHost
 
 export PYTHONPATH=$PYTHONPATH:$SIP:$ALR:$SwarmHost
+export PYTHONPATH=$PYTHONPATH:$SIP:$ALR:$SwarmHost/lib/verinet
 
 # Remove tensorflow warnings
 export TF_CPP_MIN_LOG_LEVEL=2

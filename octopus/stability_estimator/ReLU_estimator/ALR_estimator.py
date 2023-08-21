@@ -52,7 +52,15 @@ class ALREstimator(ReLUEstimator):
         X = data.view((-1, np.prod(self.model.artifact.input_shape)))
         # X = data
 
-        ptb = PerturbationLpNorm(norm=np.inf, eps=self.epsilon)
+        # ptb = PerturbationLpNorm(norm=np.inf, eps=self.epsilon)
+        # ptb = PerturbationLpNorm(norm=np.inf, eps=self.epsilon)
+        minimum = X.min().item()
+        maximum = X.max().item()
+        ptb = PerturbationLpNorm(
+            x_L=torch.clamp(X - self.epsilon, minimum, maximum),
+            x_U=torch.clamp(X + self.epsilon, minimum, maximum),
+        )
+
         # Input tensor is wrapped in a BoundedTensor object.
         bounded_image = BoundedTensor(X, ptb).to(self.device)
         # with torch.no_grad():  # If gradients of the bounds are not needed, we can use no_grad to save memory.

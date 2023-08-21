@@ -88,13 +88,16 @@ name = 'test'
 
 
 [verify]
-	time = 600
+	time = 1
 	memory = '8G'
-	property = 0
-	epsilon = 0.001
+	property = 1
+	epsilon = 0.3
 	debug = true
-	save_log = true
-	verifier = 'SH:abcrown'
+	save_log = false
+	
+	#verifier = 'SH:abcrown'
+	#verifier = 'SH:mnbab'
+	verifier = 'SH:verinet'
 	
 	# model selection strategy for verification
 	# last(default): last epoch model
