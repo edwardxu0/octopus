@@ -28,10 +28,11 @@ class ReLUNet(BasicNet):
         self.layers = {}
 
         # TODO: add flatten if first layer is FC, fix this if conv layers are added
-        # layer_name = "Flatten1"
-        # layer = nn.Flatten()
-        # self.layers[layer_name] = layer
-        # self.__setattr__(layer_name, layer)
+        if type(layers[1]) == int:
+            layer_name = "Flatten1"
+            layer = nn.Flatten()
+            self.layers[layer_name] = layer
+            self.__setattr__(layer_name, layer)
 
         for i, l in enumerate(layers[1:-1]):
             # add FC layers
@@ -82,13 +83,13 @@ class ReLUNet(BasicNet):
     def forward(self, x):
         self._batch_values = {}
         # reshape input if first hidden layer is a FC layer
-        if isinstance(
-            self.layers[list(self.layers.keys())[0]], torch.nn.modules.linear.Linear
-        ):
-            x = x.view(-1, np.prod(self.artifact.input_shape))
+        # if isinstance(
+        #    self.layers[list(self.layers.keys())[0]], torch.nn.modules.linear.Linear
+        # ):
+        # x = x.view(-1, np.prod(self.artifact.input_shape))
         # 2 x = x.flatten(1)
-        else:
-            assert False
+        # else:
+        #    assert False
 
         # print(self.layers)
 

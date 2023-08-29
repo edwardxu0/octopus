@@ -10,15 +10,20 @@ platform = "local"
 # veri_nodes = ["doppio" + x for x in ["02", "03", "04", "05"]]
 
 seeds = [*range(1)]
-props = [*range(10)]
+# props = [*range(5)]
+props = [*range(5)]
 
-epsilons = np.linspace(1, 1, 1) / 100  # mnist
-print(epsilons)
-#epsilons = np.linspace(2, 10, 5) / 100  # mnist
-#epsilons = np.linspace(1, 10, 10) / 100  # mnist
+
+# epsilons = np.linspace(2, 10, 5) / 100  # mnist
+epsilons = np.linspace(2, 100, 50) / 1000  # mnist
+# epsilons = np.linspace(2, 2, 1) / 1000  # mnist
+print(epsilons, print(len(epsilons)))
+
 # epsilons = np.linspace(0.5, 5, 10) / 256 # cifar
 # epsilons = np.linspace(3, 3, 1) / 100  # mnist
 
 # verifiers = ["DNNV:eran_deeppoly", "DNNV:nnenum", "DNNV:neurify", "DNNV:marabou"]
-verifiers = ["SH:abcrown"]
-verifiers = ["SH:mnbab"]
+# verifiers = ["SH:abcrown"]
+# verifiers = ["SH:mnbab"]
+
+verifiers = ["SH:abcrown", "SH:mnbab"]

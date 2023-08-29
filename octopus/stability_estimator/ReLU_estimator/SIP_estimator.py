@@ -8,6 +8,7 @@ from symbolic_interval.symbolic_network import (
     Interval_network,
     Interval_Dense,
     Interval_Conv2d,
+    Interval_Flatten,
 )
 from symbolic_interval.interval import Symbolic_interval
 
@@ -29,7 +30,8 @@ class SIPEstimator(ReLUEstimator):
     def propagate(self, **kwargs):
         data = kwargs["data"]
 
-        if isinstance(self.inet.net[0], Interval_Dense):
+        # if isinstance(self.inet.net[0], Interval_Dense):
+        if isinstance(self.inet.net[0], Interval_Flatten):
             X = data.view((-1, np.prod(self.model.artifact.input_shape)))
         elif isinstance(self.inet.net[0], Interval_Conv2d):
             X = data

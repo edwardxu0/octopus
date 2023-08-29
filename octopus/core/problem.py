@@ -84,6 +84,8 @@ class Problem:
             "FC4",
             "FC6",
             "Net256x2",
+            "Net256x4",
+            "Net256x6",
         ]:
             self.model = ReLUNet(
                 self.artifact,
@@ -122,9 +124,6 @@ class Problem:
                 f"Unsupported architecture: {self.cfg_train['net_name']}"
             )
 
-        self.logger.info(f"Network:\n{self.model}")
-        self.logger.info(f"# ReLUs: {self.model.nb_ReLUs}")
-
     # Training ...
     def _setup_train(self):
         if "save_log" in self.cfg_train and self.cfg_train["save_log"]:
@@ -132,6 +131,9 @@ class Problem:
 
             file_handler = logging.FileHandler(self.train_log_path, "w")
             self.logger.addHandler(file_handler)
+
+        self.logger.info(f"Network:\n{self.model}")
+        self.logger.info(f"# ReLUs: {self.model.nb_ReLUs}")
 
         # setup train data collectors
         self.train_BS_points = []

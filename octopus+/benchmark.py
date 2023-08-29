@@ -145,14 +145,20 @@ class Benchmark:
         sts["train"]["net_layers"] = self.networks[n]
         sts["stabilizers"] = copy.deepcopy(self.stabilizers[h])
 
+        if e == 0.1:  #
+            te = 0.1  #
+        else:  #
+            te = int(e * 100 + 1) / 100  #
+        # te = 0.02  ##
+
         if "stable_estimators" in sts["train"]:
             for est in sts["train"]["stable_estimators"]:
-                sts["train"]["stable_estimators"][est]["epsilon"] = float(e)
+                sts["train"]["stable_estimators"][est]["epsilon"] = float(te)  #
         if sts["stabilizers"]:
             for x in sts["stabilizers"]:
                 for est in sts["stabilizers"][x]["stable_estimators"]:
                     sts["stabilizers"][x]["stable_estimators"][est]["epsilon"] = float(
-                        e
+                        te  #
                     )
 
         name = Problem.Utility.get_hashed_name([sts["train"], sts["stabilizers"], s])
@@ -608,7 +614,7 @@ class Benchmark:
         # train test accuracy plot
         self._train_boxplot(df)
         # train catplot
-        self._train_catplot(df, "test accuracy")
+        # self._train_catplot(df, "test accuracy")
 
     def _train_progress_plot(self):
         self.logger.info("Generating training progress plot ...")
@@ -830,16 +836,21 @@ class Benchmark:
     def _analyze_verification(self, df):
         stabilizers = list(self.stabilizers.keys())
 
-        stabilizers_bs = ["Baseline"] + [x for x in stabilizers if "BS" in x]
-        self._verification_plot_eps(df, stabilizers_bs)
-        stabilizers_rs = ["Baseline"] + [x for x in stabilizers if "RS" in x]
-        self._verification_plot_eps(df, stabilizers_rs)
-        stabilizers_sp = ["Baseline"] + [x for x in stabilizers if "SP" in x]
-        self._verification_plot_eps(df, stabilizers_sp)
+        stabilizers_ba = ["Baseline"]
+        self._verification_plot_eps(df, stabilizers_ba)
+        stabilizers_ba = ["Baseline"]
+        self._verification_plot_eps(df, stabilizers_ba, distinguish_sat_vs_unsat=True)
+
+        # stabilizers_bs = ["Baseline"] + [x for x in stabilizers if "BS" in x]
+        # self._verification_plot_eps(df, stabilizers_bs)
+        # stabilizers_rs = ["Baseline"] + [x for x in stabilizers if "RS" in x]
+        # self._verification_plot_eps(df, stabilizers_rs)
+        # stabilizers_sp = ["Baseline"] + [x for x in stabilizers if "SP" in x]
+        # self._verification_plot_eps(df, stabilizers_sp)
 
         self._analyze_table(df)
 
-    def _verification_plot_eps(self, df, stabilizers):
+    def _verification_plot_eps(self, df, stabilizers, distinguish_sat_vs_unsat=False):
         self.logger.info("Plotting verification ...")
 
         colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.stabilizers) - 1)
@@ -848,6 +859,7 @@ class Benchmark:
                 for v in self.verifiers:
                     # plot verification time(Y) vs. Epsilon Values(X) for each stabilizer
                     fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
+                    fig.autofmt_xdate(rotation=90)
                     ax2 = ax1.twinx()
                     title_prefix = f"[{a}:{n}:{v}]"
                     collection_verification_time = {}
@@ -856,6 +868,8 @@ class Benchmark:
                     for i, h in enumerate(stabilizers):
                         avg_v_time = []
                         nb_solved = []
+                        nb_unsat = []
+                        nb_sat = []
                         for e in self.epsilons:
                             dft = df
                             dft = dft[dft["artifact"] == a]
@@ -868,6 +882,12 @@ class Benchmark:
                             nb_solved += [
                                 np.where(dft["veri ans"].to_numpy() < 3)[0].shape[0]
                             ]
+                            nb_unsat += [
+                                np.where(dft["veri ans"].to_numpy() == 1)[0].shape[0]
+                            ]
+                            nb_sat += [
+                                np.where(dft["veri ans"].to_numpy() == 2)[0].shape[0]
+                            ]
 
                         collection_verification_time[h] = avg_v_time
                         collection_problem_solved[h] = nb_solved
@@ -878,12 +898,26 @@ class Benchmark:
                             label=h,
                             color=(*colors[i], 2 / 3),
                         )
-                        plot2 = ax2.plot(
-                            nb_solved,
-                            linestyle=":",
-                            label=h,
-                            color=(*colors[i], 2 / 3),
-                        )
+                        if not distinguish_sat_vs_unsat:
+                            plot2 = ax2.plot(
+                                nb_solved,
+                                linestyle=":",
+                                label=h,
+                                color=(*colors[i], 2 / 3),
+                            )
+                        else:
+                            plot2 = ax2.plot(
+                                nb_unsat,
+                                linestyle="--",
+                                label=h,
+                                color=(*colors[i], 2 / 3),
+                            )
+                            plot3 = ax2.plot(
+                                nb_sat,
+                                linestyle=":",
+                                label=h,
+                                color=(*colors[i], 2 / 3),
+                            )
 
                     ax1.legend(
                         loc="upper left",
@@ -907,11 +941,14 @@ class Benchmark:
                     ax1.set_xticks(range(len(self.epsilons)))
                     ax1.set_xticklabels(self.epsilons)
 
+                    # ax1.xticks(rotation=90)
                     plt.title(
                         title_prefix
                         + " Avg. Verification Time/Problems Solved vs. Epsilons"
                     )
                     postfix = stabilizers[-1][:2]
+                    if distinguish_sat_vs_unsat:
+                        postfix += "_sus"
                     plt.savefig(
                         os.path.join(
                             self.result_dir, f"V_{title_prefix}_{postfix}.pdf"
@@ -922,7 +959,6 @@ class Benchmark:
                     fig.clear()
                     plt.close(fig)
 
-    def _analyze_verification_sus(self, df):
         self.logger.info("Plotting verification sat/unsat...")
         colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.stabilizers) - 1)
         for a in self.artifacts:
@@ -1161,8 +1197,7 @@ class Benchmark:
                         time = 0
                         par2 = 0
                         for s in self.seeds:
-                            # for e in self.epsilons:
-                            for e in [0.03]:
+                            for e in self.epsilons:
                                 for p in self.props:
                                     dft = df
                                     dft = dft[dft["seed"] == s]
@@ -1190,14 +1225,20 @@ class Benchmark:
         print(self.verifiers)
         for a in self.artifacts:
             for i, x in enumerate([solved_, time_, par2_]):
-                print(a, "Raw", "X")
+                print("----------")
                 for h in self.stabilizers:
                     print(h, end=",")
                     for v in self.verifiers:
                         for n in self.networks:
                             base = x[f"{a}:{v}:{n}:{'Baseline'}"]
-                            print(
-                                f'{x[f"{a}:{v}:{n}:{h}"]:.2f}, {x[f"{a}:{v}:{n}:{h}"]/base:.2f}',
-                                end=",",
-                            )
+                            if base == 0:
+                                print(
+                                    f'{x[f"{a}:{v}:{n}:{h}"]:.2f}, +{x[f"{a}:{v}:{n}:{h}"]:.2f}',
+                                    end=",",
+                                )
+                            else:
+                                print(
+                                    f'{x[f"{a}:{v}:{n}:{h}"]:.2f}, {x[f"{a}:{v}:{n}:{h}"]/base:.2f}',
+                                    end=",",
+                                )
                     print()
