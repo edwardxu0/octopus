@@ -27,7 +27,6 @@ from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 class Benchmark:
     def __init__(self, base_settings, benchmark_settings, **kwargs):
         self.go = kwargs["go"]
-        self.slurm = kwargs["slurm"]
         self.override = kwargs["override"]
         self.logger = kwargs["logger"]
         with open(base_settings, "r") as fp:
@@ -77,14 +76,24 @@ class Benchmark:
             "figure",
         ]
 
+        self.logger.info("Reading benchmark settings ...")
+        module = importlib.import_module(
+            benchmark_settings.split(".")[0].replace("/", ".")
+        )
+        for x in module.__dict__:
+            if not x.startswith("__"):
+                self.__setattr__(x, module.__dict__[x])
+
+        self.slurm = self.platform == "slurm"
+
         if self.slurm:
             sub_dirs += ["train_slurm", "veri_slurm"]
-            if "save_log" in self.base_settings["train"]:
+            if "save_log" in self.base_settings["train"] and "save_log" == True:
                 self.logger.info(
                     "Disabled [save_log] and redirected training logs to slurm logging."
                 )
                 self.base_settings["train"]["save_log"] = False
-            if "save_log" in self.base_settings["verify"]:
+            if "save_log" in self.base_settings["verify"] and "save_log" == True:
                 self.logger.info(
                     "Disabled [save_log] and redirected verification logs to slurm logging."
                 )
@@ -94,14 +103,6 @@ class Benchmark:
             sdp = os.path.join(self.result_dir, sd)
             Path(sdp).mkdir(exist_ok=True, parents=True)
             self.sub_dirs[sd + "_dir"] = sdp
-
-        self.logger.info("Reading benchmark settings ...")
-        module = importlib.import_module(
-            benchmark_settings.split(".")[0].replace("/", ".")
-        )
-        for x in module.__dict__:
-            if not x.startswith("__"):
-                self.__setattr__(x, module.__dict__[x])
 
     def _define_problems(self):
         self.logger.info("Configuring problems ...")
@@ -145,20 +146,14 @@ class Benchmark:
         sts["train"]["net_layers"] = self.networks[n]
         sts["stabilizers"] = copy.deepcopy(self.stabilizers[h])
 
-        if e == 0.1:  #
-            te = 0.1  #
-        else:  #
-            te = int(e * 100 + 1) / 100  #
-        # te = 0.02  ##
-
         if "stable_estimators" in sts["train"]:
             for est in sts["train"]["stable_estimators"]:
-                sts["train"]["stable_estimators"][est]["epsilon"] = float(te)  #
+                sts["train"]["stable_estimators"][est]["epsilon"] = float(e)
         if sts["stabilizers"]:
             for x in sts["stabilizers"]:
                 for est in sts["stabilizers"][x]["stable_estimators"]:
                     sts["stabilizers"][x]["stable_estimators"][est]["epsilon"] = float(
-                        te  #
+                        e
                     )
 
         name = Problem.Utility.get_hashed_name([sts["train"], sts["stabilizers"], s])
@@ -259,7 +254,7 @@ class Benchmark:
                     f"#SBATCH --error={log_path}",
                 ]
                 if self.base_settings["train"]["gpu"]:
-                    lines += [f"#SBATCH --partition=gnolim", "#SBATCH --gres=gpu:1"]
+                    lines += [f"#SBATCH --partition=gpu", "#SBATCH --gres=gpu:1"]
                 if (
                     "train_nodes_ex" in self.__dict__
                     and "train_nodes" not in self.__dict__
@@ -268,7 +263,8 @@ class Benchmark:
 
                 lines += [
                     "cat /proc/sys/kernel/hostname",
-                    "source .env.d/openenv.sh",
+                    "export MKL_SERVICE_FORCE_INTEL=1",
+                    # "source .env.d/openenv.sh",
                     # "source .env.d/openenv_cheetah01.sh",
                     "which python3",
                     "echo $CUDA_VISIBLE_DEVICES",
@@ -276,7 +272,8 @@ class Benchmark:
                 ]
 
                 lines = [x + "\n" for x in lines]
-                open(slurm_script_path, "w").writelines(lines)
+                with open(slurm_script_path, "w") as fp:
+                    fp.writelines(lines)
                 param_node_nb = (
                     f"-c {self.nb_train_nodes}"
                     if "nb_train_nodes" in self.__dict__
@@ -369,21 +366,24 @@ class Benchmark:
             slurm_cmd = None
             if self.slurm:
                 lines = [
-                    "#!/bin/sh",
+                    f"#!/bin/sh",
                     f"#SBATCH --job-name=O.V",
                     f"#SBATCH --output={log_path}",
                     f"#SBATCH --error={log_path}",
+                    f"#SBATCH --partition=nolim",
+                    "export MKL_SERVICE_FORCE_INTEL=1",
                     f"export TMPDIR={tmpdir}",
-                    "export DNNV_OPTIONAL_SIMPLIFIERS=ReluifyMaxPool",
+                    # f"export DNNV_OPTIONAL_SIMPLIFIERS=ReluifyMaxPool",
                     f"mkdir {tmpdir}",
-                    "cat /proc/sys/kernel/hostname",
-                    "source .env.d/openenv.sh",
+                    f"cat /proc/sys/kernel/hostname",
+                    f"which python",
                     cmd,
                     f"rm -rf {tmpdir}",
                 ]
                 lines = [x + "\n" for x in lines]
 
-                open(slurm_script_path, "w").writelines(lines)
+                with open(slurm_script_path, "w") as fp:
+                    fp.writelines(lines)
                 param_node_nb = (
                     f"-c {self.nb_verify_nodes}"
                     if "nb_verify_nodes" in self.__dict__
@@ -511,38 +511,19 @@ class Benchmark:
             # No stability estimator is enabled during training
             else:
                 relu_accuracy = None
-            # if h == "Baseline":
-            #    stable_estimators = sts["train"]["stable_estimators"]
-            #    relu_accuracy = [
-            #        stable_ReLUs[x][target_epoch - 1] for x in stable_estimators
-            #    ]
 
-            # else:
-            #    assert (
-            #        len(list(self.stabilizers[h].values())[0]["stable_estimators"]) == 1
-            #    )
-            #    stable_estimators = list(
-            #        list(self.stabilizers[h].values())[0]["stable_estimators"]
-            #    )[0]
-            #    relu_accuracy = [stable_ReLUs[stable_estimators][target_epoch - 1]]
-
-            # this is a hack to work around broken training logs
-            # info_lines = [x for x in lines if "(INFO)" in x]
-            # start = datetime.strptime(info_lines[0][16:38], "%m/%d/%Y %H:%M:%S %p")
-            # end = datetime.strptime(info_lines[-1][16:38], "%m/%d/%Y %H:%M:%S %p")
-            # training_time = (end - start).seconds
             train_time_line = [x for x in lines if "Spent" in x]
             assert len(train_time_line) == 1
-            training_time = float(train_time_line[0].split()[1])
-
-            # TODO: retract to this after fixing pruning
-            # assert 'Spent' in lines[-1], train_log_path
-            # training_time = float(lines[-1].strip().split()[-2])
+            training_time = float(
+                train_time_line[0][train_time_line[0].index("Spent") :].split()[1]
+            )
             _, _, _, veri_log_path, _ = self._get_problem_paths(
                 "V", a=a, n=n, h=h, s=s, e=e, p=p, v=v
             )
 
-            vp = VerificationProblem(self.logger, veri_log_path, _, v)
+            vp = VerificationProblem(
+                self.logger, _, v, _, {"veri_log_path": veri_log_path}
+            )
 
             self.logger.debug(f"Veri log path: {veri_log_path}")
             if os.path.exists(veri_log_path):
@@ -740,9 +721,8 @@ class Benchmark:
         fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
         # ax2 = ax1.twinx()
         bp1 = colored_box_plot(ax1, c_test_acc.T, "red", "tan")
-        assert len(set(c_test_acc[0])) == 1
-        ax1.axhline(y=c_test_acc[0][0], color="pink")
-        ax1.axhline(y=c_test_acc[0][0] - 2, color="pink")
+        ax1.axhline(y=np.mean(c_test_acc[0]), color="pink")
+        ax1.axhline(y=np.mean(c_test_acc[0]) - 2, color="pink")
         bp2 = colored_box_plot(ax1, c_relu_acc.T, "blue", "cyan")
         # bp2 = colored_box_plot(ax2, collection_stable_relu.T, 'blue', 'cyan')
 

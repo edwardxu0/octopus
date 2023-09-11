@@ -16,7 +16,7 @@ name = 'test'
 	save_intermediate = true
 	save_log = true
 	log_interval = 100					# Stable ReLU estimation/print interval
-	gpu = true
+	gpu = false
 	amp = true							# enabled only when gpu == true
 
 	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
@@ -88,16 +88,16 @@ name = 'test'
 
 
 [verify]
-	time = 1
+	time = 600
 	memory = '8G'
 	property = 1
-	epsilon = 0.3
+	epsilon = 0.04
 	debug = true
 	save_log = false
 	
-	#verifier = 'SH:abcrown'
+	verifier = 'SH:abcrown'
 	#verifier = 'SH:mnbab'
-	verifier = 'SH:verinet'
+	#verifier = 'SH:verinet'
 	
 	# model selection strategy for verification
 	# last(default): last epoch model

@@ -47,7 +47,7 @@ class Settings:
             "error": 5,
         }
 
-        sub_dirs = {"train_log", "model", "property", "figure", "veri_log"}
+        sub_dirs = {"train_log", "model", "property", "figure", "veri_config","veri_log"}
         self._make_dirs(sub_dirs)
         self.logger = initialize_logger("OCTOPUS", cfg["logging_level"])
 

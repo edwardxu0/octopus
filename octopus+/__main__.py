@@ -33,7 +33,6 @@ def _parse_args():
         action="store_true",
         help="Overrides existing train/verify/analyze tasks.",
     )
-    parser.add_argument("--slurm", action="store_true", help="Run on SLURM or not?")
     parser.add_argument("--go", action="store_true", help="Dry run or not?")
     parser.add_argument("--debug", action="store_true", help="Print debug log.")
     parser.add_argument("--dumb", action="store_true", help="Silent mode.")
@@ -59,7 +58,6 @@ def main():
         args.base_settings,
         args.benchmark_settings,
         go=args.go,
-        slurm=args.slurm,
         override=args.override,
         result_dir=args.result_dir,
         logger=logger,

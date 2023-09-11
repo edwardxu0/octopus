@@ -1,7 +1,6 @@
 import torch
 import os
 import numpy as np
-import subprocess
 import sys
 import logging
 import gc
@@ -26,8 +25,6 @@ from swarm_host.core.problem import VerificationProblem
 import warnings
 
 warnings.filterwarnings("ignore", module="torch")
-
-RES_MONITOR_PRETIME = 200
 
 
 class Problem:
@@ -86,6 +83,11 @@ class Problem:
             "Net256x2",
             "Net256x4",
             "Net256x6",
+            "Net256x8",
+            "Net512x2",
+            "Net512x4",
+            "Net512x6",
+            "Net512x8",
         ]:
             self.model = ReLUNet(
                 self.artifact,
@@ -489,11 +491,14 @@ class Problem:
         self.veri_log_path = os.path.join(
             self.sub_dirs["veri_log_dir"], f"{veri_log_name}.txt"
         )
+        self.veri_config_path = os.path.join(
+            self.sub_dirs["veri_config_dir"], f"{veri_log_name}.config"
+        )
+
         return target_epoch
 
     def _verified(self):
         assert self._trained()
-        # TODO: account for verification completion
 
         return os.path.exists(self.veri_log_path)
 
@@ -535,19 +540,29 @@ class Problem:
                 "norm": np.inf,
                 "id": prop,
                 "eps": float(eps),
+            }
+            verifier_config = {
                 "time": cfg["time"],
                 "memory": cfg["memory"],
+                "gpu": False if "gpu" not in cfg or cfg["gpu"] == False else True,
+            }
+
+            paths = {
                 "prop_dir": self.sub_dirs["property_dir"],
+                "veri_config_path": self.veri_config_path,
+                "veri_log_path": self.veri_log_path if save_log else None,
+                "model_path": model_path,
             }
 
             vp = VerificationProblem(
                 self.logger,
-                self.veri_log_path,
                 property,
                 verifier,
+                verifier_config,
+                paths,
             )
-            vp.generate_property(property)
-            vp.verify(model_path, property)
+            vp.generate_property()
+            vp.verify()
 
             """
             # compose DNNV command
@@ -614,21 +629,12 @@ class Problem:
         assert self._verified()
         self.logger.debug(f"Analyzing log: {self.veri_log_path}")
 
-        property = {
-            "type": "local robustness",
-            "artifact": self.model.artifact.__name__,
-            "norm": ".inf",
-            "id": self.cfg_verify["property"],
-            "eps": self.cfg_verify["epsilon"],
-            "time": self.cfg_verify["time"],
-            "memory": self.cfg_verify["memory"],
-        }
-
         vp = VerificationProblem(
             self.logger,
-            self.veri_log_path,
-            property,
+            None,
             self.cfg_verify["verifier"],
+            None,
+            {"veri_log_path": self.veri_log_path},
         )
         veri_ans, veri_time = vp.analyze()
 
@@ -639,6 +645,8 @@ class Problem:
             self.logger.info(f"Result: {veri_ans}, {veri_time} seconds.")
         else:
             self.logger.info(f"Failed.")
+
+        return veri_ans, veri_time
 
     def _save_meta(self):
         ...

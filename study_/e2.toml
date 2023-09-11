@@ -1,4 +1,4 @@
-name = 'e2'
+name = '_e2'
 
 [train]
 	epochs = 20
@@ -8,7 +8,7 @@ name = 'e2'
 	gamma = 0.95 						# Learning rate decay
 	save_model = true
 	save_intermediate = true
-	save_log = true
+	save_log = false
 	log_interval = 100					# Stable ReLU estimation/print interval
 	gpu = true
 	amp = true							# enabled only when gpu == true
@@ -40,7 +40,7 @@ name = 'e2'
 	time = 300
 	memory = '8G'
 	debug = true
-	save_log = true
+	save_log = false
 	
 	# model selection strategy for verification
 	# last(default): last epoch model

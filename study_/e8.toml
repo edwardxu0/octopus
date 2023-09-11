@@ -1,4 +1,4 @@
-name = '_e1'
+name = '_e8'
 
 [train]
 	epochs = 20

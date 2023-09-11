@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # activate virtual environment
-source .venv/bin/activate
+#source .venv/bin/activate
+conda activate octopus
 
 # add library to paths
 export OCTOPUS=`pwd`

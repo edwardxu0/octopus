@@ -1,1 +1,1 @@
-deactivate
+conda deactivate
