@@ -816,10 +816,24 @@ class Benchmark:
     def _analyze_verification(self, df):
         stabilizers = list(self.stabilizers.keys())
 
+        # calculate
+        stabilizers_ba = ["Baseline"]
+        hard_region = self._verification_plot_eps(
+            df, stabilizers_ba, calculate_hard_region=True
+        )
+
+        print(f"Hard region: {hard_region}, mean: {np.mean(hard_region):.4f}.")
+        print(
+            f"Hard region: {hard_region- self.epsilons[0]}, mean: {np.mean(hard_region)-self.epsilons[0]:.4f} - eps_min({self.epsilons[0]})."
+        )
+
         stabilizers_ba = ["Baseline"]
         self._verification_plot_eps(df, stabilizers_ba)
         stabilizers_ba = ["Baseline"]
         self._verification_plot_eps(df, stabilizers_ba, distinguish_sat_vs_unsat=True)
+        self._verification_plot_eps(
+            df, stabilizers_ba, distinguish_sat_vs_unsat_time=True
+        )
 
         # stabilizers_bs = ["Baseline"] + [x for x in stabilizers if "BS" in x]
         # self._verification_plot_eps(df, stabilizers_bs)
@@ -830,13 +844,22 @@ class Benchmark:
 
         self._analyze_table(df)
 
-    def _verification_plot_eps(self, df, stabilizers, distinguish_sat_vs_unsat=False):
+    def _verification_plot_eps(
+        self,
+        df,
+        stabilizers,
+        calculate_hard_region=False,
+        distinguish_sat_vs_unsat=False,
+        distinguish_sat_vs_unsat_time=False,
+    ):
         self.logger.info("Plotting verification ...")
 
+        hard_region = []
         colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.stabilizers) - 1)
         for a in self.artifacts:
             for n in self.networks:
                 for v in self.verifiers:
+                    hard = None
                     # plot verification time(Y) vs. Epsilon Values(X) for each stabilizer
                     fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
                     fig.autofmt_xdate(rotation=90)
@@ -847,6 +870,8 @@ class Benchmark:
                     # for i, h in enumerate(self.stabilizers.keys()):
                     for i, h in enumerate(stabilizers):
                         avg_v_time = []
+                        unsat_v_time = []
+                        sat_v_time = []
                         nb_solved = []
                         nb_unsat = []
                         nb_sat = []
@@ -858,16 +883,47 @@ class Benchmark:
                             dft = dft[dft["stabilizer"] == h]
                             dft = dft[dft["epsilon"] == e]
                             nb_problems = len(dft["veri ans"])
-                            avg_v_time += [np.mean(dft["veri time"].to_numpy())]
+                            avg_time = np.mean(dft["veri time"].to_numpy())
+                            avg_v_time += [avg_time]
+
+                            unsat_index = np.where(dft["veri ans"].to_numpy() == 1)
+
+                            sat_index = np.where(dft["veri ans"].to_numpy() == 2)
+
+                            if len(unsat_index[0]) == 0:
+                                unsat_time = 0
+                            else:
+                                unsat_time = np.mean(
+                                    dft["veri time"].to_numpy()[unsat_index]
+                                )
+
+                            if len(sat_index[0]) == 0:
+                                sat_time = 0
+                            else:
+                                sat_time = np.mean(
+                                    dft["veri time"].to_numpy()[sat_index]
+                                )
+
+                            unsat_v_time += [unsat_time]
+                            sat_v_time += [sat_time]
+
+                            # print(len(dft["veri time"]))
+                            # print(dft["veri time"])
+
                             nb_solved += [
                                 np.where(dft["veri ans"].to_numpy() < 3)[0].shape[0]
                             ]
-                            nb_unsat += [
-                                np.where(dft["veri ans"].to_numpy() == 1)[0].shape[0]
+
+                            unsat_ = np.where(dft["veri ans"].to_numpy() == 1)[0].shape[
+                                0
                             ]
-                            nb_sat += [
-                                np.where(dft["veri ans"].to_numpy() == 2)[0].shape[0]
-                            ]
+                            nb_unsat += [unsat_]
+                            sat_ = np.where(dft["veri ans"].to_numpy() == 2)[0].shape[0]
+                            nb_sat += [sat_]
+
+                            if sat_ > unsat_ and not hard:
+                                hard = e
+                                hard_region += [hard]
 
                         collection_verification_time[h] = avg_v_time
                         collection_problem_solved[h] = nb_solved
@@ -878,14 +934,20 @@ class Benchmark:
                             label=h,
                             color=(*colors[i], 2 / 3),
                         )
-                        if not distinguish_sat_vs_unsat:
+                        if (
+                            not distinguish_sat_vs_unsat
+                            and not distinguish_sat_vs_unsat_time
+                        ):
                             plot2 = ax2.plot(
                                 nb_solved,
                                 linestyle=":",
                                 label=h,
                                 color=(*colors[i], 2 / 3),
                             )
-                        else:
+                        elif (
+                            distinguish_sat_vs_unsat
+                            and not distinguish_sat_vs_unsat_time
+                        ):
                             plot2 = ax2.plot(
                                 nb_unsat,
                                 linestyle="--",
@@ -898,46 +960,70 @@ class Benchmark:
                                 label=h,
                                 color=(*colors[i], 2 / 3),
                             )
+                        elif (
+                            not distinguish_sat_vs_unsat
+                            and distinguish_sat_vs_unsat_time
+                        ):
+                            plot2 = ax2.plot(
+                                unsat_v_time,
+                                linestyle="--",
+                                label=h,
+                                color=(*colors[i], 2 / 3),
+                            )
+                            plot3 = ax2.plot(
+                                sat_v_time,
+                                linestyle=":",
+                                label=h,
+                                color=(*colors[i], 2 / 3),
+                            )
+                        else:
+                            assert False
 
-                    ax1.legend(
-                        loc="upper left",
-                        bbox_to_anchor=(-0.22, 0.8),
-                        fancybox=True,
-                    )
-                    ax2.legend(
-                        loc="upper right",
-                        bbox_to_anchor=(1.22, 0.8),
-                        fancybox=True,
-                    )
+                    if not calculate_hard_region:
+                        ax1.legend(
+                            loc="upper left",
+                            bbox_to_anchor=(-0.22, 0.8),
+                            fancybox=True,
+                        )
+                        ax2.legend(
+                            loc="upper right",
+                            bbox_to_anchor=(1.22, 0.8),
+                            fancybox=True,
+                        )
 
-                    ax1.set_xlabel("Epsilon")
-                    ax1.set_ylabel("Verification Time(s)")
-                    ax2.set_ylabel("Solved Problems")
-                    ax1.set_ylim(
-                        -self.base_settings["verify"]["time"] * 0.05,
-                        self.base_settings["verify"]["time"] * 1.05,
-                    )
-                    ax2.set_ylim(-1, nb_problems + 1)
-                    ax1.set_xticks(range(len(self.epsilons)))
-                    ax1.set_xticklabels(self.epsilons)
+                        ax1.set_xlabel("Epsilon")
+                        ax1.set_ylabel("Verification Time(s)")
+                        ax2.set_ylabel("Solved Problems")
+                        ax1.set_ylim(
+                            -self.base_settings["verify"]["time"] * 0.05,
+                            self.base_settings["verify"]["time"] * 1.2,
+                        )
+                        ax2.set_ylim(-1, nb_problems + 1)
+                        ax1.set_xticks(range(len(self.epsilons)))
+                        ax1.set_xticklabels(self.epsilons)
 
-                    # ax1.xticks(rotation=90)
-                    plt.title(
-                        title_prefix
-                        + " Avg. Verification Time/Problems Solved vs. Epsilons"
-                    )
-                    postfix = stabilizers[-1][:2]
-                    if distinguish_sat_vs_unsat:
-                        postfix += "_sus"
-                    plt.savefig(
-                        os.path.join(
-                            self.result_dir, f"V_{title_prefix}_{postfix}.pdf"
-                        ),
-                        format="pdf",
-                        bbox_inches="tight",
-                    )
-                    fig.clear()
-                    plt.close(fig)
+                        # ax1.xticks(rotation=90)
+                        plt.title(
+                            title_prefix
+                            + " Avg. Verification Time/Problems Solved vs. Epsilons"
+                        )
+                        postfix = stabilizers[-1][:2]
+                        if distinguish_sat_vs_unsat:
+                            postfix += "_sus"
+                        if distinguish_sat_vs_unsat_time:
+                            postfix += "_susT"
+
+                        plt.savefig(
+                            os.path.join(
+                                self.result_dir, f"V_{title_prefix}_{postfix}.pdf"
+                            ),
+                            format="pdf",
+                            bbox_inches="tight",
+                        )
+                        fig.clear()
+                        plt.close(fig)
+
+        return hard_region
 
         self.logger.info("Plotting verification sat/unsat...")
         colors = [(0, 0, 0)] + sns.color_palette("hls", len(self.stabilizers) - 1)
