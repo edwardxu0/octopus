@@ -16,6 +16,7 @@ export PYTHONPATH=$PYTHONPATH:$SIP:$ALR:$SwarmHost/lib/verinet
 
 # Remove tensorflow warnings
 export TF_CPP_MIN_LOG_LEVEL=2
+export MKL_SERVICE_FORCE_INTEL=1
 
 # aliasing tool
 alias octopus='python -m octopus'

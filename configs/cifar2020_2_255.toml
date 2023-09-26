@@ -1,0 +1,81 @@
+name = 'test_cifar2020'
+
+[train]
+	artifact = 'CIFAR10'
+	net_name = 'CIFAR2020_2_255'
+
+	epochs = 2
+	batch_size = 16
+	test_batch_size = 16
+	lr = 1e-4							# learning rate
+	gamma = 0.95 							# Learning rate decay
+	save_model = true
+	save_intermediate = true
+	save_log = true
+	gpu = false
+	log_interval = 100					# Stable ReLU estimation/print interval
+	amp = false							# enabled only when gpu == true
+
+	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
+
+
+	# SDD: sampled dataset distribution
+	# SAD: sampled adversarial distribution
+	# NIP: interval propagation
+
+[stabilizers]
+	[stabilizers.bias_shaping]
+		mode = 'standard'
+		
+		# random scheduling
+		# intensity =  5e-2
+        # occurrence = 5e-3
+
+		# interval scheduling
+		intensity = 2e-2
+		pace = 1
+		#decay = 0.99
+		
+		start = 1 			# inclusive
+		end = 25 			# inclusive
+		[stabilizers.bias_shaping.stable_estimators]
+			[stabilizers.bias_shaping.stable_estimators.SIP]
+				epsilon = 0.08
+
+
+	[stabilizers.stable_prune]
+		mode = 'standard'
+		#re_arch = 'last'
+		#save_re_arch = true
+		sparsity = 2e-2
+		pace = 1
+
+		start = 1
+		end = 5
+		[stabilizers.stable_prune.stable_estimators]
+			[stabilizers.stable_prune.stable_estimators.ALR]
+				method = 'CROWN'
+				epsilon = 0.08
+
+
+
+
+[verify]
+	time = 600
+	memory = '8G'
+	property = 0
+	epsilon = 0.001
+	debug = true
+	save_log = true
+	verifier = 'DNNVWB:neurify'
+	
+	# model selection strategy for verification
+	# last(default): last epoch model
+	#
+	# For all below: must save intermediate models(save_intermediate = true)
+	# best test accuracy: model with the best test accuracy
+	# best relu accuracy: model with the most amount of stable relus
+	# top [x] test accuaracy: model with the most amount of stable relus with [x]% accuarcy difference of the model with the best tests accuracy
+	# top [x] relu accuaracy: model with the best test accuracy with [x]% stable relu difference of the model with the most amount of stable relus
+	# target_model = 'last'
+	target_model = 'best test accuracy of last 5 epochs'

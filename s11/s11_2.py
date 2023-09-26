@@ -1,7 +1,7 @@
 from . import *
 
-artifacts = ["MNIST"]
-networks = {"Net1024x2": [1024, 1024]}
+artifacts = ["CIFAR10"]
+networks = {"CIFAR2020_2_255": [49402]}
 
 stabilizers = {
     "Baseline": None,

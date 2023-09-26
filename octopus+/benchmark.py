@@ -17,6 +17,8 @@ from octopus.core.problem import Problem
 from octopus.plot.train_progress import ProgressPlot
 from octopus.plot.box_plot import colored_box_plot
 
+import subprocess
+
 
 from swarm_host.core.problem import VerificationProblem
 
@@ -132,6 +134,22 @@ class Benchmark:
             if not self.slurm:
                 os.system(cmd)
             else:
+                # to not overflow the slurm squeue ...
+                while True:
+                    tt = 0
+                    sq_cmd = "squeue -u dx3yy | grep O.V | wc"
+                    result = subprocess.run(
+                        sq_cmd, shell=True, text=True, capture_output=True
+                    )
+
+                    nb_tasks = int(result.stdout.split()[0])
+                    if nb_tasks < 500:
+                        break
+                    else:
+                        print(f"# tasks: {nb_tasks}. Waiting ... {tt}s")
+                        time.sleep(10)
+                        tt += 10
+
                 self.logger.info(f"Fly: {slurm_cmd}")
                 os.system(slurm_cmd)
                 time.sleep(sleep_time)
@@ -254,7 +272,10 @@ class Benchmark:
                     f"#SBATCH --error={log_path}",
                 ]
                 if self.base_settings["train"]["gpu"]:
-                    lines += [f"#SBATCH --partition=gpu", "#SBATCH --gres=gpu:1"]
+                    lines += [
+                        f"#SBATCH --partition={self.train_partition}",
+                        "#SBATCH --gres=gpu:1",
+                    ]
                 if (
                     "train_nodes_ex" in self.__dict__
                     and "train_nodes" not in self.__dict__
@@ -263,10 +284,16 @@ class Benchmark:
 
                 lines += [
                     "cat /proc/sys/kernel/hostname",
+                    # "lscpu| grep 'Model name'",
+                    # "lscpu| grep 'CPU(s)'",
+                    # "lscpu| grep 'CPU max'",
+                    # "free -h",
+                    # "nvidia-smi -L",
                     "export MKL_SERVICE_FORCE_INTEL=1",
-                    # "source .env.d/openenv.sh",
+                    # "which conda",
+                    # ". .env.d/openenv.sh",
                     # "source .env.d/openenv_cheetah01.sh",
-                    "which python3",
+                    "which python",
                     "echo $CUDA_VISIBLE_DEVICES",
                     cmd,
                 ]
@@ -371,11 +398,16 @@ class Benchmark:
                     f"#SBATCH --output={log_path}",
                     f"#SBATCH --error={log_path}",
                     f"#SBATCH --partition=nolim",
+                    f"#SBATCH --reservation=dx3yy_11",
                     "export MKL_SERVICE_FORCE_INTEL=1",
                     f"export TMPDIR={tmpdir}",
                     # f"export DNNV_OPTIONAL_SIMPLIFIERS=ReluifyMaxPool",
                     f"mkdir {tmpdir}",
                     f"cat /proc/sys/kernel/hostname",
+                    f"lscpu| grep 'Model name'",
+                    f"lscpu| grep 'CPU(s)'",
+                    f"lscpu| grep 'CPU max'",
+                    f"free -h",
                     f"which python",
                     cmd,
                     f"rm -rf {tmpdir}",
@@ -451,30 +483,10 @@ class Benchmark:
             with open(train_log_path, "r") as fp:
                 lines = fp.readlines()
 
-            # TODO:
-            # temp solution for new ReLU calculations
-            # remove this for new log files
 
-            if a == "CIFAR10" and n == "OVAL21_o":
-                total_nb_relus = 3172
-            elif a == "CIFAR10" and n == "OVAL21_w":
-                total_nb_relus = 6244
-            elif a == "CIFAR10" and n == "OVAL21_d":
-                total_nb_relus = 6756
-            elif a == "CIFAR10" and n in [
-                "LeNet_o",
-                "LeNet_w",
-                "LeNet_oe",
-                "LeNet_we",
-            ]:
-                assert False
-            elif a == "MNIST" and n == "Net256x2":
-                total_nb_relus = 512
-            else:
-                nb_relu_line = [x for x in lines if "# ReLUs" in x]
-                # print(nb_relu_line)
-                assert len(nb_relu_line) == 1
-                total_nb_relus = int(nb_relu_line[0].split()[-1])
+            nb_relu_line = [x for x in lines if "# ReLUs" in x]
+            assert len(nb_relu_line) == 1, train_log_path
+            total_nb_relus = int(nb_relu_line[0].split()[-1])
 
             test_lines = [x for x in lines if "[Test] epoch:" in x]
             relu_lines = [x for x in lines if "[Test] Stable ReLUs:" in x]
@@ -513,7 +525,7 @@ class Benchmark:
                 relu_accuracy = None
 
             train_time_line = [x for x in lines if "Spent" in x]
-            assert len(train_time_line) == 1
+            assert len(train_time_line) == 1, train_log_path
             training_time = float(
                 train_time_line[0][train_time_line[0].index("Spent") :].split()[1]
             )

@@ -19,6 +19,7 @@ from ..plot.train_progress import ProgressPlot
 from ..architecture.ReLUNet import ReLUNet
 from ..architecture.LeNet import LeNet
 from ..architecture.OVAL21 import OVAL21
+from ..architecture.CIFAR2020 import CIFAR2020
 
 from swarm_host.core.problem import VerificationProblem
 
@@ -88,6 +89,7 @@ class Problem:
             "Net512x4",
             "Net512x6",
             "Net512x8",
+            "Net1024x2",
         ]:
             self.model = ReLUNet(
                 self.artifact,
@@ -115,6 +117,16 @@ class Problem:
             "OVAL21_d",
         ]:
             self.model = OVAL21(
+                self.artifact,
+                self.cfg_train["net_name"],
+                self.logger,
+                self.device,
+                self.amp,
+            ).to(self.device)
+        elif self.cfg_train["net_name"] in [
+            "CIFAR2020_2_255",
+        ]:
+            self.model = CIFAR2020(
                 self.artifact,
                 self.cfg_train["net_name"],
                 self.logger,
@@ -218,7 +230,7 @@ class Problem:
 
                 self.LR_decay_scheduler.step()
 
-                self._plot_train()
+                # self._plot_train()
 
     def _train_epoch(self, epoch):
         for batch_idx, (data, target) in enumerate(self.train_loader):

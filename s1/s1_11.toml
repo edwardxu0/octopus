@@ -1,7 +1,7 @@
-name = 's1'
+name = 's1_11'
 
 [train]
-	epochs = 20
+	epochs = 50
 	batch_size = 32
 	test_batch_size = 32
 	lr = 1e-3							# learning rate
@@ -9,7 +9,7 @@ name = 's1'
 	save_model = true
 	save_intermediate = true
 	save_log = false
-	log_interval = 100					# Stable ReLU estimation/print interval
+	log_interval = 10					# Stable ReLU estimation/print interval
 	gpu = true
 	amp = true							# enabled only when gpu == true
 
@@ -20,7 +20,6 @@ name = 's1'
 	# SAD: sampled adversarial distribution
 	# NIP: naive interval propagation
 	# SIP: symbolic interval propagation
-	[train.stable_estimators]
 
 [verify]
 	time = 300

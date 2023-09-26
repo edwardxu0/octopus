@@ -76,10 +76,15 @@ class BasicNet(nn.Module):
 
     def clone(self):
         from .ReLUNet import ReLUNet
+        from .CIFAR2020 import CIFAR2020
 
         if isinstance(self, ReLUNet):
             new_model = ReLUNet(
                 self.artifact, self.layers_configs, self.logger, self.device, self.amp
+            )
+        elif isinstance(self, CIFAR2020):
+            new_model = CIFAR2020(
+                self.artifact, self.net_name, self.logger, self.device, self.amp
             )
         else:
             assert False

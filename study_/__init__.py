@@ -27,4 +27,4 @@ print(epsilons, print(len(epsilons)))
 # verifiers = ["SH:abcrown"]
 # verifiers = ["SH:mnbab"]
 
-verifiers = ["SH:abcrown", "SH:mnbab", "SH:abcrown2"]
+verifiers = ["SH:abcrown", "SH:mnbab", "SH:abcrown2", "SH:nnenum"]

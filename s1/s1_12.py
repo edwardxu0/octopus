@@ -1,7 +1,7 @@
 from . import *
 
 artifacts = ["MNIST"]
-networks = {"Net1024x2": [1024, 1024]}
+networks = {"Net256x2": [256, 256]}
 
 stabilizers = {
     "Baseline": None,

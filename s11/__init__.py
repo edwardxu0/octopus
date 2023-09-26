@@ -20,10 +20,11 @@ seeds = [*range(5)]
 props = [*range(50)]  # test
 props = [*range(10)]  # real
 
-epsilons = np.linspace(2, 100, 50) / 1000  # test
-epsilons = np.linspace(14, 22, 5) / 1000  # real
+epsilons = np.linspace(2, 200, 100) / 10000  # test
+epsilons = np.linspace(10, 18, 5) / 10000  # real
 
 print(f"seeds: |{len(seeds)}|, props: |{len(props)}|")
 print(f"epsilons: |{len(epsilons)}|, {epsilons}")
 
-verifiers = ["SH:abcrown", "SH:abcrown2", "SH:mnbab", "SH:nnenum"]
+verifiers = ["SH:abcrown2", "SH:mnbab", "SH:nnenum"]
+# verifiers = ["SH:abcrown", "SH:abcrown2", "SH:mnbab", "SH:nnenum"]

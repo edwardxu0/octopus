@@ -1,7 +1,7 @@
 from . import *
 
 artifacts = ["MNIST"]
-networks = {"Net1024x2": [1024, 1024]}
+networks = {"Net256x2": [256, 256]}
 
 stabilizers = {
     "Baseline": None,
@@ -10,7 +10,7 @@ stabilizers = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 50,
+            "pace": 100,
             "start": 1,
             "end": 50,
             "stable_estimators": {"SDD": {}},
@@ -20,7 +20,7 @@ stabilizers = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 50,
+            "pace": 100,
             "start": 1,
             "end": 50,
             "stable_estimators": {"SAD": {}},
@@ -30,7 +30,7 @@ stabilizers = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 50,
+            "pace": 100,
             "start": 1,
             "end": 50,
             "stable_estimators": {"NIP": {}},
@@ -40,7 +40,7 @@ stabilizers = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 50,
+            "pace": 100,
             "start": 1,
             "end": 50,
             "stable_estimators": {"SIP": {}},
@@ -50,7 +50,7 @@ stabilizers = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 50,
+            "pace": 100,
             "start": 1,
             "end": 50,
             "stable_estimators": {"ALR": {"method": "CROWN"}},
@@ -60,7 +60,7 @@ stabilizers = {
         "bias_shaping": {
             "mode": "standard",
             "intensity": 5e-2,
-            "pace": 50,
+            "pace": 100,
             "start": 1,
             "end": 50,
             "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
@@ -125,7 +125,7 @@ stabilizers = {
     "SP_SDD": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
+            "pace": 100,
             "sparsity": 5e-2,
             "start": 1,
             "end": 50,
@@ -135,7 +135,7 @@ stabilizers = {
     "SP_SAD": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
+            "pace": 100,
             "sparsity": 5e-2,
             "start": 1,
             "end": 50,
@@ -145,7 +145,7 @@ stabilizers = {
     "SP_NIP": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
+            "pace": 100,
             "sparsity": 5e-2,
             "start": 1,
             "end": 50,
@@ -155,7 +155,7 @@ stabilizers = {
     "SP_SIP": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
+            "pace": 100,
             "sparsity": 5e-2,
             "start": 1,
             "end": 50,
@@ -165,7 +165,7 @@ stabilizers = {
     "SP_ALR": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
+            "pace": 100,
             "sparsity": 5e-2,
             "start": 1,
             "end": 50,
@@ -175,7 +175,7 @@ stabilizers = {
     "SP_ALRo": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
+            "pace": 100,
             "sparsity": 5e-2,
             "start": 1,
             "end": 50,

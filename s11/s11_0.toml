@@ -1,9 +1,9 @@
-name = 's3_2'
+name = 's11_0'
 
 [train]
 	epochs = 20
-	batch_size = 32
-	test_batch_size = 32
+	batch_size = 16
+	test_batch_size = 16
 	lr = 1e-3							# learning rate
 	gamma = 0.99 						# Learning rate decay
 	save_model = true

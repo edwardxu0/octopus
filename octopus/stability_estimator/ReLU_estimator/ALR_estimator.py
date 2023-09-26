@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import copy
 from torch.nn import Linear, Conv2d
-
+import gc
 from . import ReLUEstimator
 
 from auto_LiRPA import BoundedModule, BoundedTensor
@@ -49,8 +49,12 @@ class ALREstimator(ReLUEstimator):
             device=self.device,
         )
         data = kwargs["data"]
-        X = data.view((-1, np.prod(self.model.artifact.input_shape)))
-        # X = data
+        if self.model.__name__ == "ReLUNet":
+            X = data.view((-1, np.prod(self.model.artifact.input_shape)))
+        elif self.model.__name__ == "CIFAR2020":
+            X = data
+        else:
+            assert False
 
         # ptb = PerturbationLpNorm(norm=np.inf, eps=self.epsilon)
         # ptb = PerturbationLpNorm(norm=np.inf, eps=self.epsilon)
@@ -78,9 +82,9 @@ class ALREstimator(ReLUEstimator):
             if isinstance(layer, Linear):
                 lb = lb_[i]
                 ub = ub_[i]
-
             elif isinstance(layer, Conv2d):
-                raise NotImplementedError(layer)
+                lb = lb_[i]
+                ub = ub_[i]
             else:
                 raise NotImplementedError(layer)
 
@@ -113,3 +117,6 @@ class ALREstimator(ReLUEstimator):
         # self.ub_ = torch.cat(ub_, dim=0)
         self.lb_ = lb_
         self.ub_ = ub_
+
+        del self.bounded_model
+        gc.collect()
