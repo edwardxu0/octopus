@@ -230,7 +230,7 @@ class Problem:
 
                 self.LR_decay_scheduler.step()
 
-                # self._plot_train()
+                self._plot_train()
 
     def _train_epoch(self, epoch):
         for batch_idx, (data, target) in enumerate(self.train_loader):
