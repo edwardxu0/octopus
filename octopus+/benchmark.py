@@ -399,6 +399,7 @@ class Benchmark:
                     f"#SBATCH --error={log_path}",
                     f"#SBATCH --partition=nolim",
                     f"#SBATCH --reservation=dx3yy_11",
+                    f"#SBATCH --qos=dx3yy_tmp",
                     "export MKL_SERVICE_FORCE_INTEL=1",
                     f"export TMPDIR={tmpdir}",
                     # f"export DNNV_OPTIONAL_SIMPLIFIERS=ReluifyMaxPool",
@@ -482,7 +483,6 @@ class Benchmark:
             self.logger.debug(f"Train log path: {train_log_path}")
             with open(train_log_path, "r") as fp:
                 lines = fp.readlines()
-
 
             nb_relu_line = [x for x in lines if "# ReLUs" in x]
             assert len(nb_relu_line) == 1, train_log_path

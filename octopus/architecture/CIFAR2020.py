@@ -33,6 +33,34 @@ class CIFAR2020(BasicNet):
                 "ReLU4": nn.ReLU(),
                 "Out": nn.Linear(250, 10),
             }
+        elif net_name == "CIFAR2020_8_255":
+            self.layers = {
+                "Conv1": nn.Conv2d(3, 32, 5, stride=2, padding=2),
+                "ReLU1": nn.ReLU(),
+                "Conv2": nn.Conv2d(32, 128, 4, stride=2, padding=1),
+                "ReLU2": nn.ReLU(),
+                "Flatten": nn.Flatten(),
+                "FC1": nn.Linear(128 * 8 * 8, 250),
+                "ReLU3": nn.ReLU(),
+                "Out": nn.Linear(250, 10),
+            }
+        elif net_name == "convBig":
+            self.layers = {
+                "Conv1": nn.Conv2d(3, 32, 3, stride=1, padding=1),
+                "ReLU1": nn.ReLU(),
+                "Conv2": nn.Conv2d(32, 32, 4, stride=2, padding=1),
+                "ReLU2": nn.ReLU(),
+                "Conv3": nn.Conv2d(32, 64, 3, stride=1, padding=1),
+                "ReLU3": nn.ReLU(),
+                "Conv4": nn.Conv2d(64, 64, 4, stride=2, padding=1),
+                "ReLU4": nn.ReLU(),
+                "Flatten": nn.Flatten(),
+                "FC1": nn.Linear(64 * 8 * 8, 512),
+                "ReLU5": nn.ReLU(),
+                "FC2": nn.Linear(512, 512),
+                "ReLU6": nn.ReLU(),
+                "Out": nn.Linear(512, 10),
+            }
         else:
             assert False
 

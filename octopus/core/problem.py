@@ -124,7 +124,7 @@ class Problem:
                 self.amp,
             ).to(self.device)
         elif self.cfg_train["net_name"] in [
-            "CIFAR2020_2_255",
+            "CIFAR2020_2_255", "CIFAR2020_8_255", "convBig"
         ]:
             self.model = CIFAR2020(
                 self.artifact,
