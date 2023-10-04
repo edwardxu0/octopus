@@ -48,8 +48,8 @@ class Benchmark:
             "sat": 2,
             "unknown": 3,
             "timeout": 4,
-            "memout": 4,
-            "error": 5,
+            "memout": 5,
+            "error": 6,
         }
 
         self.labels = [
@@ -399,7 +399,7 @@ class Benchmark:
                     f"#SBATCH --error={log_path}",
                     f"#SBATCH --partition=nolim",
                     f"#SBATCH --reservation=dx3yy_11",
-                    f"#SBATCH --qos=dx3yy_tmp",
+                    f"#SBATCH --qos=csresnolim",
                     "export MKL_SERVICE_FORCE_INTEL=1",
                     f"export TMPDIR={tmpdir}",
                     # f"export DNNV_OPTIONAL_SIMPLIFIERS=ReluifyMaxPool",
@@ -454,6 +454,8 @@ class Benchmark:
         # self.logger.debug(f"Data frame: \n{df}")
 
         if self.go:
+            self._analyze_table(df)
+            exit()
             self._analyze_time(df)
             self._analyze_training(df)
             self._analyze_verification(df)
@@ -1266,6 +1268,8 @@ class Benchmark:
         solved_ = {}
         time_ = {}
         par2_ = {}
+        test_acc_ = {}
+        train_time_ = {}
         for a in self.artifacts:
             for v in self.verifiers:
                 for n in self.networks:
@@ -1274,6 +1278,9 @@ class Benchmark:
                         solved = 0
                         time = 0
                         par2 = 0
+                        nb_p = 0
+                        test_acc = []
+                        train_time = []
                         for s in self.seeds:
                             for e in self.epsilons:
                                 for p in self.props:
@@ -1294,11 +1301,26 @@ class Benchmark:
                                         par2 += veri_time[0]
                                         solved += 1
                                     else:
-                                        par2 += 600 * 2
-                                    time += veri_time[0]
-                        solved_[name] = solved
-                        time_[name] = time
-                        par2_[name] = par2
+                                        par2 += 300 * 2
+                                    if veri_ans[0] in [5, 6]:
+                                        pass
+                                    else:
+                                        nb_p += 1
+                                        time += veri_time[0]
+
+                                    ta = dft["test accuracy"].to_numpy()
+                                    assert len(ta) == 1
+                                    test_acc += [ta[0]]
+
+                                    tt = dft["training time"].to_numpy()
+                                    assert len(ta) == 1
+                                    train_time += [tt[0]]
+
+                        solved_[name] = solved / len(self.seeds)
+                        time_[name] = time / nb_p
+                        par2_[name] = par2 / nb_p
+                        test_acc_[name] = np.mean(test_acc)
+                        train_time_[name] = np.mean(train_time)
 
         print(self.verifiers)
         for a in self.artifacts:
@@ -1320,3 +1342,41 @@ class Benchmark:
                                     end=",",
                                 )
                     print()
+
+        print("Train accuracy:")
+        x = test_acc_
+        for a in self.artifacts:
+            for h in self.stabilizers:
+                print(h, end=",")
+                for n in self.networks:
+                    base = x[f"{a}:{v}:{n}:{'Baseline'}"]
+                    if base == 0:
+                        print(
+                            f'{x[f"{a}:{v}:{n}:{h}"]:.2f}, +{x[f"{a}:{v}:{n}:{h}"]:.2f}',
+                            end=",",
+                        )
+                    else:
+                        print(
+                            f'{x[f"{a}:{v}:{n}:{h}"]:.2f}, {x[f"{a}:{v}:{n}:{h}"]/base:.2f}',
+                            end=",",
+                        )
+                print()
+
+        print("Train time:")
+        x = train_time_
+        for a in self.artifacts:
+            for h in self.stabilizers:
+                print(h, end=",")
+                for n in self.networks:
+                    base = x[f"{a}:{v}:{n}:{'Baseline'}"]
+                    if base == 0:
+                        print(
+                            f'{x[f"{a}:{v}:{n}:{h}"]:.2f}, +{x[f"{a}:{v}:{n}:{h}"]:.2f}',
+                            end=",",
+                        )
+                    else:
+                        print(
+                            f'{x[f"{a}:{v}:{n}:{h}"]:.2f}, {x[f"{a}:{v}:{n}:{h}"]/base:.2f}',
+                            end=",",
+                        )
+                print()

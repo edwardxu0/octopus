@@ -27,3 +27,4 @@ print(f"seeds: |{len(seeds)}|, props: |{len(props)}|")
 print(f"epsilons: |{len(epsilons)}|, {epsilons}")
 
 verifiers = ["SH:abcrown", "SH:abcrown2", "SH:mnbab", "SH:nnenum"]
+verifiers = ["SH:abcrown2", "SH:mnbab", "SH:nnenum"]

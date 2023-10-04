@@ -66,67 +66,6 @@ stabilizers = {
             "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
         },
     },
-    #BSa
-    "BSa_SDD": {
-        "bias_shaping": {
-            "mode": "all-layers",
-            "intensity": 5e-2,
-            "pace": 50,
-            "start": 1,
-            "end": 50,
-            "stable_estimators": {"SDD": {}},
-        },
-    },
-    "BSa_SAD": {
-        "bias_shaping": {
-            "mode": "all-layers",
-            "intensity": 5e-2,
-            "pace": 50,
-            "start": 1,
-            "end": 50,
-            "stable_estimators": {"SAD": {}},
-        },
-    },
-    "BSa_NIP": {
-        "bias_shaping": {
-            "mode": "all-layers",
-            "intensity": 5e-2,
-            "pace": 50,
-            "start": 1,
-            "end": 50,
-            "stable_estimators": {"NIP": {}},
-        },
-    },
-    "BSa_SIP": {
-        "bias_shaping": {
-            "mode": "all-layers",
-            "intensity": 5e-2,
-            "pace": 50,
-            "start": 1,
-            "end": 50,
-            "stable_estimators": {"SIP": {}},
-        },
-    },
-    "BSa_ALR": {
-        "bias_shaping": {
-            "mode": "all-layers",
-            "intensity": 5e-2,
-            "pace": 50,
-            "start": 1,
-            "end": 50,
-            "stable_estimators": {"ALR": {"method": "CROWN"}},
-        },
-    },
-    "BSa_ALRo": {
-        "bias_shaping": {
-            "mode": "all-layers",
-            "intensity": 5e-2,
-            "pace": 50,
-            "start": 1,
-            "end": 50,
-            "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
-        },
-    },
     # RS Loss
     "RS_SDD": {
         "rs_loss": {
@@ -244,3 +183,67 @@ stabilizers = {
         },
     },
 }
+
+"""
+    #BSa
+    "BSa_SDD": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 5e-2,
+            "pace": 50,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"SDD": {}},
+        },
+    },
+    "BSa_SAD": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 5e-2,
+            "pace": 50,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"SAD": {}},
+        },
+    },
+    "BSa_NIP": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 5e-2,
+            "pace": 50,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"NIP": {}},
+        },
+    },
+    "BSa_SIP": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 5e-2,
+            "pace": 50,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"SIP": {}},
+        },
+    },
+    "BSa_ALR": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 5e-2,
+            "pace": 50,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN"}},
+        },
+    },
+    "BSa_ALRo": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 5e-2,
+            "pace": 50,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
+        },
+    },
+"""
