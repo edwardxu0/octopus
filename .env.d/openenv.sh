@@ -10,9 +10,11 @@ export DNNV=$OCTOPUS/lib/DNNV
 export SIP=$OCTOPUS/lib/SIP
 export ALR=$OCTOPUS/lib/auto_LiRPA
 export SwarmHost=$OCTOPUS/lib/SwarmHost
+export NeuralSAT=$OCTOPUS/lib/neuralsat
 
 export PYTHONPATH=$PYTHONPATH:$SIP:$ALR:$SwarmHost
 export PYTHONPATH=$PYTHONPATH:$SIP:$ALR:$SwarmHost/lib/verinet
+export PYTHONPATH=$PYTHONPATH:$SIP:$ALR:$NeuralSAT/neuralsat
 
 # Remove tensorflow warnings
 export TF_CPP_MIN_LOG_LEVEL=2

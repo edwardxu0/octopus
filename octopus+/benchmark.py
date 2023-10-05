@@ -65,6 +65,8 @@ class Benchmark:
             "veri time",
             "training time",
             # "relu accuracy veri",
+            "nb stable",
+            "nb unstable",
         ]
 
         self.sub_dirs = {}
@@ -454,8 +456,6 @@ class Benchmark:
         # self.logger.debug(f"Data frame: \n{df}")
 
         if self.go:
-            self._analyze_table(df)
-            exit()
             self._analyze_time(df)
             self._analyze_training(df)
             self._analyze_verification(df)
@@ -536,7 +536,7 @@ class Benchmark:
             )
 
             vp = VerificationProblem(
-                self.logger, _, v, _, {"veri_log_path": veri_log_path}
+                self.logger, _, v, name, {"veri_log_path": veri_log_path}
             )
 
             self.logger.debug(f"Veri log path: {veri_log_path}")
@@ -573,6 +573,19 @@ class Benchmark:
             """
             # relu_accuracy_veri = 0
 
+            # analyze stable relus:
+
+            property_path = os.path.join(
+                self.sub_dirs["property_dir"], f"{a}_{p}_{e}.vnnlib"
+            )
+            model_path = os.path.join(
+                self.sub_dirs["model_dir"], f"{name}.{target_epoch}.onnx"
+            )
+
+            from .sn_calculator import calculate_meta
+
+            nb_stable, nb_unstable = calculate_meta(model_path, property_path)
+
             if self.go:
                 df.loc[len(df.index)] = [
                     a,
@@ -586,6 +599,8 @@ class Benchmark:
                     self.code_veri_answer[answer],
                     verification_time,
                     training_time,
+                    nb_stable,
+                    nb_unstable,
                 ]
         self.logger.info("--------------------")
         return df

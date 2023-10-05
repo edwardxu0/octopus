@@ -124,7 +124,9 @@ class Problem:
                 self.amp,
             ).to(self.device)
         elif self.cfg_train["net_name"] in [
-            "CIFAR2020_2_255", "CIFAR2020_8_255", "convBig"
+            "CIFAR2020_2_255",
+            "CIFAR2020_8_255",
+            "convBig",
         ]:
             self.model = CIFAR2020(
                 self.artifact,
@@ -774,7 +776,7 @@ class Problem:
             elif re.search("^best test accuracy of last .* epochs", target_model):
                 x = int(target_model.split()[-2])
                 max_idx = np.where(test_accs == np.max(test_accs[-x:]))
-                target_epoch = max_idx[0][0] + 1
+                target_epoch = max_idx[0][-1] + 1
 
             elif re.search("^is .*", target_model):
                 target_epoch = int(target_model.split()[-1])
