@@ -15,9 +15,10 @@ train_nodes_ex = "jaguar06"
 
 veri_nodes = ["doppio" + x for x in ["01", "02", "03", "04", "05"]]
 
-seeds = [*range(5)]
-props = [*range(10)]
+seeds = [*range(1)]
+# seeds = [*range(3)]
 
+props = [*range(10)]
 
 epsilons = np.linspace(12, 20, 5) / 1000  # mnist
 

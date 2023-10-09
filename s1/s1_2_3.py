@@ -1,7 +1,8 @@
+# pace = 25
 from . import *
 
-artifacts = ["CIFAR10"]
-networks = {"CIFAR2020_8_255": [49402]}
+artifacts = ["MNIST"]
+networks = {"Net256x2": [256, 256]}
 
 stabilizers = {
     "Baseline": None,
@@ -9,8 +10,8 @@ stabilizers = {
     "BS_SDD": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
-            "pace": 50,
+            "intensity": 1e-2,
+            "pace": 5,
             "start": 1,
             "end": 50,
             "stable_estimators": {"SDD": {}},
@@ -19,8 +20,8 @@ stabilizers = {
     "BS_SAD": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
-            "pace": 50,
+            "intensity": 1e-2,
+            "pace": 5,
             "start": 1,
             "end": 50,
             "stable_estimators": {"SAD": {}},
@@ -29,8 +30,8 @@ stabilizers = {
     "BS_NIP": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
-            "pace": 50,
+            "intensity": 1e-2,
+            "pace": 5,
             "start": 1,
             "end": 50,
             "stable_estimators": {"NIP": {}},
@@ -39,8 +40,8 @@ stabilizers = {
     "BS_SIP": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
-            "pace": 50,
+            "intensity": 1e-2,
+            "pace": 5,
             "start": 1,
             "end": 50,
             "stable_estimators": {"SIP": {}},
@@ -49,8 +50,8 @@ stabilizers = {
     "BS_ALR": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
-            "pace": 50,
+            "intensity": 1e-2,
+            "pace": 5,
             "start": 1,
             "end": 50,
             "stable_estimators": {"ALR": {"method": "CROWN"}},
@@ -59,8 +60,8 @@ stabilizers = {
     "BS_ALRo": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
-            "pace": 50,
+            "intensity": 1e-2,
+            "pace": 5,
             "start": 1,
             "end": 50,
             "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
@@ -103,30 +104,30 @@ stabilizers = {
             "stable_estimators": {"SIP": {}},
         },
     },
-    # "RS_ALR": {
-    #    "rs_loss": {
-    #        "mode": "standard",
-    #        "weight": 1e-4,
-    #        "start": 1,
-    #        "end": 50,
-    #        "stable_estimators": {"ALR": {"method": "CROWN"}},
-    #    },
-    # },
-    # "RS_ALRo": {
-    #    "rs_loss": {
-    #        "mode": "standard",
-    #        "weight": 1e-4,
-    #        "start": 1,
-    #        "end": 50,
-    #        "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
-    #    },
-    # },
+    "RS_ALR": {
+        "rs_loss": {
+            "mode": "standard",
+            "weight": 1e-4,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN"}},
+        },
+    },
+    "RS_ALRo": {
+        "rs_loss": {
+            "mode": "standard",
+            "weight": 1e-4,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
+        },
+    },
     # PR
     "SP_SDD": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
-            "sparsity": 5e-2,
+            "pace": 5,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 50,
             "stable_estimators": {"SDD": {}},
@@ -135,8 +136,8 @@ stabilizers = {
     "SP_SAD": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
-            "sparsity": 5e-2,
+            "pace": 5,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 50,
             "stable_estimators": {"SAD": {}},
@@ -145,8 +146,8 @@ stabilizers = {
     "SP_NIP": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
-            "sparsity": 5e-2,
+            "pace": 5,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 50,
             "stable_estimators": {"NIP": {}},
@@ -155,8 +156,8 @@ stabilizers = {
     "SP_SIP": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
-            "sparsity": 5e-2,
+            "pace": 5,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 50,
             "stable_estimators": {"SIP": {}},
@@ -165,8 +166,8 @@ stabilizers = {
     "SP_ALR": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
-            "sparsity": 5e-2,
+            "pace": 5,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 50,
             "stable_estimators": {"ALR": {"method": "CROWN"}},
@@ -175,11 +176,75 @@ stabilizers = {
     "SP_ALRo": {
         "stable_prune": {
             "mode": "standard",
-            "pace": 50,
-            "sparsity": 5e-2,
+            "pace": 5,
+            "sparsity": 1e-2,
             "start": 1,
             "end": 50,
             "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
         },
     },
 }
+
+"""
+    #BSa
+    "BSa_SDD": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 1e-2,
+            "pace": 5,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"SDD": {}},
+        },
+    },
+    "BSa_SAD": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 1e-2,
+            "pace": 5,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"SAD": {}},
+        },
+    },
+    "BSa_NIP": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 1e-2,
+            "pace": 5,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"NIP": {}},
+        },
+    },
+    "BSa_SIP": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 1e-2,
+            "pace": 5,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"SIP": {}},
+        },
+    },
+    "BSa_ALR": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 1e-2,
+            "pace": 5,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN"}},
+        },
+    },
+    "BSa_ALRo": {
+        "bias_shaping": {
+            "mode": "all-layers",
+            "intensity": 1e-2,
+            "pace": 5,
+            "start": 1,
+            "end": 50,
+            "stable_estimators": {"ALR": {"method": "CROWN-optimized"}},
+        },
+    },
+"""

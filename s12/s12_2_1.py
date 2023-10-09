@@ -9,7 +9,7 @@ stabilizers = {
     "BS_SDD": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 2e-2,
             "pace": 50,
             "start": 1,
             "end": 50,
@@ -19,7 +19,7 @@ stabilizers = {
     "BS_SAD": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 2e-2,
             "pace": 50,
             "start": 1,
             "end": 50,
@@ -29,7 +29,7 @@ stabilizers = {
     "BS_NIP": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 2e-2,
             "pace": 50,
             "start": 1,
             "end": 50,
@@ -39,7 +39,7 @@ stabilizers = {
     "BS_SIP": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 2e-2,
             "pace": 50,
             "start": 1,
             "end": 50,
@@ -49,7 +49,7 @@ stabilizers = {
     "BS_ALR": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 2e-2,
             "pace": 50,
             "start": 1,
             "end": 50,
@@ -59,7 +59,7 @@ stabilizers = {
     "BS_ALRo": {
         "bias_shaping": {
             "mode": "standard",
-            "intensity": 5e-2,
+            "intensity": 2e-2,
             "pace": 50,
             "start": 1,
             "end": 50,

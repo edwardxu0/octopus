@@ -51,4 +51,4 @@ def calculate_meta(net_path, vnnlib_path):
     # print("lbs:", lbs)
     # print("ubs:", ubs)
 
-    return stable, unstable
+    return int(stable.numpy()), int(unstable.numpy())

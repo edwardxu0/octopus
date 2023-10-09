@@ -145,7 +145,7 @@ class Benchmark:
                     )
 
                     nb_tasks = int(result.stdout.split()[0])
-                    if nb_tasks < 500:
+                    if nb_tasks < 150:
                         break
                     else:
                         print(f"# tasks: {nb_tasks}. Waiting ... {tt}s")
@@ -242,6 +242,7 @@ class Benchmark:
                 self.problems_T_hash += [name]
             else:
                 self.logger.info("Skipping training job with existing configs ...")
+                nb_done += 1
                 continue
 
             # check if done
@@ -582,9 +583,13 @@ class Benchmark:
                 self.sub_dirs["model_dir"], f"{name}.{target_epoch}.onnx"
             )
 
+            nb_stable = 0
+            nb_unstable = 0
+
             from .sn_calculator import calculate_meta
 
             nb_stable, nb_unstable = calculate_meta(model_path, property_path)
+            print(nb_stable, nb_unstable)
 
             if self.go:
                 df.loc[len(df.index)] = [
@@ -1332,8 +1337,12 @@ class Benchmark:
                                     train_time += [tt[0]]
 
                         solved_[name] = solved / len(self.seeds)
-                        time_[name] = time / nb_p
-                        par2_[name] = par2 / nb_p
+                        if nb_p == 0:
+                            time_[name] = 0
+                            par2_[name] = 0
+                        else:
+                            time_[name] = time / nb_p
+                            par2_[name] = par2 / nb_p
                         test_acc_[name] = np.mean(test_acc)
                         train_time_[name] = np.mean(train_time)
 
