@@ -646,26 +646,27 @@ def scatter_plot(df, stabilizers, mode="seperated"):
 def plot_all(df, verifiers, networks, cs, ms=100, hl=False):
     print("Plotting per verifier and network cominations ...")
     for v in verifiers:
-        for n in networks:
+        for i, n in enumerate(networks):
             dft = df[df["Verifier"] == v]
             dft = dft[dft["Network"] == n]
             pr = "[VN]"
             po = f"_{v}_{n}"
+            hy = i != 0
 
             # plot_TA_SPVS(dft, po, ms=ms, hl=hl)
-            plot_TA_SP(dft, cs, pr, po, ms=ms, hl=hl)
-            plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="bar")
-            plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="scatter")
-            plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="scatter", scale="log")
-
-            plot_TA_SN(dft, cs, pr, po, ms=ms, hl=hl)
+            plot_TA_SP(dft, cs, pr, po, ms=ms, hl=hl, hy=hy)
+            plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="bar", hy=hy)
+            plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="scatter", hy=hy)
+            plot_TA_VS(
+                dft, cs, pr, po, ms=ms, hl=hl, type="scatter", scale="log", hy=hy
+            )
+            plot_TA_SN(dft, cs, pr, po, ms=ms, hl=hl, hy=hy)
 
     print("Plotting per verifier ...")
     for v in verifiers:
         dft = df[df["Verifier"] == v]
         pr = "[V]"
         po = f"_{v}"
-
         # plot_TA_SPVS(dft, po, ms=ms, hl=hl)
         plot_TA_SP(dft, cs, pr, po, ms=ms, hl=hl)
         plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="bar")
@@ -674,19 +675,20 @@ def plot_all(df, verifiers, networks, cs, ms=100, hl=False):
         plot_TA_SN(dft, cs, pr, po, ms=ms, hl=hl)
 
     print("Plotting per network ...")
-    for n in networks:
+    for i, n in enumerate(networks):
         dft = df[df["Network"] == n]
         pr = "[N]"
         po = f"_{n}"
+        hy = i != 0
 
         # plot_TA_SPVS(dft, po, ms=ms, hl=hl)
-        plot_TA_SP(dft, cs, pr, po, ms=ms, hl=hl)
+        plot_TA_SP(dft, cs, pr, po, ms=ms, hl=hl, hy=hy)
         # plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl)
-        plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="bar")
-        plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="scatter")
-        plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="scatter", scale="log")
-        plot_TA_SN(dft, cs, pr, po, ms=ms, hl=hl)
-        plot_TT(dft, cs, pr, po, ms=ms, hl=hl, scale="log")
+        plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="bar", hy=hy)
+        plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="scatter", hy=hy)
+        plot_TA_VS(dft, cs, pr, po, ms=ms, hl=hl, type="scatter", scale="log", hy=hy)
+        plot_TA_SN(dft, cs, pr, po, ms=ms, hl=hl, hy=hy)
+        plot_TT(dft, cs, pr, po, ms=ms, hl=hl, scale="log", hy=hy)
 
     print("Plotting all ...")
     dft = df
@@ -750,7 +752,7 @@ def plot_TA_SPVS(dft, colors, pr, po, ms=100, hl=False):
 
 
 # TA vs Solved Problems
-def plot_TA_SP(dft, colors, pr, po, ms=100, hl=False):
+def plot_TA_SP(dft, colors, pr, po, ms=100, hl=False, hy=False):
     # TA vs Solved Problems
     fig, ax = plt.subplots(1, 1, figsize=(4, 4))
 
@@ -767,6 +769,8 @@ def plot_TA_SP(dft, colors, pr, po, ms=100, hl=False):
 
     ax.collections[0].set_sizes([ms])
     ax.legend(fontsize=9, markerscale=1.5)
+    if hy:
+        ax.set_ylabel(None)
     if hl:
         ax.get_legend().remove()
         po += "_"
@@ -791,7 +795,9 @@ def plot_TA_SP(dft, colors, pr, po, ms=100, hl=False):
 
 
 # TA vs Verification Speed
-def plot_TA_VS(dft, colors, pr, po, ms=100, hl=False, type=None, scale="linear"):
+def plot_TA_VS(
+    dft, colors, pr, po, ms=100, hl=False, type=None, scale="linear", hy=False
+):
     fig, ax = plt.subplots(1, 1, figsize=(4, 4))
 
     if type == "bar":
@@ -828,6 +834,8 @@ def plot_TA_VS(dft, colors, pr, po, ms=100, hl=False, type=None, scale="linear")
     ax.legend(fontsize=9)
     if scale == "log":
         po += "_l"
+    if hy:
+        ax.set_ylabel(None)
     if hl:
         ax.get_legend().remove()
         po += "_"
@@ -848,7 +856,7 @@ def plot_TA_VS(dft, colors, pr, po, ms=100, hl=False, type=None, scale="linear")
 
 
 # TA vs Stable Neurons
-def plot_TA_SN(dft, colors, pr, po, ms=100, hl=False):
+def plot_TA_SN(dft, colors, pr, po, ms=100, hl=False, hy=False):
     fig, ax = plt.subplots(1, 1, figsize=(4, 4))
 
     sns.scatterplot(
@@ -864,6 +872,8 @@ def plot_TA_SN(dft, colors, pr, po, ms=100, hl=False):
 
     ax.collections[0].set_sizes([ms])
     ax.legend(fontsize=9, markerscale=1.5)
+    if hy:
+        ax.set_ylabel(None)
     if hl:
         ax.get_legend().remove()
         po += "_"
@@ -884,7 +894,7 @@ def plot_TA_SN(dft, colors, pr, po, ms=100, hl=False):
 
 
 # Training time
-def plot_TT(dft, colors, pr, po, ms=100, hl=False, scale="linear"):
+def plot_TT(dft, colors, pr, po, ms=100, hl=False, scale="linear", hy=False):
     fig, ax = plt.subplots(1, 1, figsize=(4, 4))
 
     dft = copy.deepcopy(dft)
@@ -908,6 +918,8 @@ def plot_TT(dft, colors, pr, po, ms=100, hl=False, scale="linear"):
     if scale == "log":
         po += "_l"
     ax.legend(fontsize=9)
+    if hy:
+        ax.set_ylabel(None)
     if hl:
         ax.get_legend().remove()
         po += "_"
