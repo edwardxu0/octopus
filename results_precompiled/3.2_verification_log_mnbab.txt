@@ -1,0 +1,55 @@
+/home/tacas23/miniconda3/envs/octopus/lib/python3.10/site-packages/torch/utils/cpp_extension.py:25: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+  from pkg_resources import packaging  # type: ignore[attr-defined]
+/home/tacas23/miniconda3/envs/octopus/lib/python3.10/site-packages/pkg_resources/__init__.py:2871: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('mpl_toolkits')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(pkg)
+   ____  ________________  ____  __  _______
+  / __ \/ ____/_  __/ __ \/ __ \/ / / / ___/
+ / / / / /     / / / / / / /_/ / / / /\__ \
+/ /_/ / /___  / / / /_/ / ____/ /_/ /___/ /
+\____/\____/ /_/  \____/_/    \____//____/
+
+[OCTOPUS](INFO) 12/29/2023 02:22:59 AM -> Verifying ...
+[OCTOPUS](INFO) 12/29/2023 02:22:59 AM -> Generating property ...
+[OCTOPUS](INFO) 12/29/2023 02:22:59 AM -> Property generated.
+[OCTOPUS](INFO) 12/29/2023 02:22:59 AM -> Executing verification ...
+INFO     2023-12-29 02:22:59,966 (resmonitor) Duration: 0.010s, MemUsage: 13.82M
+:/home/tacas23/octopus/lib/SIP:/home/tacas23/octopus/lib/auto_LiRPA:/home/tacas23/octopus/lib/SwarmHost:/home/tacas23/octopus/lib/SIP:/home/tacas23/octopus/lib/auto_LiRPA:/home/tacas23/octopus/lib/SwarmHost/lib/verinet:/home/tacas23/octopus/lib/SIP:/home/tacas23/octopus/lib/auto_LiRPA:/home/tacas23/octopus/lib/neuralsat/neuralsat:/home/tacas23/octopus/lib/SIP:/home/tacas23/octopus/lib/auto_LiRPA:/home/tacas23/octopus/lib/SwarmHost:/home/tacas23/octopus/lib/SIP:/home/tacas23/octopus/lib/auto_LiRPA:/home/tacas23/octopus/lib/SwarmHost/lib/verinet:/home/tacas23/octopus/lib/SIP:/home/tacas23/octopus/lib/auto_LiRPA:/home/tacas23/octopus/lib/neuralsat/neuralsat:/home/tacas23/octopus/lib/SwarmHost/lib/mnbab
+python /home/tacas23/octopus/lib/SwarmHost/swarm_host/verifiers/mnbab/exe.py --config /home/tacas23/octopus/./results/test/veri_config/2890331358208723253.config --onnx_path /home/tacas23/octopus/./results/test/model/11429791090570522968.5.onnx --vnnlib_path /home/tacas23/octopus/./results/test/property/MNIST_1_0.02.vnnlib --timeout 600
+Configuration: /home/tacas23/octopus/./results/test/veri_config/2890331358208723253.config
+Network      : /home/tacas23/octopus/./results/test/model/11429791090570522968.5.onnx
+Spec         : /home/tacas23/octopus/./results/test/property/MNIST_1_0.02.vnnlib
+Sequential(
+  (0): Flatten(start_dim=1, end_dim=-1)
+  (1): Linear(in_features=784, out_features=32, bias=True)
+  (2): ReLU(inplace=True)
+  (3): Linear(in_features=32, out_features=32, bias=True)
+  (4): ReLU(inplace=True)
+  (5): Linear(in_features=32, out_features=10, bias=True)
+)
+input_dim     : (1, 1, 28, 28)
+Verifying label  2  against  0
+deep poly lower bounds: 4.171092510223389
+Verifying label  2  against  1
+deep poly lower bounds: 6.6791768074035645
+Verifying label  2  against  3
+deep poly lower bounds: 2.021191358566284
+Verifying label  2  against  4
+deep poly lower bounds: 18.109020233154297
+Verifying label  2  against  5
+deep poly lower bounds: 3.1567931175231934
+Verifying label  2  against  6
+deep poly lower bounds: 2.376965045928955
+Verifying label  2  against  7
+deep poly lower bounds: 14.078701972961426
+Verifying label  2  against  8
+deep poly lower bounds: 4.38767671585083
+Verifying label  2  against  9
+deep poly lower bounds: 13.173404693603516
+Result: True
+Time: 0.22853398323059082
+INFO     2023-12-29 02:23:02,473 (resmonitor) Duration: 2.518s, MemUsage: 0
+INFO     2023-12-29 02:23:02,474 (resmonitor) Process finished successfully.
+[OCTOPUS](INFO) 12/29/2023 02:23:02 AM -> Network name: 11429791090570522968.
+[OCTOPUS](INFO) 12/29/2023 02:23:02 AM -> Mission Complete.
+[OCTOPUS](INFO) 12/29/2023 02:23:02 AM -> Spent 2.62 seconds.
