@@ -370,10 +370,10 @@ class Benchmark:
             ) = self._get_problem_paths("T", a=a, n=n, h=h, s=s, e=e)
 
             model_path = f'{config_path.replace("train_config", "model")[:-5]}.{sts["train"]["epochs"]}.onnx'
-            if not os.path.exists(model_path):
-                print(model_path)
-                print("No model")
-                continue
+            #if not os.path.exists(model_path):
+            #    print(model_path)
+            #    print("No model")
+            #    continue
             ###########################
 
             sts, config_path, slurm_script_path, log_path, _ = self._get_problem_paths(
@@ -586,10 +586,14 @@ class Benchmark:
             nb_stable = 0
             nb_unstable = 0
 
-            from .sn_calculator import calculate_meta
-
-            nb_stable, nb_unstable = calculate_meta(model_path, property_path)
-            print(nb_stable, nb_unstable)
+            if os.path.exists(model_path):
+                from .sn_calculator import calculate_meta
+                nb_stable, nb_unstable = calculate_meta(model_path, property_path)
+            else:
+                self.logger.info('Model not found, skipping calculation of stable/unstable neurons...')
+                nb_stable = 0
+                nb_unstable = 0
+            #print(nb_stable, nb_unstable)
 
             if self.go:
                 df.loc[len(df.index)] = [
@@ -649,16 +653,20 @@ class Benchmark:
             lines_test = [x for x in lines if "[Test]" in x]
 
             train_stable_ReLUs = {}
-            for l in [x for x in lines_train if "Stable ReLUs" in x]:
-                tokens = l[l.index("[Train] Stable ReLUs:") + 21 :].split()
-                assert len(tokens) % 2 == 0
-                for i in range(int(len(tokens) / 2)):
-                    se = tokens[i * 2][:-1]
-                    acc = float(tokens[i * 2 + 1][:-1]) / 100
-                    if se not in train_stable_ReLUs:
-                        train_stable_ReLUs[se] = [0, acc]
-                    else:
-                        train_stable_ReLUs[se] += [acc]
+            stable_relu_lines = [x for x in lines_train if "Stable ReLUs" in x]
+            if all([True for x in stable_relu_lines if 'Disabled.' in x]):
+                train_stable_ReLUs = None
+            else:
+                for l in stable_relu_lines:
+                    tokens = l[l.index("[Train] Stable ReLUs:") + 21 :].split()
+                    assert len(tokens) % 2 == 0
+                    for i in range(int(len(tokens) / 2)):
+                        se = tokens[i * 2][:-1]
+                        acc = float(tokens[i * 2 + 1][:-1]) / 100
+                        if se not in train_stable_ReLUs:
+                            train_stable_ReLUs[se] = [0, acc]
+                        else:
+                            train_stable_ReLUs[se] += [acc]
 
             test_accuracy = [
                 float(x.strip().split()[-1][:-1]) / 100
@@ -674,8 +682,12 @@ class Benchmark:
             nb_epochs = sts["train"]["epochs"]
 
             # train stable ReLUs
-            Y1 = train_stable_ReLUs
-            X1 = range(0, len(list(Y1.values())[0]))
+            if train_stable_ReLUs:
+                Y1 = train_stable_ReLUs
+                X1 = range(0, len(list(Y1.values())[0]))
+            else:
+                X1 = None
+                Y1 = None
 
             # bias shaping points
             X2 = []
@@ -698,14 +710,15 @@ class Benchmark:
 
             p_plot = ProgressPlot()
             # max_safe_relu))
-            p_plot.draw_train(
-                X1,
-                Y1,
-                X2,
-                Y2,
-                (0, nb_steps),
-                (0, 1),
-            )
+            if X1:
+                p_plot.draw_train(
+                    X1,
+                    Y1,
+                    X2,
+                    Y2,
+                    (0, nb_steps),
+                    (0, 1),
+                )
 
             p_plot.draw_accuracy(X3, Y3, X4, Y4, (0, 1))
             p_plot.draw_grid(
@@ -713,12 +726,13 @@ class Benchmark:
                 y_stride=0.2,
             )
 
+            name2 = f'{n}_{h}_{s}_{e}'
             fig_dir = os.path.join(self.result_dir, "train_figures")
             Path(fig_dir).mkdir(parents=True, exist_ok=True)
-            path = os.path.join(fig_dir, name + ".pdf")
-            p_plot.save(name, path)
+            path = os.path.join(fig_dir, name2 + ".pdf")
+            p_plot.save(name2, path)
             p_plot.clear()
-
+            
     def _train_boxplot(self, df):
         self.logger.info("Plotting training ...")
         # plot accuracy/stable relu among network/stabilizer pairs.

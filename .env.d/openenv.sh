@@ -6,7 +6,7 @@ conda activate octopus
 
 # add library to paths
 export OCTOPUS=`pwd`
-export DNNV=$OCTOPUS/lib/DNNV
+export ROOT=`pwd`
 export SIP=$OCTOPUS/lib/SIP
 export ALR=$OCTOPUS/lib/auto_LiRPA
 export SwarmHost=$OCTOPUS/lib/SwarmHost

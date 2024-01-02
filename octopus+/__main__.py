@@ -22,7 +22,7 @@ def _parse_args():
     parser.add_argument(
         "task",
         type=str,
-        choices=["T", "Test", "V", "A"],
+        choices=["T",  "V", "A"],
         help="Tasks to perform on the benchmark, including [T]rain, [V]erify, and [A]nalyze.",
     )
     parser.add_argument(

@@ -1,6 +1,11 @@
+from pathlib import Path
+
 class Settings:
     timeout = 300
     fig_dir = "results_figs"
+    
+    Path(fig_dir).mkdir(exist_ok=True, parents=True)
+    
 
     verifier_convert_names = {
         "SH:abcrown": "α-CROWN",
@@ -42,6 +47,7 @@ class Settings:
 
     stabilizers_order = [
         # singletons
+        "Baseline",
         "RS_SDD",
         "RS_SAD",
         "RS_NIP",
@@ -60,5 +66,4 @@ class Settings:
         "SP_SIP",
         "SP_ALR",
         "SP_ALRo",
-        "Baseline",
     ]

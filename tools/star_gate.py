@@ -38,13 +38,13 @@ def main(args):
 
     df = pd.concat(dfs, ignore_index=True)
 
-    print(df.columns.to_list())
+    #print(df.columns.to_list())
 
-    print(set(df["network"]))
+    print('Networks: ',set(df["network"]))
 
-    print("Before renaming:", set(df["stabilizer"]))
+    #print("Before renaming:", set(df["stabilizer"]))
     df["stabilizer"] = df["stabilizer"].map(Settings.stabilizer_convert_names)
-    print("After renaming:", set(df["stabilizer"]))
+    #print("After renaming:", set(df["stabilizer"]))
 
     df["network"] = df["network"].map(Settings.network_conver_names)
     df["verifier"] = df["verifier"].map(Settings.verifier_convert_names)
@@ -55,7 +55,7 @@ def main(args):
 
     # stabilizers = set(df["stabilizer"])
 
-    print(stabilizers)
+    print('Stabilizers: ', stabilizers)
 
     if args.task == "pb":
         plot_baseline(df)
@@ -87,7 +87,7 @@ def stable_relu_table(df, stabilizers, ta_threshold):
     res_ = []
     res_e = []
 
-    df = df[df["verifier"] == "SH:nnenum"]
+    df = df[df["verifier"] == "NNEnum"]
 
     for i, h in enumerate(stabilizers):
         res = []
@@ -244,7 +244,7 @@ def verification_table(df, stabilizers, ta_threshold):  # , excludes):
     # artifacts = [*reversed(sorted(set(df["artifact"])))]
     artifacts = list(set(df["network"]))
     artifacts.sort(key=Settings.network_order.index)
-    print(artifacts)
+    #print(artifacts)
 
     def verification_table(
         metric,
@@ -260,13 +260,14 @@ def verification_table(df, stabilizers, ta_threshold):  # , excludes):
             exclude_case = worst_case + 1
         elif best == "max":
             exclude_case = worst_case - 1
+        print()
         print(f"{metric}:")
         res_ = []
         seeds = len(set(df["seed"]))
 
         verifiers = list(set(df["verifier"]))
         verifiers.sort(key=Settings.verifier_order.index)
-        print(verifiers)
+        print("Verifiers: ",verifiers)
         dft = df
         dft = dft[dft["verifier"] == verifiers[0]]
         # dft = dft[dft["artifact"] == artifacts[0]]
@@ -383,7 +384,7 @@ def verification_table(df, stabilizers, ta_threshold):  # , excludes):
                 target_ids += [ids]
                 zero_ids += [zeros]
 
-            print(target_ids)
+            #print(target_ids)
 
         assert stabilizers[0] == "Baseline"
         for i, row in enumerate(res_):
@@ -405,8 +406,10 @@ def verification_table(df, stabilizers, ta_threshold):  # , excludes):
             print(f"{line[:-2]} \\\\")
             if h == "Baseline" or i % 6 == 0:
                 print("\\hline")
+        print()
 
         line += " \\\\"
+
 
         return target_ids, zero_ids
 

@@ -1,31 +1,29 @@
-name = 'test'
+name = 'test'                                   # name of test case
 
 [train]
-	artifact = 'MNIST'
+	artifact = 'MNIST'                          # which dataset?
 	net_name = 'NetS'
 	net_layers = [32,32]
-
-	#net_name = 'LeNet'
 
 	epochs = 5
 	batch_size = 32
 	test_batch_size = 32
-	lr = 1e-4							# learning rate
-	gamma = 0.95 							# Learning rate decay
+	lr = 1e-4							       
+	gamma = 0.95 							    # Learning rate decay
 	save_model = true
-	save_intermediate = true
-	save_log = true
-	log_interval = 100					# Stable ReLU estimation/print interval
-	gpu = false
-	amp = true							# enabled only when gpu == true
-
-	adv_train = 'nature' 				# ['nature', 'pgd', 'vae', 'gan', ...]
-
+	save_intermediate = true                    # save intermediate models
+	save_log = true                             # save training log
+	log_interval = 100			         		# stable ReLU estimation/print interval
+	gpu = false                                 # use gpu?
+	amp = true					         		# enabled only when gpu == true. CUDA 
+	adv_train = 'nature' 			 	        # normal training
 
 	# SDD: sampled dataset distribution
 	# SAD: sampled adversarial distribution
 	# NIP: naive interval propagation
 	# SIP: symbolic interval propagation
+	# ALR: automated liRPA estimator(CROWN)
+	# ALRo: automated liRPA estimator(CROWN with alpha)
 	[train.stable_estimators]
 		[train.stable_estimators.SDD]
 		
@@ -43,33 +41,38 @@ name = 'test'
 			epsilon = 0.08
 
 [stabilizers]
-#	[stabilizers.bias_shaping]
-#		mode = 'standard'
-		
-		# random scheduling
-		# intensity =  5e-2
-        # occurrence = 5e-3
 
+	# enables bias shaping stabilizer
+	[stabilizers.bias_shaping]
+		mode = 'standard'
+		
 		# interval scheduling
-#		intensity = 2e-2
-#		pace = 100
-		#decay = 0.99
+		intensity = 2e-2                        # intensity
+		pace = 100                              # occurance
+		#decay = 0.99                           # intensity decay
 		
-#		start = 1 			# inclusive
-#		end = 25 			# inclusive
-#		[stabilizers.bias_shaping.stable_estimators]
-#			[stabilizers.bias_shaping.stable_estimators.SDD]
-#				epsilon = 0.08
+		# epochs to start and end bias shaping
+		start = 1 			                    # inclusive
+		end = 5 			                    # inclusive
 
-#	[stabilizers.rs_loss]
-#		mode = 'standard'
-#		weight = 1e-4
-#		start = 5
-#		end = 25
-#		[stabilizers.rs_loss.stable_estimators]
-#			[stabilizers.rs_loss.stable_estimators.SIP]
-#				epsilon = 0.08
+		# use this estimator with bias shaping
+		[stabilizers.bias_shaping.stable_estimators]
+			[stabilizers.bias_shaping.stable_estimators.SDD]
+				epsilon = 0.08
 
+	# enables RS Loss stabilizer
+	[stabilizers.rs_loss]
+		mode = 'standard'
+		weight = 1e-4                            # weight for unstable ReLU term
+		start = 1
+		end = 5
+		
+		# use this estimator with rs loss
+		[stabilizers.rs_loss.stable_estimators]
+			[stabilizers.rs_loss.stable_estimators.SIP]
+				epsilon = 0.08
+
+	# enables Stable Pruning stabilizer
 	[stabilizers.stable_prune]
 		mode = 'standard'
 		#re_arch = 'last'
@@ -91,13 +94,14 @@ name = 'test'
 	time = 600
 	memory = '8G'
 	property = 1
-	epsilon = 0.04
+	epsilon = 0.02
 	debug = true
 	save_log = false
 	
-	verifier = 'SH:abcrown'
-	#verifier = 'SH:mnbab'
-	#verifier = 'SH:verinet'
+	verifier = 'nnenum'
+	#verifier = 'abcrown'
+	#verifier = 'mnbab'
+	
 	
 	# model selection strategy for verification
 	# last(default): last epoch model
