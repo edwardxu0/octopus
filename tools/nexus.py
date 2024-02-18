@@ -47,7 +47,6 @@ class Settings:
 
     stabilizers_order = [
         # singletons
-        "Baseline",
         "RS_SDD",
         "RS_SAD",
         "RS_NIP",
@@ -66,4 +65,5 @@ class Settings:
         "SP_SIP",
         "SP_ALR",
         "SP_ALRo",
+        "Baseline",
     ]

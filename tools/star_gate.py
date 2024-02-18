@@ -655,6 +655,7 @@ def plot_all(df, verifiers, networks, cs, ms=100, hl=False):
             pr = "[VN]"
             po = f"_{v}_{n}"
             hy = i != 0
+            hy = True
 
             # plot_TA_SPVS(dft, po, ms=ms, hl=hl)
             plot_TA_SP(dft, cs, pr, po, ms=ms, hl=hl, hy=hy)
