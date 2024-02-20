@@ -1,7 +1,5 @@
 # [The OCTOPUS Framework]Training for Verification: Increasing Neuron Stability to Scale DNN Verification
-Oh-Crazy Training-Oriented Provable Unified System(OCTOPUS) for DNN verification, is a framework that allows training neural networks for faster verification, as defined in the [Training for Verification: Increasing Neuron Stability to Scale DNN Verification](link_to_paper_to_be_added) paper. The OCTOPUS framework receives incremental updates and is hosted at: [https://github.com/edwardxu0/octopus](https://github.com/edwardxu0/octopus).
-
-
+Oh-Crazy Training-Oriented Provable Unified System(OCTOPUS) for DNN verification, is a framework that allows training neural networks for faster verification, as defined in the [Training for Verification: Increasing Neuron Stability to Scale DNN Verification](link_to_paper_to_be_added) paper. The purpose of this research artifact is to demonstrate the functionality of the proposed methods described in the paper and to replicate the evaluation results presented in the paper. This artifact contains 1)guidelines on installing the OCTOPUS framework with scripts; 2)a tutorial on training an example neural network with stabilizers enabled and verifying the resulting network over robustness property; 3)instructions and scripts to fully replicate the research results from scratch; and 4)scripts to generate the plots and tables used in the paper and appendix. The tool is written in the Python language. We expect users to be familiar with the Python language, neural network training, and neural network verification.
 
 ## 1. Overview
 ### 1.1 TL;DR
