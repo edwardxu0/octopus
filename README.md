@@ -247,6 +247,7 @@ To replicate the tables used in the appendix, use the following commands:
 
 The expected results can be found at `./results_precompiled/5.3.2_training_table.txt` and `./results_precompiled/5.3.2_verification_table.txt` respectively.
 
+## Acknowledgements
+This material is based in part upon work supported by National Science Foundation awards 1900676, 2019239, 2129824, 2217071, and 2312487.
 
-
-## Thank you so much for trying out OCTOPUS!
+We greatly appreciate your enthusiasm for OCTOPUS. Should you need any assistance or guidance in utilizing or expanding OCTOPUS, please feel free to reach out to us.
